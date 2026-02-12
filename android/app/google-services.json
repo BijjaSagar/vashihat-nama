@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "165149505163",
+    "project_id": "vasihatnama",
+    "storage_bucket": "vasihatnama.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165149505163:android:a7e74ea1143395d7b7868e",
+        "android_client_info": {
+          "package_name": "com.example.vasihat_nama"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "165149505163-18nrdpsh5d10d21khinjp7nacbpohcpm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.vasihat_nama",
+            "certificate_hash": "f9c710dbbb7efc557c150f83ed10facbf6bb4d9b"
+          }
+        },
+        {
+          "client_id": "165149505163-hfcb0d1hv1ags0rkc37f5o4a5g8i9idv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4vM9D0cPyr1uIJz9eaIXXEf_ZvVctl14"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "165149505163-hfcb0d1hv1ags0rkc37f5o4a5g8i9idv.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "165149505163-fprldgcdi4vde03oqbdmln0664bpdvf6.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.vasihatNama"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
