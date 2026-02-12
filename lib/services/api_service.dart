@@ -9,11 +9,15 @@ class ApiService {
   // For iOS Simulator: 'http://localhost:3000/api'
   // For Physical Device: Use your machine's local IP (e.g., http://192.168.1.5:3000/api)
   static String get baseUrl {
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000/api';
-    } else {
-      return 'http://localhost:3000/api'; // For iOS Simulator and macOS
-    }
+    // Production URL (Vercel)
+    return 'https://backend-hd0cyu0rm-sagar-bijjas-projects.vercel.app/api';
+    
+    // Uncomment for local development
+    // if (Platform.isAndroid) {
+    //   return 'http://10.0.2.2:3000/api';
+    // } else {
+    //   return 'http://localhost:3000/api'; 
+    // }
   }
   final Dio _dio = Dio();
 
