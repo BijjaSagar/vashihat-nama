@@ -94,6 +94,7 @@ async function sendSMS(mobile: string, message: string): Promise<boolean> {
 
 // 1. Send OTP
 app.post('/api/send_otp', async (req, res) => {
+    console.log("Handling /api/send_otp request - Version 2.1");
     const { mobile, purpose = 'login' } = req.body;
 
     if (!mobile || mobile.length < 10) {
@@ -139,7 +140,7 @@ app.post('/api/send_otp', async (req, res) => {
         const isDev = !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
         res.json({
             success: true,
-            message: 'OTP sent successfully',
+            message: 'OTP sent successfully (Updated V2)',
             debug_otp: isDev ? otp : undefined
         });
 
