@@ -115,7 +115,8 @@ app.post('/api/send_otp', async (req, res) => {
         );
 
         // Send SMS
-        const message = `${otp} is your OTP for ${purpose}. Vasihat Nama`;
+        // Template: "$otp is your OTP for login into your account. GGISKB"
+        const message = `${otp} is your OTP for login into your account. GGISKB`;
         const smsSent = await sendSMS(mobile, message);
 
         if (!smsSent) {
