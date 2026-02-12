@@ -74,10 +74,15 @@ async function sendSMS(mobile: string, message: string): Promise<boolean> {
         console.log(`Sending SMS to ${mobile} with params:`, { ...params, apikey: '***' });
 
         const response = await axios.get(url, { params });
-        console.log('SMS API Response:', response.data);
+        console.log('SMS API Full Response:', JSON.stringify(response.data, null, 2));
 
-        // Check if provider returned success (sometimes they return 200 OK even on failure with a message)
-        // Adjust this based on actual HSP API response structure if known
+        // HSP SMS usually returns a string or JSON. 
+        // If it contains "error" or comes back as HTML (when blocked), we should fail.
+        if (typeof response.data === 'string' && (response.data.toLowerCase().includes('error') || response.data.trim().startsWith('<'))) {
+            console.error('SMS Provider returned error:', response.data);
+            return false;
+        }
+
         return true;
     } catch (error) {
         console.error('Error sending SMS:', error);
