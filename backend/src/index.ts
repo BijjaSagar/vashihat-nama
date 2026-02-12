@@ -350,7 +350,14 @@ app.get('/api/admin/stats', checkAdmin, async (req, res) => {
 });
 
 // --- Start Server ---
-app.listen(PORT, async () => {
-    await initDb();
-    console.log(`Server is running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, async () => {
+        await initDb();
+        console.log(`Server is running on port ${PORT}`);
+    });
+} else {
+    // In production (Vercel), initialize DB in the background
+    initDb().catch(err => console.error('DB Init Failed', err));
+}
+
+export default app;
