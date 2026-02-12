@@ -10,7 +10,7 @@ class ApiService {
   // For Physical Device: Use your machine's local IP (e.g., http://192.168.1.5:3000/api)
   static String get baseUrl {
     // Production URL (Vercel)
-    return 'https://backend-ec9xlkxyp-sagar-bijjas-projects.vercel.app/api';
+    return 'https://backend-seven-mu-24.vercel.app/api';
     
     // Uncomment for local development
     // if (Platform.isAndroid) {
