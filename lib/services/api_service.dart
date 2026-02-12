@@ -43,14 +43,25 @@ class ApiService {
   // --- OTP Methods ---
 
   Future<Map<String, dynamic>> sendOtp(String mobile, String purpose) async {
+    final url = Uri.parse('$baseUrl/send_otp');
+    print('ApiService: Sending OTP to $url');
+    print('ApiService: Body: {"mobile": "$mobile", "purpose": "$purpose"}');
+
     final response = await http.post(
-      Uri.parse('$baseUrl/send_otp'),
+      url,
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'mobile': mobile,
         'purpose': purpose,
       }),
     );
+
+    print('ApiService: Response Code: ${response.statusCode}');
+    print('ApiService: Response Body: ${response.body}');
+
+    if (response.statusCode != 200) {
+       throw Exception('Server Error: ${response.statusCode} - ${response.body}');
+    }
 
     return jsonDecode(response.body);
   }
