@@ -11,6 +11,17 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// --- Root Route (Health Check) ---
+app.get('/', (req, res) => {
+    res.send(`
+        <div style="font-family: sans-serif; text-align: center; padding: 50px;">
+            <h1>🛡️ Vasihat Nama Security Server</h1>
+            <p>Secure Zero-Knowledge Backend is Active.</p>
+            <p>Status: <strong>Operational</strong></p>
+        </div>
+    `);
+});
+
 // --- Routes ---
 
 import axios from 'axios';
