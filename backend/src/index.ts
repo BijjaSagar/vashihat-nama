@@ -10,6 +10,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static('public'));
 
 // --- Root Route (Health Check) ---
 app.get('/', (req, res) => {
@@ -299,6 +300,51 @@ app.post('/api/folders', async (req, res) => {
         res.status(201).json({ id: result.rows[0].id, message: 'Folder created successfully' });
     } catch (error) {
         res.status(500).json({ error: 'Failed to create folder' });
+    }
+});
+
+// --- Admin Routes ---
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'secure_admin_123';
+
+const checkAdmin = (req: any, res: any, next: any) => {
+    const secret = req.headers['x-admin-secret'];
+    if (secret === ADMIN_SECRET) {
+        next();
+    } else {
+        res.status(403).json({ error: 'Unauthorized' });
+    }
+};
+
+app.get('/api/admin/users', checkAdmin, async (req, res) => {
+    try {
+        const result = await db.query('SELECT id, mobile_number, name, email, created_at FROM users ORDER BY created_at DESC');
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+app.get('/api/admin/otp_logs', checkAdmin, async (req, res) => {
+    try {
+        const result = await db.query('SELECT * FROM otp_logs ORDER BY created_at DESC LIMIT 50');
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch logs' });
+    }
+});
+
+app.get('/api/admin/stats', checkAdmin, async (req, res) => {
+    try {
+        const users = await db.query('SELECT COUNT(*) FROM users');
+        const files = await db.query('SELECT COUNT(*) FROM files');
+        const otps = await db.query('SELECT COUNT(*) FROM otp_logs');
+        res.json({
+            users: users.rows[0].count,
+            files: files.rows[0].count,
+            otps: otps.rows[0].count
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch stats' });
     }
 });
 

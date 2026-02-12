@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vasihat Nama - Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4">
+            <div class="text-center mb-6">
+                <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900">Admin Access</h2>
+                <p class="text-gray-500 mt-2">Enter your security key to continue</p>
+            </div>
+            <input type="password" id="secretInput" placeholder="Enter Admin Secret" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" />
+            <button onclick="login()" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors">
+                Unlock Dashboard
+            </button>
+            <p id="errorMsg" class="text-red-500 text-sm mt-3 text-center hidden">Invalid Secret Key</p>
+        </div>
+    </div>
+
+    <!-- Dashboard Content -->
+    <div id="dashboard" class="hidden min-h-screen">
+        <!-- Sidebar -->
+        <aside class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-30 hidden lg:block">
+            <div class="p-6 border-b border-gray-100">
+                <h1 class="text-xl font-bold text-blue-900 flex items-center gap-2">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                    Vasihat Nama
+                </h1>
+            </div>
+            <nav class="p-4 space-y-1">
+                <a href="#" onclick="showSection('users')" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors group">
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Users
+                </a>
+                <a href="#" onclick="showSection('otp')" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors group">
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    OTP Logs
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors group opacity-50 cursor-not-allowed">
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    Analytics (Coming Soon)
+                </a>
+            </nav>
+            <div class="absolute bottom-0 w-full p-4 border-t border-gray-100">
+                 <button onclick="logout()" class="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg w-full transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    Logout
+                 </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="lg:ml-64 p-8">
+            <!-- Header -->
+            <header class="flex justify-between items-center mb-8">
+                <div>
+                   <h2 id="pageTitle" class="text-2xl font-bold text-gray-900">Dashboard Overview</h2>
+                   <p class="text-gray-500 text-sm mt-1">Real-time system monitoring</p>
+                </div>
+                <div class="flex gap-4">
+                    <div class="bg-white p-3 rounded-lg shadow-sm border border-gray-100 flex items-center gap-3">
+                        <div class="p-2 bg-green-100 rounded-lg text-green-600">
+                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 uppercase font-semibold">Total Users</p>
+                            <p id="totalUsers" class="text-xl font-bold text-gray-900">...</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-3 rounded-lg shadow-sm border border-gray-100 flex items-center gap-3">
+                        <div class="p-2 bg-purple-100 rounded-lg text-purple-600">
+                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 uppercase font-semibold">Files Encrypted</p>
+                            <p id="totalFiles" class="text-xl font-bold text-gray-900">...</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-3 rounded-lg shadow-sm border border-gray-100 flex items-center gap-3">
+                        <div class="p-2 bg-orange-100 rounded-lg text-orange-600">
+                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 uppercase font-semibold">OTP Requests</p>
+                            <p id="totalOTPs" class="text-xl font-bold text-gray-900">...</p>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Users Section -->
+            <section id="usersSection">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-500">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                                <tr>
+                                    <th scope="col" class="px-6 py-4 font-medium">ID</th>
+                                    <th scope="col" class="px-6 py-4 font-medium">Name</th>
+                                    <th scope="col" class="px-6 py-4 font-medium">Mobile</th>
+                                    <th scope="col" class="px-6 py-4 font-medium">Email</th>
+                                    <th scope="col" class="px-6 py-4 font-medium">Registered At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- OTP Logs Section -->
+            <section id="otpSection" class="hidden">
+                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-500">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                                <tr>
+                                    <th scope="col" class="px-6 py-4 font-medium">Time (UTC)</th>
+                                    <th scope="col" class="px-6 py-4 font-medium">Mobile</th>
+                                    <th scope="col" class="px-6 py-4 font-medium">Purpose</th>
+                                    <th scope="col" class="px-6 py-4 font-medium">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="otpTableBody">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/api';
+        let secret = localStorage.getItem('admin_secret');
+
+        // Check Auth on Load
+        if (secret) {
+            verifyAndLoad();
+        }
+
+        async function login() {
+            const input = document.getElementById('secretInput').value;
+            // Simple client-side check first? No, server validates.
+            secret = input;
+            await verifyAndLoad();
+        }
+
+        async function verifyAndLoad() {
+            try {
+                // Try fetching stats as auth check
+                const res = await axios.get(`${API_BASE}/admin/stats`, {
+                    headers: { 'x-admin-secret': secret }
+                });
+                
+                // Auth Success
+                localStorage.setItem('admin_secret', secret);
+                document.getElementById('authModal').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                
+                // Update Stats
+                document.getElementById('totalUsers').innerText = res.data.users;
+                document.getElementById('totalFiles').innerText = res.data.files;
+                document.getElementById('totalOTPs').innerText = res.data.otps;
+
+                // Load Users initially
+                loadUsers();
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('errorMsg').classList.remove('hidden');
+                localStorage.removeItem('admin_secret');
+            }
+        }
+
+        async function loadUsers() {
+            const res = await axios.get(`${API_BASE}/admin/users`, { headers: { 'x-admin-secret': secret } });
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = res.data.map(u => `
+                <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4 font-medium text-gray-900">#${u.id}</td>
+                    <td class="px-6 py-4 text-gray-900 font-semibold">${u.name || '-'}</td>
+                    <td class="px-6 py-4">${u.mobile_number}</td>
+                    <td class="px-6 py-4">${u.email || '-'}</td>
+                    <td class="px-6 py-4 text-gray-400">${new Date(u.created_at).toLocaleString()}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadOtpLogs() {
+            const res = await axios.get(`${API_BASE}/admin/otp_logs`, { headers: { 'x-admin-secret': secret } });
+            const tbody = document.getElementById('otpTableBody');
+            tbody.innerHTML = res.data.map(log => {
+                let statusClass = 'bg-gray-100 text-gray-800';
+                if(log.status === 'verified') statusClass = 'bg-green-100 text-green-800';
+                if(log.status === 'sent') statusClass = 'bg-blue-100 text-blue-800';
+                
+                return `
+                <tr class="bg-white border-b hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4 text-gray-400">${new Date(log.created_at).toLocaleString()}</td>
+                    <td class="px-6 py-4 font-medium text-gray-900">${log.mobile}</td>
+                    <td class="px-6 py-4 capitalize">${log.purpose}</td>
+                    <td class="px-6 py-4">
+                        <span class="${statusClass} text-xs font-medium mr-2 px-2.5 py-0.5 rounded border border-opacity-20">${log.status.toUpperCase()}</span>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        function showSection(section) {
+            document.getElementById('usersSection').classList.add('hidden');
+            document.getElementById('otpSection').classList.add('hidden');
+            
+            if (section === 'users') {
+                document.getElementById('usersSection').classList.remove('hidden');
+                document.getElementById('pageTitle').innerText = 'Registered Users';
+                loadUsers();
+            } else if (section === 'otp') {
+                document.getElementById('otpSection').classList.remove('hidden');
+                document.getElementById('pageTitle').innerText = 'OTP Activity Logs';
+                loadOtpLogs();
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('admin_secret');
+            window.location.reload();
+        }
+    </script>
+</body>
+</html>
