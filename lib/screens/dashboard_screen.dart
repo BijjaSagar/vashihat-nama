@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
-import '../services/api_service.dart';
 import 'folders_screen.dart'; 
 import 'nominee_screen.dart'; 
 import 'scan_document_screen.dart';
 import 'profile_screen.dart';
+import 'ai_will_drafter_screen.dart';
 
 class SecureDashboardScreen extends StatefulWidget {
   final Map<String, dynamic>? userProfile; // Accept profile data directly
@@ -18,20 +17,38 @@ class SecureDashboardScreen extends StatefulWidget {
 }
 
 class _SecureDashboardScreenState extends State<SecureDashboardScreen> {
-  // Removed Firebase Auth
   Map<String, dynamic>? userProfile;
-  bool isLoading = false; // Data passed in, so no loading needed initially
+  late int userId;
 
   @override
   void initState() {
     super.initState();
     // Use passed profile or default
     userProfile = widget.userProfile;
+    // Extract User ID safely. If not found, default to 0 (which will show empty data)
+    // Adjust based on actual API response structure. 
+    // If userProfile is top level user object: userProfile['id']
+    // If userProfile is wrapper: userProfile['user']['id']
+    if (userProfile != null) {
+      if (userProfile!.containsKey('id')) {
+        userId = userProfile!['id'] is int ? userProfile!['id'] : int.tryParse(userProfile!['id'].toString()) ?? 0;
+      } else if (userProfile!.containsKey('user') && userProfile!['user'] is Map) {
+         userId = userProfile!['user']['id'] is int ? userProfile!['user']['id'] : int.tryParse(userProfile!['user']['id'].toString()) ?? 0;
+      } else {
+        userId = 0;
+      }
+    } else {
+      userId = 0;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final userName = userProfile?['name'] ?? "User";
+    // Determine Display Name
+    String userName = "User";
+    if (userProfile != null) {
+        userName = userProfile!['name'] ?? userProfile!['user']?['name'] ?? "User";
+    }
     
     return Scaffold(
       extendBody: true, // Important for glass bottom bar
@@ -71,15 +88,13 @@ class _SecureDashboardScreenState extends State<SecureDashboardScreen> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        isLoading 
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                          : Text(
-                              "$userName's Vault", 
-                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                color: AppTheme.textPrimary, // Black text
-                                letterSpacing: -0.5, // Apple style tightness
-                              ),
-                            ),
+                        Text(
+                          "$userName's Vault", 
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            color: AppTheme.textPrimary, // Black text
+                            letterSpacing: -0.5, // Apple style tightness
+                          ),
+                        ),
                       ],
                     ),
                     // Profile Icon in Glass (White frosted)
@@ -136,7 +151,7 @@ class _SecureDashboardScreenState extends State<SecureDashboardScreen> {
                       Icons.folder_shared_rounded,
                       Colors.blueAccent,
                       () {
-                         Navigator.push(context, MaterialPageRoute(builder: (context) => const FoldersScreen()));
+                         Navigator.push(context, MaterialPageRoute(builder: (context) => FoldersScreen(userId: userId)));
                       },
                     ),
                     _buildActionCard(
@@ -145,7 +160,7 @@ class _SecureDashboardScreenState extends State<SecureDashboardScreen> {
                       Icons.people_alt_rounded,
                       Colors.purpleAccent,
                       () {
-                         Navigator.push(context, MaterialPageRoute(builder: (context) => const NomineeScreen()));
+                         Navigator.push(context, MaterialPageRoute(builder: (context) => NomineeScreen(userId: userId)));
                       },
                     ),
                     _buildActionCard(
@@ -154,7 +169,7 @@ class _SecureDashboardScreenState extends State<SecureDashboardScreen> {
                       Icons.psychology_rounded,
                       Colors.cyan,
                       () {
-                        // TODO: Navigate to AI Screen
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => AIWillDrafterScreen(userId: userId)));
                       },
                     ),
                     _buildActionCard(
@@ -230,5 +245,4 @@ class _SecureDashboardScreenState extends State<SecureDashboardScreen> {
     );
   }
 }
-
 

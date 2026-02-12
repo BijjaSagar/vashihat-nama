@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 
 class NomineeScreen extends StatefulWidget {
-  const NomineeScreen({super.key});
+  final int userId;
+  const NomineeScreen({super.key, required this.userId});
 
   @override
   _NomineeScreenState createState() => _NomineeScreenState();
 }
 
 class _NomineeScreenState extends State<NomineeScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   List<dynamic> nominees = [];
   bool isLoading = true;
 
@@ -23,33 +22,27 @@ class _NomineeScreenState extends State<NomineeScreen> {
   }
 
   Future<void> _loadNominees() async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      try {
-        final fetchedNominees = await ApiService().getNominees(user.uid);
-        if (mounted) {
-          setState(() {
-            nominees = fetchedNominees;
-            isLoading = false;
-          });
-        }
-      } catch (e) {
-        print("Error loading nominees: $e");
-        if (mounted) setState(() => isLoading = false);
+    try {
+      final fetchedNominees = await ApiService().getNominees(widget.userId.toString());
+      if (mounted) {
+        setState(() {
+          nominees = fetchedNominees;
+          isLoading = false;
+        });
       }
+    } catch (e) {
+      print("Error loading nominees: $e");
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
   Future<void> _addNominee(String name, String relation, String contact) async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      try {
-        await ApiService().addNominee(user.uid, name, relation, contact);
-        _loadNominees(); // Refresh list
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nominee Added")));
-      } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
-      }
+    try {
+      await ApiService().addNominee(widget.userId.toString(), name, relation, contact);
+      _loadNominees(); // Refresh list
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nominee Added")));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 

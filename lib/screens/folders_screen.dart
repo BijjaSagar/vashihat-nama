@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 import 'files_screen.dart';
 
 class FoldersScreen extends StatefulWidget {
-  const FoldersScreen({Key? key}) : super(key: key);
+  final int userId;
+  const FoldersScreen({Key? key, required this.userId}) : super(key: key);
 
   @override
   _FoldersScreenState createState() => _FoldersScreenState();
 }
 
 class _FoldersScreenState extends State<FoldersScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   List<dynamic> folders = [];
   bool isLoading = true;
 
@@ -24,33 +23,27 @@ class _FoldersScreenState extends State<FoldersScreen> {
   }
 
   Future<void> _loadFolders() async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      try {
-        final fetchedFolders = await ApiService().getFolders(user.uid);
-        if (mounted) {
-          setState(() {
-            folders = fetchedFolders;
-            isLoading = false;
-          });
-        }
-      } catch (e) {
-        print("Error loading folders: $e");
-        if (mounted) setState(() => isLoading = false);
+    try {
+      final fetchedFolders = await ApiService().getFolders(widget.userId.toString());
+      if (mounted) {
+        setState(() {
+          folders = fetchedFolders;
+          isLoading = false;
+        });
       }
+    } catch (e) {
+      print("Error loading folders: $e");
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
   Future<void> _createFolder(String name) async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      try {
-        await ApiService().createFolder(user.uid, name, "folder_shared"); // Default icon
-        _loadFolders(); // Refresh list
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Folder Created")));
-      } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
-      }
+    try {
+      await ApiService().createFolder(widget.userId.toString(), name, "folder_shared"); // Default icon
+      _loadFolders(); // Refresh list
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Folder Created")));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
