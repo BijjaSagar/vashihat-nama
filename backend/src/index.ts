@@ -47,12 +47,16 @@ function hashOTP(otp: string): string {
 
 async function sendSMS(mobile: string, message: string): Promise<boolean> {
     // Development Mode: Log to console instead of sending
-    // Check if running locally (simplified check)
     const isDev = !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
 
     if (isDev) {
         console.log(`[DEV MODE] Mock Sending SMS to ${mobile}: ${message}`);
         return true;
+    }
+
+    if (HSP_SMS_USERNAME === 'YOUR_USERNAME' || HSP_SMS_API_KEY === 'YOUR_API_KEY') {
+        console.error('HSP SMS Credentials are not set in environment variables.');
+        return false;
     }
 
     try {
@@ -67,7 +71,13 @@ async function sendSMS(mobile: string, message: string): Promise<boolean> {
             apikey: HSP_SMS_API_KEY
         };
 
-        await axios.get(url, { params });
+        console.log(`Sending SMS to ${mobile} with params:`, { ...params, apikey: '***' });
+
+        const response = await axios.get(url, { params });
+        console.log('SMS API Response:', response.data);
+
+        // Check if provider returned success (sometimes they return 200 OK even on failure with a message)
+        // Adjust this based on actual HSP API response structure if known
         return true;
     } catch (error) {
         console.error('Error sending SMS:', error);
@@ -101,7 +111,17 @@ app.post('/api/send_otp', async (req, res) => {
 
         // Send SMS
         const message = `${otp} is your OTP for ${purpose}. Vasihat Nama`;
-        await sendSMS(mobile, message);
+        const smsSent = await sendSMS(mobile, message);
+
+        if (!smsSent) {
+            // Rollback usage or just log failure
+            await db.query(
+                'INSERT INTO otp_logs (mobile, purpose, status) VALUES ($1, $2, $3)',
+                [mobile, purpose, 'failed']
+            );
+            res.status(500).json({ success: false, message: 'Failed to send SMS. Check server configuration.' });
+            return;
+        }
 
         // Log
         await db.query(
