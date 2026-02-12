@@ -1,3 +1,4 @@
+import axios from "axios";
 import express from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
@@ -25,7 +26,7 @@ app.get('/', (req, res) => {
 
 // --- Routes ---
 
-import axios from 'axios';
+
 import crypto from 'crypto';
 
 // --- Constants ---
