@@ -9,8 +9,8 @@ class ApiService {
   // For iOS Simulator: 'http://localhost:3000/api'
   // For Physical Device: Use your machine's local IP (e.g., http://192.168.1.5:3000/api)
   static String get baseUrl {
-    // STABLE Production URL (Vercel Alias) - Automatically points to latest deployment
-    return 'https://backend-sagar-bijjas-projects.vercel.app/api';
+    // Production URL (Custom Domain from Vercel Dashboard)
+    return 'https://vasihat-nama-backend-api.vercel.app/api';
     
     // Uncomment for local development
     // if (Platform.isAndroid) {

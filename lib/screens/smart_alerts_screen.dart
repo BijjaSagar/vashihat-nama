@@ -100,7 +100,7 @@ class _SmartAlertsScreenState extends State<SmartAlertsScreen> {
                           ),
                           onDismissed: (_) => _deleteAlert(alert['id']),
                           child: GlassCard(
-                            margin: const EdgeInsets.bottom(12),
+                            margin: const EdgeInsets.only(bottom: 12),
                             child: ListTile(
                               leading: Container(
                                 padding: const EdgeInsets.all(10),

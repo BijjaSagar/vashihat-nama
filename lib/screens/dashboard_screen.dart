@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import 'folders_screen.dart'; 
 import 'nominee_screen.dart'; 
 import 'scan_document_screen.dart';
+import 'smart_scan_screen.dart';
 import 'profile_screen.dart';
 import 'ai_will_drafter_screen.dart';
 import 'smart_alerts_screen.dart';

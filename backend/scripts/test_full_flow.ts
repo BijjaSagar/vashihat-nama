@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = 'https://backend-oj9t8kb7y-sagar-bijjas-projects.vercel.app/api';
+const BASE_URL = 'https://vasihat-nama-backend-api.vercel.app/api';
 
 async function runTests() {
     console.log('🚀 Starting API Flow Test on:', BASE_URL);
