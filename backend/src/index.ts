@@ -388,6 +388,175 @@ app.post('/api/folders', async (req, res) => {
     }
 });
 
+// ============================================
+// VAULT ITEMS API ENDPOINTS
+// ============================================
+
+// 1. Create Vault Item
+app.post('/api/vault_items', async (req, res) => {
+    const { user_id, folder_id, item_type, title, encrypted_data } = req.body;
+
+    // Validate item_type
+    const validTypes = ['note', 'password', 'credit_card', 'file'];
+    if (!validTypes.includes(item_type)) {
+        res.status(400).json({ error: 'Invalid item type' });
+        return;
+    }
+
+    try {
+        const result = await db.query(
+            `INSERT INTO vault_items (user_id, folder_id, item_type, title, encrypted_data) 
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [user_id, folder_id, item_type, title, encrypted_data]
+        );
+        res.status(201).json({
+            success: true,
+            item: result.rows[0],
+            message: 'Vault item created successfully'
+        });
+    } catch (error) {
+        console.error('Error creating vault item:', error);
+        res.status(500).json({ error: 'Failed to create vault item' });
+    }
+});
+
+// 2. Get Vault Items (by folder or user)
+app.get('/api/vault_items', async (req, res) => {
+    const { user_id, folder_id, item_type } = req.query;
+
+    try {
+        let query = 'SELECT * FROM vault_items WHERE user_id = $1';
+        let params = [user_id];
+
+        if (folder_id) {
+            query += ' AND folder_id = $2';
+            params.push(folder_id);
+        }
+
+        if (item_type) {
+            query += ` AND item_type = $${params.length + 1}`;
+            params.push(item_type);
+        }
+
+        query += ' ORDER BY created_at DESC';
+
+        const result = await db.query(query, params);
+        res.json({ success: true, items: result.rows });
+    } catch (error) {
+        console.error('Error fetching vault items:', error);
+        res.status(500).json({ error: 'Failed to fetch vault items' });
+    }
+});
+
+// 3. Get Single Vault Item
+app.get('/api/vault_items/:id', async (req, res) => {
+    const { id } = req.params;
+    const { user_id } = req.query;
+
+    try {
+        const result = await db.query(
+            'SELECT * FROM vault_items WHERE id = $1 AND user_id = $2',
+            [id, user_id]
+        );
+
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'Vault item not found' });
+            return;
+        }
+
+        res.json({ success: true, item: result.rows[0] });
+    } catch (error) {
+        console.error('Error fetching vault item:', error);
+        res.status(500).json({ error: 'Failed to fetch vault item' });
+    }
+});
+
+// 4. Update Vault Item
+app.put('/api/vault_items/:id', async (req, res) => {
+    const { id } = req.params;
+    const { user_id, title, encrypted_data } = req.body;
+
+    try {
+        const result = await db.query(
+            `UPDATE vault_items 
+             SET title = $1, encrypted_data = $2, updated_at = CURRENT_TIMESTAMP 
+             WHERE id = $3 AND user_id = $4 
+             RETURNING *`,
+            [title, encrypted_data, id, user_id]
+        );
+
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'Vault item not found' });
+            return;
+        }
+
+        res.json({
+            success: true,
+            item: result.rows[0],
+            message: 'Vault item updated successfully'
+        });
+    } catch (error) {
+        console.error('Error updating vault item:', error);
+        res.status(500).json({ error: 'Failed to update vault item' });
+    }
+});
+
+// 5. Delete Vault Item
+app.delete('/api/vault_items/:id', async (req, res) => {
+    const { id } = req.params;
+    const { user_id } = req.query;
+
+    try {
+        const result = await db.query(
+            'DELETE FROM vault_items WHERE id = $1 AND user_id = $2 RETURNING *',
+            [id, user_id]
+        );
+
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'Vault item not found' });
+            return;
+        }
+
+        res.json({ success: true, message: 'Vault item deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting vault item:', error);
+        res.status(500).json({ error: 'Failed to delete vault item' });
+    }
+});
+
+// 6. Get Vault Items Count by Type
+app.get('/api/vault_items/stats/count', async (req, res) => {
+    const { user_id } = req.query;
+
+    try {
+        const result = await db.query(
+            `SELECT item_type, COUNT(*) as count 
+             FROM vault_items 
+             WHERE user_id = $1 
+             GROUP BY item_type`,
+            [user_id]
+        );
+
+        const stats: { [key: string]: number } = {
+            note: 0,
+            password: 0,
+            credit_card: 0,
+            file: 0
+        };
+
+        result.rows.forEach(row => {
+            if (row.item_type in stats) {
+                stats[row.item_type] = parseInt(row.count);
+            }
+        });
+
+        res.json({ success: true, stats });
+    } catch (error) {
+        console.error('Error fetching vault stats:', error);
+        res.status(500).json({ error: 'Failed to fetch vault stats' });
+    }
+});
+
 // --- Admin Routes ---
 const ADMIN_SECRET = process.env.ADMIN_SECRET || 'secure_admin_123';
 

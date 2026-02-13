@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
-import 'files_screen.dart';
+import 'vault_items_screen.dart';
 
 class FoldersScreen extends StatefulWidget {
   final int userId;
@@ -105,7 +105,11 @@ class _FoldersScreenState extends State<FoldersScreen> {
                       
                       return GestureDetector(
                         onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => FilesScreen(folderName: folder['name'], folderId: folder['id'])));
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => VaultItemsScreen(
+                             userId: widget.userId,
+                             folderId: folder['id'],
+                             folderName: folder['name'],
+                           )));
                         },
                         child: GlassCard(
                           opacity: 0.6,

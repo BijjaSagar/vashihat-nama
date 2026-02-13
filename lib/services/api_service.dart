@@ -186,5 +186,131 @@ class ApiService {
       throw Exception('Failed to add nominee');
     }
   }
+
+  // ============================================
+  // VAULT ITEMS API METHODS
+  // ============================================
+
+  // 1. Create Vault Item
+  Future<Map<String, dynamic>> createVaultItem({
+    required int userId,
+    required int folderId,
+    required String itemType, // 'note', 'password', 'credit_card', 'file'
+    required String title,
+    required String encryptedData, // JSON string
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/vault_items'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'user_id': userId,
+        'folder_id': folderId,
+        'item_type': itemType,
+        'title': title,
+        'encrypted_data': encryptedData,
+      }),
+    );
+
+    if (response.statusCode != 201) {
+      throw Exception('Failed to create vault item: ${response.body}');
+    }
+
+    return jsonDecode(response.body);
+  }
+
+  // 2. Get Vault Items
+  Future<List<dynamic>> getVaultItems({
+    required int userId,
+    int? folderId,
+    String? itemType,
+  }) async {
+    String url = '$baseUrl/vault_items?user_id=$userId';
+    
+    if (folderId != null) {
+      url += '&folder_id=$folderId';
+    }
+    
+    if (itemType != null) {
+      url += '&item_type=$itemType';
+    }
+
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['items'] ?? [];
+    } else {
+      return [];
+    }
+  }
+
+  // 3. Get Single Vault Item
+  Future<Map<String, dynamic>> getVaultItem({
+    required int itemId,
+    required int userId,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/vault_items/$itemId?user_id=$userId'),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['item'];
+    } else {
+      throw Exception('Failed to load vault item');
+    }
+  }
+
+  // 4. Update Vault Item
+  Future<Map<String, dynamic>> updateVaultItem({
+    required int itemId,
+    required int userId,
+    required String title,
+    required String encryptedData,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/vault_items/$itemId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'user_id': userId,
+        'title': title,
+        'encrypted_data': encryptedData,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update vault item: ${response.body}');
+    }
+
+    return jsonDecode(response.body);
+  }
+
+  // 5. Delete Vault Item
+  Future<void> deleteVaultItem({
+    required int itemId,
+    required int userId,
+  }) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/vault_items/$itemId?user_id=$userId'),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete vault item');
+    }
+  }
+
+  // 6. Get Vault Stats
+  Future<Map<String, dynamic>> getVaultStats({required int userId}) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/vault_items/stats/count?user_id=$userId'),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['stats'];
+    } else {
+      return {'note': 0, 'password': 0, 'credit_card': 0, 'file': 0};
+    }
+  }
 }
 

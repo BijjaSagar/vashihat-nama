@@ -63,7 +63,21 @@ CREATE TABLE IF NOT EXISTS files (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4. Nominees Table
+-- 4. Vault Items Table (for notes, passwords, credit cards, etc.)
+CREATE TABLE IF NOT EXISTS vault_items (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  folder_id INTEGER REFERENCES folders(id) ON DELETE CASCADE,
+  item_type VARCHAR(50) NOT NULL, -- 'note', 'password', 'credit_card', 'file'
+  title VARCHAR(255) NOT NULL,
+  encrypted_data TEXT NOT NULL, -- JSON encrypted data containing item-specific fields
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_vault_items_user_folder ON vault_items (user_id, folder_id);
+CREATE INDEX IF NOT EXISTS idx_vault_items_type ON vault_items (item_type);
+
+-- 5. Nominees Table
 CREATE TABLE IF NOT EXISTS nominees (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -75,7 +89,7 @@ CREATE TABLE IF NOT EXISTS nominees (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 5. File Permissions
+-- 6. File Permissions
 CREATE TABLE IF NOT EXISTS file_permissions (
   id SERIAL PRIMARY KEY,
   file_id INTEGER REFERENCES files(id) ON DELETE CASCADE,
@@ -85,7 +99,7 @@ CREATE TABLE IF NOT EXISTS file_permissions (
   UNIQUE(file_id, nominee_id)
 );
 
--- 6. OTP Verifications
+-- 7. OTP Verifications
 CREATE TABLE IF NOT EXISTS otp_verifications (
     id SERIAL PRIMARY KEY,
     mobile VARCHAR(15) NOT NULL,
@@ -97,7 +111,7 @@ CREATE TABLE IF NOT EXISTS otp_verifications (
 );
 CREATE INDEX IF NOT EXISTS idx_mobile_purpose ON otp_verifications (mobile, purpose);
 
--- 7. OTP Logs
+-- 8. OTP Logs
 CREATE TABLE IF NOT EXISTS otp_logs (
     id SERIAL PRIMARY KEY,
     mobile VARCHAR(15) NOT NULL,
