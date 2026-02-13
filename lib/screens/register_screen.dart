@@ -79,7 +79,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         String encryptedPrivateKey = "mock_encrypted_private_key_SECRET";
 
         // Call Backend to Register User
-        await ApiService().registerUser(
+        final registeredUser = await ApiService().registerUser(
           phoneController.text,
           publicKey, 
           encryptedPrivateKey,
@@ -88,7 +88,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
         
         if (!mounted) return;
-        navigateToDashboard();
+        navigateToDashboard(registeredUser['id']);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -96,14 +96,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  void navigateToDashboard() {
+  void navigateToDashboard(dynamic userId) {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => SecureDashboardScreen(
         userProfile: {
+          'id': userId, // CRITICAL: Pass the ID
           'name': nameController.text,
           'email': emailController.text,
-          'mobile': phoneController.text,
+          'mobile_number': phoneController.text, // CORRECT KEY
         }
       )),
     );

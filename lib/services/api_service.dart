@@ -9,8 +9,8 @@ class ApiService {
   // For iOS Simulator: 'http://localhost:3000/api'
   // For Physical Device: Use your machine's local IP (e.g., http://192.168.1.5:3000/api)
   static String get baseUrl {
-    // Production URL (Vercel) - Latest Deployment with Heartbeat & Security Score
-    return 'https://backend-oj9t8kb7y-sagar-bijjas-projects.vercel.app/api';
+    // Production URL (Vercel) - Latest Deployment with ALL Fixes (Nominee, File Upload)
+    return 'https://backend-mu75xq7uj-sagar-bijjas-projects.vercel.app/api';
     
     // Uncomment for local development
     // if (Platform.isAndroid) {
@@ -22,7 +22,7 @@ class ApiService {
   final Dio _dio = Dio();
 
   // --- 1. User Registration ---
-  Future<void> registerUser(String mobileNumber, String publicKey, String encryptedPrivateKey, String name, String email) async {
+  Future<Map<String, dynamic>> registerUser(String mobileNumber, String publicKey, String encryptedPrivateKey, String name, String email) async {
     final response = await http.post(
       Uri.parse('$baseUrl/users/register'),
       headers: {'Content-Type': 'application/json'},
@@ -38,6 +38,8 @@ class ApiService {
     if (response.statusCode != 201 && response.statusCode != 200) {
       throw Exception('Failed to register user: ${response.body}');
     }
+    
+    return jsonDecode(response.body);
   }
 
   // --- OTP Methods ---
