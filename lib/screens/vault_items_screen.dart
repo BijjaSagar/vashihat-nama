@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart'; // for Clipboard
 import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
@@ -224,12 +225,44 @@ class _VaultItemsScreenState extends State<VaultItemsScreen> {
   }
 
   Widget _buildFileContent(Map<String, dynamic> data) {
+    String? base64Content = data['file_content'];
+    String fileName = data['file_name'] ?? 'Unknown File';
+    
+    // Check if it's an image
+    bool isImage = fileName.toLowerCase().endsWith('.jpg') || 
+                   fileName.toLowerCase().endsWith('.jpeg') || 
+                   fileName.toLowerCase().endsWith('.png');
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildDetailRow('File Name', data['file_name'] ?? '', Icons.file_present),
+        _buildDetailRow('File Name', fileName, Icons.file_present),
         _buildDetailRow('Size', '${data['file_size'] ?? 0} bytes', Icons.storage),
-        _buildDetailRow('Type', data['mime_type'] ?? '', Icons.category),
+        
+        const SizedBox(height: 16),
+        if (base64Content != null && isImage)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.memory(
+              base64Decode(base64Content),
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const Text("Error loading image"),
+            ),
+          )
+        else if (base64Content != null)
+           ElevatedButton.icon(
+             onPressed: () {
+               // TODO: Save to file and open (requires open_file package)
+               // For now, copy base64 to clipboard as fallback
+               Clipboard.setData(ClipboardData(text: base64Content));
+               ScaffoldMessenger.of(context).showSnackBar(
+                 const SnackBar(content: Text('File content copied to clipboard (Base64)')),
+               );
+             },
+             icon: const Icon(Icons.download),
+             label: const Text("Copy File Content"),
+             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
+           ),
       ],
     );
   }

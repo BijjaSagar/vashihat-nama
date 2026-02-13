@@ -177,8 +177,8 @@ class ApiService {
       body: jsonEncode({
         'user_id': firebaseUid,
         'name': name,
-        'relation': relation,
-        'contact': contact,
+        'relationship': relation,
+        'email': contact,
       }),
     );
 

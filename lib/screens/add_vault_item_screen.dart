@@ -4,6 +4,9 @@ import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 import 'dart:convert';
 
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+
 class AddVaultItemScreen extends StatefulWidget {
   final int userId;
   final int folderId;
@@ -23,6 +26,7 @@ class AddVaultItemScreen extends StatefulWidget {
 class _AddVaultItemScreenState extends State<AddVaultItemScreen> {
   String selectedType = 'note';
   bool isSaving = false;
+  File? _selectedFile; // For file upload
 
   // Common fields
   final TextEditingController _titleController = TextEditingController();
@@ -61,10 +65,30 @@ class _AddVaultItemScreenState extends State<AddVaultItemScreen> {
     super.dispose();
   }
 
+  Future<void> _pickFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles();
+    if (result != null) {
+      setState(() {
+        _selectedFile = File(result.files.single.path!);
+        // Auto-fill title with filename if empty
+        if (_titleController.text.isEmpty) {
+          _titleController.text = result.files.single.name;
+        }
+      });
+    }
+  }
+
   Future<void> _saveItem() async {
     if (_titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a title')),
+      );
+      return;
+    }
+
+    if (selectedType == 'file' && _selectedFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a file')),
       );
       return;
     }
@@ -96,6 +120,20 @@ class _AddVaultItemScreenState extends State<AddVaultItemScreen> {
             'cvv': _cvvController.text,
             'notes': _cardNotesController.text,
           };
+          break;
+        case 'file':
+          if (_selectedFile != null) {
+            // Read file bytes
+            final bytes = await _selectedFile!.readAsBytes();
+            final base64File = base64Encode(bytes);
+            final fileName = _selectedFile!.path.split('/').last;
+            
+            data = {
+              'file_name': fileName,
+              'file_content': base64File, // Storing as base64 in JSON for MVP
+              'file_size': bytes.length,
+            };
+          }
           break;
       }
 
@@ -167,6 +205,7 @@ class _AddVaultItemScreenState extends State<AddVaultItemScreen> {
                       _buildTypeButton('note', Icons.note_alt, 'Note'),
                       _buildTypeButton('password', Icons.lock, 'Password'),
                       _buildTypeButton('credit_card', Icons.credit_card, 'Card'),
+                      _buildTypeButton('file', Icons.attach_file, 'File'), // Added File option
                     ],
                   ),
                 ),
@@ -194,6 +233,7 @@ class _AddVaultItemScreenState extends State<AddVaultItemScreen> {
                         if (selectedType == 'note') ..._buildNoteFields(),
                         if (selectedType == 'password') ..._buildPasswordFields(),
                         if (selectedType == 'credit_card') ..._buildCreditCardFields(),
+                        if (selectedType == 'file') ..._buildFileFields(), // Added File fields
                       ],
                     ),
                   ),
@@ -346,7 +386,7 @@ class _AddVaultItemScreenState extends State<AddVaultItemScreen> {
           Expanded(
             child: _buildTextField(
               controller: _expiryMonthController,
-              label: 'MM',
+              label: 'Exp Month (MM)', // Improved Label
               icon: Icons.calendar_today,
               keyboardType: TextInputType.number,
             ),
@@ -355,7 +395,7 @@ class _AddVaultItemScreenState extends State<AddVaultItemScreen> {
           Expanded(
             child: _buildTextField(
               controller: _expiryYearController,
-              label: 'YYYY',
+              label: 'Exp Year (YYYY)', // Improved Label
               icon: Icons.calendar_today,
               keyboardType: TextInputType.number,
             ),
@@ -364,7 +404,7 @@ class _AddVaultItemScreenState extends State<AddVaultItemScreen> {
           Expanded(
             child: _buildTextField(
               controller: _cvvController,
-              label: 'CVV',
+              label: 'CVV Security Code', // Improved Label
               icon: Icons.security,
               keyboardType: TextInputType.number,
               obscureText: true,
@@ -378,6 +418,50 @@ class _AddVaultItemScreenState extends State<AddVaultItemScreen> {
         label: 'Notes (Optional)',
         icon: Icons.note,
         maxLines: 3,
+      ),
+    ];
+  }
+
+  // New File Fields Widget
+  List<Widget> _buildFileFields() {
+    return [
+      InkWell(
+        onTap: _pickFile,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.primaryColor.withOpacity(0.5), style: BorderStyle.solid),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                _selectedFile == null ? Icons.upload_file : Icons.check_circle,
+                size: 48,
+                color: _selectedFile == null ? AppTheme.primaryColor : Colors.green,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _selectedFile == null ? "Tap to select a file" : "File Selected: ${_selectedFile!.path.split('/').last}",
+                style: TextStyle(
+                  color: _selectedFile == null ? AppTheme.textSecondary : Colors.black87,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (_selectedFile != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    "${(_selectedFile!.lengthSync() / 1024).toStringAsFixed(2)} KB",
+                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     ];
   }
