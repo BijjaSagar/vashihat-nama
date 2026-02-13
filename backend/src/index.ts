@@ -10,8 +10,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(bodyParser.json({ limit: '200mb' }));
-app.use(bodyParser.urlencoded({ limit: '200mb', extended: true }));
+app.use(bodyParser.json({ limit: '6mb' }));
+app.use(bodyParser.urlencoded({ limit: '6mb', extended: true }));
 app.use(express.static('public'));
 
 // --- Root Route (Health Check) ---
@@ -20,17 +20,17 @@ app.get('/', (req, res) => {
         <div style="font-family: sans-serif; text-align: center; padding: 50px;">
             <h1>🛡️ Vasihat Nama Security Server</h1>
             <p>Secure Zero-Knowledge Backend is Active.</p>
-            <p>Status: <strong>Operational</strong> (Max Upload: 200MB)</p>
+            <p>Status: <strong>Operational</strong> (Max Upload: 6MB)</p>
         </div>
     `);
 });
 
-// ... (other code continues)
+// ... (rest of the file)
 
 // Configure Multer (Memory Storage for Serverless / Ephemeral)
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 500 * 1024 * 1024 }, // 500MB limit
+    limits: { fileSize: 6 * 1024 * 1024 }, // 6MB limit
 });
 
 // 2. Upload File (Revised with Multer)
