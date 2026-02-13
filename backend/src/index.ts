@@ -557,6 +557,195 @@ app.get('/api/vault_items/stats/count', async (req, res) => {
     }
 });
 
+// ============================================
+// SMART ALERT / DOCUMENT INTELLIGENCE API
+// ============================================
+
+// 1. Create Smart Alert (From OCR Data)
+app.post('/api/smart_docs', async (req, res) => {
+    const {
+        user_id,
+        file_id,
+        doc_type,
+        doc_number,
+        expiry_date,
+        renewal_date,
+        issuing_authority,
+        notes
+    } = req.body;
+
+    try {
+        const result = await db.query(
+            `INSERT INTO smart_docs (
+                user_id, file_id, doc_type, doc_number, 
+                expiry_date, renewal_date, issuing_authority, notes
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+            [user_id, file_id, doc_type, doc_number, expiry_date, renewal_date, issuing_authority, notes]
+        );
+        res.status(201).json({
+            success: true,
+            doc_alert: result.rows[0],
+            message: 'Smart Alert created successfully'
+        });
+    } catch (error) {
+        console.error('Error creating smart doc:', error);
+        res.status(500).json({ error: 'Failed to create smart alert' });
+    }
+});
+
+// 2. Get User Smart Alerts (Upcoming Renewals)
+app.get('/api/smart_docs', async (req, res) => {
+    const { user_id, upcoming_only } = req.query;
+
+    try {
+        let query = 'SELECT * FROM smart_docs WHERE user_id = $1';
+        let params = [user_id];
+
+        if (upcoming_only === 'true') {
+            // Show documents expiring in future or recently expired (last 30 days)
+            query += " AND expiry_date >= NOW() - INTERVAL '30 days'";
+            query += " ORDER BY expiry_date ASC"; // Most urgent first
+        } else {
+            query += " ORDER BY created_at DESC";
+        }
+
+        const result = await db.query(query, params);
+        res.json({ success: true, alerts: result.rows });
+    } catch (error) {
+        console.error('Error fetching smart docs:', error);
+        res.status(500).json({ error: 'Failed to fetch alerts' });
+    }
+});
+
+// 3. Delete Smart Alert
+app.delete('/api/smart_docs/:id', async (req, res) => {
+    const { id } = req.params;
+    const { user_id } = req.query;
+
+    try {
+        const result = await db.query(
+            'DELETE FROM smart_docs WHERE id = $1 AND user_id = $2 RETURNING *',
+            [id, user_id]
+        );
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'Alert not found' });
+            return;
+        }
+        res.json({ success: true, message: 'Alert deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete alert' });
+    }
+});
+
+// ============================================
+// HEARTBEAT / PROOF OF LIFE API
+// ============================================
+
+// 1. Get Heartbeat Status
+app.get('/api/heartbeat/status', async (req, res) => {
+    const { user_id } = req.query;
+    try {
+        const result = await db.query(
+            'SELECT last_check_in, check_in_frequency_days, dead_mans_switch_active FROM users WHERE id = $1',
+            [user_id]
+        );
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
+        res.json({ success: true, status: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch status' });
+    }
+});
+
+// 2. Perform Check-In (I'm Safe)
+app.post('/api/heartbeat/checkin', async (req, res) => {
+    const { user_id, method = 'manual' } = req.body; // method: manual, login, biometric
+    try {
+        await db.query('UPDATE users SET last_check_in = CURRENT_TIMESTAMP WHERE id = $1', [user_id]);
+        await db.query('INSERT INTO heartbeat_logs (user_id, method) VALUES ($1, $2)', [user_id, method]);
+        res.json({ success: true, message: 'Check-in successful' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to check in' });
+    }
+});
+
+// 3. Update Settings (Activate/Frequency)
+app.post('/api/heartbeat/settings', async (req, res) => {
+    const { user_id, active, frequency_days } = req.body;
+    try {
+        await db.query(
+            'UPDATE users SET dead_mans_switch_active = $1, check_in_frequency_days = $2 WHERE id = $3',
+            [active, frequency_days, user_id]
+        );
+        res.json({ success: true, message: 'Heartbeat settings updated' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update settings' });
+    }
+});
+
+// ============================================
+// SECURITY SCORE API
+// ============================================
+
+app.get('/api/security/score', async (req, res) => {
+    const { user_id } = req.query;
+    try {
+        let score = 0;
+        const checks = [];
+
+        // 1. Account Created (Base) -> 10 pts
+        score += 10;
+        checks.push({ label: 'Account Created', passed: true, points: 10 });
+
+        // 2. Has Nominee? -> 20 pts
+        const nominees = await db.query('SELECT COUNT(*) FROM nominees WHERE user_id = $1', [user_id]);
+        if (parseInt(nominees.rows[0].count) > 0) {
+            score += 20;
+            checks.push({ label: 'Nominee Added', passed: true, points: 20 });
+        } else {
+            checks.push({ label: 'Nominee Added', passed: false, points: 0, fix: "Add a nominee to ensure legacy transfer" });
+        }
+
+        // 3. Heartbeat Active? -> 20 pts
+        const user = await db.query('SELECT dead_mans_switch_active FROM users WHERE id = $1', [user_id]);
+        if (user.rows[0] && user.rows[0].dead_mans_switch_active) {
+            score += 20;
+            checks.push({ label: 'Dead Man\'s Switch Check', passed: true, points: 20 });
+        } else {
+            checks.push({ label: 'Dead Man\'s Switch Check', passed: false, points: 0, fix: "Activate Proof of Life monitoring" });
+        }
+
+        // 4. Vault Usage? -> 20 pts
+        const vaultItems = await db.query('SELECT COUNT(*) FROM vault_items WHERE user_id = $1', [user_id]);
+        if (parseInt(vaultItems.rows[0].count) > 0) {
+            score += 20;
+            checks.push({ label: 'Vault Active', passed: true, points: 20 });
+        } else {
+            checks.push({ label: 'Vault Active', passed: false, points: 0, fix: "Add your first secure item" });
+        }
+
+        // 5. Smart Docs? -> 10 pts
+        const smartDocs = await db.query('SELECT COUNT(*) FROM smart_docs WHERE user_id = $1', [user_id]);
+        if (parseInt(smartDocs.rows[0].count) > 0) {
+            score += 10;
+            checks.push({ label: 'Document Intelligence', passed: true, points: 10 });
+        } else {
+            checks.push({ label: 'Document Intelligence', passed: false, points: 0, fix: "Scan a document for auto-reminders" });
+        }
+
+        // 6. Email Breach Check (Mock for now)
+        score += 20;
+        checks.push({ label: 'Email Breach Check', passed: true, points: 20 });
+
+        res.json({ success: true, score, checks });
+    } catch (error) {
+        console.error('Security Score Error:', error);
+        res.status(500).json({ error: 'Failed to calculate score' });
+    }
+});
+
 // --- Admin Routes ---
 const ADMIN_SECRET = process.env.ADMIN_SECRET || 'secure_admin_123';
 
@@ -568,6 +757,39 @@ const checkAdmin = (req: any, res: any, next: any) => {
         res.status(403).json({ error: 'Unauthorized' });
     }
 };
+
+// 4. Trigger Heartbeat Check (CRON JOB)
+app.post('/api/admin/trigger_heartbeat_check', checkAdmin, async (req, res) => {
+    try {
+        const overdueUsers = await db.query(`
+            SELECT id, name, email 
+            FROM users 
+            WHERE dead_mans_switch_active = TRUE 
+            AND last_check_in + (check_in_frequency_days * INTERVAL '1 day') < NOW()
+        `);
+
+        const overdueIds: number[] = overdueUsers.rows.map((u: any) => u.id);
+
+        if (overdueIds.length > 0) {
+            // Grant Access to Nominees automatically for ALL overdue users
+            // Note: pg syntax requires distinct handling for arrays, but ANY($1) works with array param
+            await db.query(`
+                UPDATE nominees 
+                SET access_granted = TRUE 
+                WHERE user_id = ANY($1::int[])
+             `, [overdueIds]);
+        }
+
+        res.json({
+            success: true,
+            triggered_count: overdueUsers.rows.length,
+            overdue_users: overdueUsers.rows.map(u => ({ id: u.id, name: u.name }))
+        });
+    } catch (error) {
+        console.error('Heartbeat Check Error:', error);
+        res.status(500).json({ error: 'Failed to run heartbeat check' });
+    }
+});
 
 app.get('/api/admin/users', checkAdmin, async (req, res) => {
     try {

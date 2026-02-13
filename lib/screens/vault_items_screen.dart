@@ -4,6 +4,7 @@ import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 import 'add_vault_item_screen.dart';
+import 'smart_scan_screen.dart';
 import 'dart:convert';
 
 class VaultItemsScreen extends StatefulWidget {
@@ -375,25 +376,44 @@ class _VaultItemsScreenState extends State<VaultItemsScreen> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AddVaultItemScreen(
-                userId: widget.userId,
-                folderId: widget.folderId,
-                folderName: widget.folderName,
-              ),
-            ),
-          );
-          if (result == true) {
-            _loadVaultItems();
-          }
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Add Item'),
-        backgroundColor: AppTheme.primaryColor,
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: "scan",
+            onPressed: () {
+               Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => SmartScanScreen(userId: widget.userId)),
+              );
+            },
+            icon: const Icon(Icons.document_scanner),
+            label: const Text('Smart Scan'),
+            backgroundColor: Colors.indigo,
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton.extended(
+            heroTag: "add",
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AddVaultItemScreen(
+                    userId: widget.userId,
+                    folderId: widget.folderId,
+                    folderName: widget.folderName,
+                  ),
+                ),
+              );
+              if (result == true) {
+                _loadVaultItems();
+              }
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Add Item'),
+            backgroundColor: AppTheme.primaryColor,
+          ),
+        ],
       ),
     );
   }

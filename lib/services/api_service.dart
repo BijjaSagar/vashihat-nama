@@ -9,8 +9,8 @@ class ApiService {
   // For iOS Simulator: 'http://localhost:3000/api'
   // For Physical Device: Use your machine's local IP (e.g., http://192.168.1.5:3000/api)
   static String get baseUrl {
-    // Production URL (Vercel)
-    return 'https://vasihat-nama-backend-api.vercel.app/api';
+    // Production URL (Vercel) - Latest Deployment with Heartbeat & Security Score
+    return 'https://backend-oj9t8kb7y-sagar-bijjas-projects.vercel.app/api';
     
     // Uncomment for local development
     // if (Platform.isAndroid) {
@@ -310,6 +310,120 @@ class ApiService {
       return data['stats'];
     } else {
       return {'note': 0, 'password': 0, 'credit_card': 0, 'file': 0};
+    }
+  }
+  // ============================================
+  // SMART ALERT API METHODS
+  // ============================================
+
+  // 10. Create Smart Alert
+  Future<void> createSmartAlert({
+    required int userId,
+    int? fileId,
+    required String docType,
+    String? docNumber,
+    DateTime? expiryDate,
+    DateTime? renewalDate,
+    String? issuingAuthority,
+    String? notes,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/smart_docs'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'user_id': userId,
+        'file_id': fileId,
+        'doc_type': docType,
+        'doc_number': docNumber,
+        'expiry_date': expiryDate?.toIso8601String(),
+        'renewal_date': renewalDate?.toIso8601String(),
+        'issuing_authority': issuingAuthority,
+        'notes': notes,
+      }),
+    );
+
+    if (response.statusCode != 201) {
+      throw Exception('Failed to create smart alert: ${response.body}');
+    }
+  }
+
+  // 11. Get Smart Alerts
+  Future<List<dynamic>> getSmartAlerts(int userId, {bool upcomingOnly = false}) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/smart_docs?user_id=$userId&upcoming_only=$upcomingOnly'),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['alerts'] ?? [];
+    } else {
+      return [];
+    }
+  }
+
+  // 12. Delete Smart Alert
+  Future<void> deleteSmartAlert(int alertId, int userId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/smart_docs/$alertId?user_id=$userId'),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete alert');
+    }
+  }
+  // ============================================
+  // HEARTBEAT API METHODS
+  // ============================================
+
+  // 13. Get Heartbeat Status
+  Future<Map<String, dynamic>> getHeartbeatStatus(int userId) async {
+    final response = await http.get(Uri.parse('$baseUrl/heartbeat/status?user_id=$userId'));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['status'];
+    } else {
+      throw Exception('Failed to get status');
+    }
+  }
+
+  // 14. Check In (I'm Safe)
+  Future<void> checkIn(int userId) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/heartbeat/checkin'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'user_id': userId, 'method': 'manual'}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Check-in failed');
+    }
+  }
+
+  // 15. Update Heartbeat Settings
+  Future<void> updateHeartbeatSettings(int userId, bool active, int frequencyDays) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/heartbeat/settings'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'user_id': userId,
+        'active': active,
+        'frequency_days': frequencyDays,
+      }),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update settings');
+    }
+  }
+  // ============================================
+  // SECURITY SCORE API METHODS
+  // ============================================
+
+  // 16. Get Security Score
+  Future<Map<String, dynamic>> getSecurityScore(int userId) async {
+    final response = await http.get(Uri.parse('$baseUrl/security/score?user_id=$userId'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to get security score');
     }
   }
 }

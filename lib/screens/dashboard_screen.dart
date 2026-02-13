@@ -6,6 +6,9 @@ import 'nominee_screen.dart';
 import 'scan_document_screen.dart';
 import 'profile_screen.dart';
 import 'ai_will_drafter_screen.dart';
+import 'smart_alerts_screen.dart';
+import 'heartbeat_screen.dart';
+import 'security_score_screen.dart';
 
 class SecureDashboardScreen extends StatefulWidget {
   final Map<String, dynamic>? userProfile; // Accept profile data directly
@@ -172,15 +175,42 @@ class _SecureDashboardScreenState extends State<SecureDashboardScreen> {
                         Navigator.push(context, MaterialPageRoute(builder: (context) => AIWillDrafterScreen(userId: userId)));
                       },
                     ),
-                    _buildActionCard(
-                      context,
-                      "Scan Document",
-                      Icons.document_scanner_rounded,
-                      Colors.orangeAccent,
-                      () {
-                         Navigator.push(context, MaterialPageRoute(builder: (context) => const ScanDocumentScreen()));
-                      },
-                    ),
+                      _buildActionCard(
+                        context,
+                        "Smart Scan",
+                        Icons.document_scanner_rounded,
+                        Colors.orangeAccent,
+                        () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => SmartScanScreen(userId: userId)));
+                        },
+                      ),
+                      _buildActionCard(
+                        context,
+                        "Smart Alerts",
+                        Icons.notifications_active_rounded,
+                        Colors.redAccent,
+                        () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => SmartAlertsScreen(userId: userId)));
+                        },
+                      ),
+                      _buildActionCard(
+                        context,
+                        "Proof of Life",
+                        Icons.favorite_rounded,
+                        Colors.pinkAccent,
+                        () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => HeartbeatScreen(userId: userId)));
+                        },
+                      ),
+                      _buildActionCard(
+                        context,
+                        "Security Health",
+                        Icons.shield_rounded,
+                        Colors.green,
+                        () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => SecurityScoreScreen(userId: userId)));
+                        },
+                      ),
                   ],
                 ),
               ),

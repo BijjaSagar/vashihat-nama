@@ -6,30 +6,30 @@ import path from 'path';
 dotenv.config();
 
 const pool = new Pool(
-    process.env.DATABASE_URL
-        ? {
-            connectionString: process.env.DATABASE_URL,
-            ssl: { rejectUnauthorized: false }
-        }
-        : {
-            user: process.env.DB_USER || 'postgres',
-            host: process.env.DB_HOST || 'localhost',
-            database: process.env.DB_NAME || 'vasihat_nama',
-            password: process.env.DB_PASSWORD || 'password',
-            port: parseInt(process.env.DB_PORT || '5432'),
-        }
+  process.env.DATABASE_URL
+    ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    }
+    : {
+      user: process.env.DB_USER || 'postgres',
+      host: process.env.DB_HOST || 'localhost',
+      database: process.env.DB_NAME || 'vasihat_nama',
+      password: process.env.DB_PASSWORD || 'password',
+      port: parseInt(process.env.DB_PORT || '5432'),
+    }
 );
 
 pool.on('error', (err) => {
-    console.error('Unexpected error on idle client', err);
-    process.exit(-1);
+  console.error('Unexpected error on idle client', err);
+  process.exit(-1);
 });
 
 
 export const initDb = async () => {
-    const client = await pool.connect();
-    try {
-        const schema = `
+  const client = await pool.connect();
+  try {
+    const schema = `
 -- 1. Users Table
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
@@ -121,16 +121,48 @@ CREATE TABLE IF NOT EXISTS otp_logs (
     details TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 9. Smart Docs Table (Stores extracted intelligence)
+CREATE TABLE IF NOT EXISTS smart_docs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    file_id INTEGER REFERENCES files(id) ON DELETE SET NULL,
+    doc_type VARCHAR(100) NOT NULL, -- 'Insurance', 'Passport', 'License', 'Warranty'
+    doc_number VARCHAR(100), -- Extracted Policy/ID Number
+    expiry_date TIMESTAMP WITH TIME ZONE,
+    renewal_date TIMESTAMP WITH TIME ZONE,
+    issuing_authority VARCHAR(255),
+    reminder_enabled BOOLEAN DEFAULT TRUE,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_smart_docs_user ON smart_docs (user_id);
+CREATE INDEX IF NOT EXISTS idx_smart_docs_user ON smart_docs (user_id);
+CREATE INDEX IF NOT EXISTS idx_smart_docs_expiry ON smart_docs (expiry_date);
+
+-- 10. Update Users Table for Heartbeat (Dead Man's Switch)
+ALTER TABLE users 
+ADD COLUMN IF NOT EXISTS last_check_in TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN IF NOT EXISTS check_in_frequency_days INTEGER DEFAULT 30,
+ADD COLUMN IF NOT EXISTS dead_mans_switch_active BOOLEAN DEFAULT FALSE;
+
+-- 11. Heartbeat Logs
+CREATE TABLE IF NOT EXISTS heartbeat_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    checked_in_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    method VARCHAR(50) DEFAULT 'manual'
+);
         `;
-        await client.query(schema);
-        console.log('Database initialized successfully');
-    } catch (err) {
-        console.error('Error initializing database', err);
-    } finally {
-        client.release();
-    }
+    await client.query(schema);
+    console.log('Database initialized successfully');
+  } catch (err) {
+    console.error('Error initializing database', err);
+  } finally {
+    client.release();
+  }
 };
 
 export default {
-    query: (text: string, params?: any[]) => pool.query(text, params),
+  query: (text: string, params?: any[]) => pool.query(text, params),
 };
