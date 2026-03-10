@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AfterSafe | Your Digital Legacy, Secured Forever</title>
+    <link rel="stylesheet" href="styles.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+
+<body>
+    <!-- Ambient Glassmorphism Background Orbs -->
+    <div class="ambient-background">
+        <div class="ambient-orb ambient-blue"></div>
+        <div class="ambient-orb ambient-purple"></div>
+        <div class="ambient-orb ambient-green"></div>
+    </div>
+    <!-- Navigation -->
+    <nav class="navbar glass-nav">
+        <div class="logo">
+            <ion-icon name="shield-checkmark"></ion-icon>
+            AfterSafe
+        </div>
+
+        <!-- Mobile Toggle -->
+        <div class="mobile-toggle" id="mobile-toggle">
+            <ion-icon name="menu-outline"></ion-icon>
+        </div>
+
+        <div class="nav-links" id="nav-links">
+            <a href="#problem">The Story</a>
+            <a href="#how-it-works">How It Works</a>
+            <a href="#vault-experience">The Vault</a>
+            <a href="#cta" class="btn-primary-small">Get Early Access</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero" id="home">
+        <div class="hero-content fade-in-up">
+            <div class="pill">Introducing AfterSafe V2</div>
+            <h1 class="hero-title">Your Digital Legacy,<br>Secured Forever.</h1>
+            <p class="hero-subtitle">The first comprehensive digital will vault, protected by true Zero-Knowledge
+                encryption and an intelligent Biometric Dead Man's Switch.</p>
+            <div class="hero-cta">
+                <a href="#vault-experience" class="btn-primary">Unlock The Vault</a>
+            </div>
+
+            <!-- Guaranteed Playing Hero Tech Loop -->
+            <div class="hero-video-container fade-in-delay">
+                <div class="glass-video-wrapper">
+                    <!-- IMPORTANT: REPLACE "your_uploaded_video.mp4" WITH YOUR HOSTINGER VIDEO URL -->
+                    <video src="hero_video.mp4" class="hero-video" loop autoplay muted playsinline></video>
+                    <div class="video-overlay-badge" style="z-index: 20;"><ion-icon name="videocam"></ion-icon> Securing
+                        Data Flow</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="glow-orb orb-1"></div>
+        <div class="glow-orb orb-2"></div>
+    </header>
+
+    <!-- Interactive Vault Experience (The Hover Animation Section) -->
+    <section class="interactive-vault-section" id="vault-experience">
+        <div class="container text-center reveal">
+            <div class="feature-badge">Core Engine</div>
+            <h2 class="section-heading">Hover to <span class="gradient-text">Unlock</span></h2>
+            <p class="solution-sub">Discover how AfterSafe protects your legacy. Hover over the features below to see
+                the vault in action.</p>
+        </div>
+
+        <div class="vault-grid container reveal delay-1">
+
+            <!-- Left Side: The Animated Vault -->
+            <div class="vault-visual-container">
+                <div class="vault-core" id="main-vault">
+                    <!-- The mechanical rings -->
+                    <div class="vault-ring ring-outer"></div>
+                    <div class="vault-ring ring-middle"></div>
+                    <div class="vault-ring ring-inner"></div>
+
+                    <!-- The center lock -->
+                    <div class="vault-lock">
+                        <ion-icon name="lock-closed" id="vault-icon"></ion-icon>
+                    </div>
+
+                    <!-- The Holographic items that pop out -->
+                    <div class="hologram-item" id="holo-item">
+                        <ion-icon name="document-text" id="holo-icon"></ion-icon>
+                    </div>
+
+                    <!-- Energy beam connecting vault to text -->
+                    <div class="energy-beam" id="energy-beam"></div>
+                </div>
+            </div>
+
+            <!-- Right Side: Interactive Feature List -->
+            <div class="feature-accordion">
+
+                <div class="feature-item" data-vault-type="security" data-icon="key">
+                    <div class="feature-header">
+                        <div class="header-icon"><ion-icon name="shield-half"></ion-icon></div>
+                        <h3>Zero-Knowledge Encryption</h3>
+                    </div>
+                    <div class="feature-details">
+                        <p>When you store a password or deed, it is encrypted on your device with military-grade
+                            AES-256. Not even our servers can see what you put inside. We hold the vault; only you hold
+                            the key.</p>
+                    </div>
+                </div>
+
+                <div class="feature-item" data-vault-type="heartbeat" data-icon="finger-print">
+                    <div class="feature-header">
+                        <div class="header-icon"><ion-icon name="heart"></ion-icon></div>
+                        <h3>Biometric Proof of Life</h3>
+                    </div>
+                    <div class="feature-details">
+                        <p>No more trusting third parties to know when you're gone. Set your heartbeat frequency (e.g.,
+                            30 days) and check-in securely using Fingerprint or Face ID ensuring you are alive and well.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="feature-item" data-vault-type="handoff" data-icon="share">
+                    <div class="feature-header">
+                        <div class="header-icon"><ion-icon name="people"></ion-icon></div>
+                        <h3>Automated Dead Man's Switch</h3>
+                    </div>
+                    <div class="feature-details">
+                        <p>If you miss your final check-in deadline, the vault activates the handoff protocol.
+                            Decryption keys are seamlessly transferred to your chosen nominees, granting them instant
+                            access.</p>
+                    </div>
+                </div>
+
+                <div class="feature-item" data-vault-type="ai" data-icon="hardware-chip">
+                    <div class="feature-header">
+                        <div class="header-icon"><ion-icon name="sparkles"></ion-icon></div>
+                        <h3>AI Legal Generation</h3>
+                    </div>
+                    <div class="feature-details">
+                        <p>Need a Will, Power of Attorney, or Gift Deed? Our built-in GPT-4 engine generates flawless,
+                            conflict-free legal drafts in multiple languages, tailored specifically to your estate.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- The Story / Problem Section -->
+    <section class="problem-section" id="problem">
+        <div class="container line-story">
+            <div class="story-block reveal">
+                <div class="story-icon bg-blue"><ion-icon name="phone-portrait"></ion-icon></div>
+                <h2 class="section-heading">We live extraordinary digital lives.</h2>
+                <p class="story-text">Passwords, crypto wallets, banking pins, digital deeds, and priceless memories.
+                    Our entire existence is encrypted behind screens. On average, a person has over 100 active digital
+                    accounts.</p>
+            </div>
+
+            <div class="story-block reveal delay-1">
+                <div class="story-icon bg-red"><ion-icon name="warning"></ion-icon></div>
+                <h2 class="section-heading text-red">But what happens when we're gone?</h2>
+                <p class="story-text">Billions in digital assets are lost annually because families don't have access
+                    credentials. Critical legal documents are scattered. Last messages remain unsent. Traditional
+                    physical wills cannot handle the complexities of our digital footprint.</p>
+            </div>
+
+            <div class="story-block reveal delay-1">
+                <div class="story-icon bg-green"><ion-icon name="shield-checkmark"></ion-icon></div>
+                <h2 class="section-heading gradient-text">We built the ultimate safety net.</h2>
+                <p class="story-text">AfterSafe combines military-grade encryption to protect you while you're here, and
+                    a foolproof automated system to pass on your legacy when you're not. Let's see how it works.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works (Timeline) -->
+    <section class="timeline-section" id="how-it-works">
+        <div class="container">
+            <div class="text-center reveal">
+                <div class="feature-badge">The Process</div>
+                <h2 class="section-heading">How AfterSafe <span class="gradient-text">Works</span></h2>
+                <p class="solution-sub">A seamless, fully automated pipeline from secure storage to legacy transfer.</p>
+            </div>
+
+            <div class="timeline-container">
+                <div class="timeline-line"></div>
+
+                <!-- Step 1 -->
+                <div class="timeline-step reveal">
+                    <div class="timeline-dot">1</div>
+                    <div class="timeline-content glass-card">
+                        <h3><ion-icon name="lock-closed" class="text-green"></ion-icon> Encrypt & Store</h3>
+                        <p>You add your sensitive items (passwords, notes, crypto phrases, files). Everything is
+                            instantly encrypted on your device using AES-256 before ever reaching our servers. We cannot
+                            see your data. Period.</p>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="timeline-step reveal delay-1">
+                    <div class="timeline-dot">2</div>
+                    <div class="timeline-content glass-card hover-lift">
+                        <h3><ion-icon name="people" class="text-blue"></ion-icon> Assign Nominees</h3>
+                        <p>Add trusted family members, lawyers, or friends. You explicitly control exactly which folders
+                            or items each nominee gets. One gets the crypto, another gets the family photos.</p>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="timeline-step reveal delay-1">
+                    <div class="timeline-dot">3</div>
+                    <div class="timeline-content glass-card hover-lift">
+                        <h3><ion-icon name="finger-print" class="text-red"></ion-icon> Biometric Check-ins</h3>
+                        <p>You set a "Proof of Life" interval (e.g., every 30 days). The app notifies you to tap a
+                            button and scan your face/fingerprint. As long as you check in, the vault stays locked only
+                            for you.</p>
+                    </div>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="timeline-step reveal delay-1">
+                    <div class="timeline-dot">4</div>
+                    <div class="timeline-content glass-card hover-lift">
+                        <h3><ion-icon name="paper-plane" class="text-purple"></ion-icon> Automated Handoff</h3>
+                        <p>If you fail to check in past your deadline, the dead man's switch triggers. The system
+                            automatically decrypts and securely emails/grants access to your chosen nominees.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- What You Can Store (Grid) -->
+    <section class="storage-section">
+        <div class="container">
+            <div class="text-center reveal">
+                <h2 class="section-heading">Protect <span class="gradient-text">Everything</span> You Value</h2>
+                <p class="solution-sub mb-4">A unified interface for all your fragmented digital life.</p>
+            </div>
+
+            <div class="storage-grid">
+                <div class="storage-card reveal">
+                    <ion-icon name="key"></ion-icon>
+                    <h4>Passwords & Pins</h4>
+                    <p>Bank logins, social media passwords, and device PIN codes securely masked.</p>
+                </div>
+                <div class="storage-card reveal delay-1">
+                    <ion-icon name="wallet"></ion-icon>
+                    <h4>Crypto Wallets</h4>
+                    <p>Seed phrases and hardware wallet locations kept safe from physical theft.</p>
+                </div>
+                <div class="storage-card reveal delay-2">
+                    <ion-icon name="card"></ion-icon>
+                    <h4>Credit Cards</h4>
+                    <p>Full card details with AI expiration tracking so your family knows what to cancel.</p>
+                </div>
+                <div class="storage-card reveal delay-3">
+                    <ion-icon name="document-text"></ion-icon>
+                    <h4>Legal Documents</h4>
+                    <p>PDFs of property deeds, life insurance policies, and tax returns.</p>
+                </div>
+                <div class="storage-card reveal delay-4">
+                    <ion-icon name="mic"></ion-icon>
+                    <h4>Voice & Video Wills</h4>
+                    <p>Record your final thoughts, apologies, or instructions to specific individuals.</p>
+                </div>
+                <div class="storage-card reveal delay-5">
+                    <ion-icon name="images"></ion-icon>
+                    <h4>Memories</h4>
+                    <p>Secret notes, private journal entries, and family recipes passed down.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container footer-content">
+            <div class="footer-brand">
+                <div class="logo">
+                    <ion-icon name="shield-checkmark"></ion-icon>
+                    AfterSafe
+                </div>
+                <p>Your Digital Legacy, Secured Forever.</p>
+            </div>
+            <div class="copyright">
+                &copy; 2026 AfterSafe Inc. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

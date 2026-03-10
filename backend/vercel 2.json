@@ -1,0 +1,20 @@
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "backend/api/**/*.php",
+            "use": "@vercel/php"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "/backend/api/$1"
+        }
+    ],
+    "env": {
+        "SMS_API_URL": "YOUR_SMS_GATEWAY_URL",
+        "SMS_API_KEY": "YOUR_SMS_API_KEY",
+        "SMS_SENDER_ID": "VASHNT"
+    }
+}
