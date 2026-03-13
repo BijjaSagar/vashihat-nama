@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vasihat Nama – Nominee Access Portal</title>
+  <meta name="description" content="Securely access your inherited digital vault items from Vasihat Nama." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Design Tokens ─────────────────────────────────────────────────────── */
+    :root {
+      --primary:        #5B4FE9;
+      --primary-light:  #7C72EF;
+      --primary-dark:   #3D33C4;
+      --accent:         #00D4AA;
+      --danger:         #FF4757;
+      --surface:        #0F0F1A;
+      --surface-2:      #181828;
+      --surface-3:      #21213A;
+      --border:         rgba(255,255,255,0.07);
+      --text:           #F0F0FF;
+      --text-secondary: rgba(240,240,255,0.5);
+      --glow:           rgba(91,79,233,0.35);
+      --radius:         18px;
+      --radius-sm:      10px;
+      --transition:     0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ─── Reset & Base ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--surface);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── Animated Background ───────────────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(91,79,233,0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 80%, rgba(0,212,170,0.08) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── Floating Orbs ──────────────────────────────────────────────────────── */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.12;
+      animation: floatOrb 12s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .orb-1 { width: 400px; height: 400px; background: var(--primary); top: -100px; left: -100px; animation-delay: 0s; }
+    .orb-2 { width: 300px; height: 300px; background: var(--accent); bottom: -80px; right: -80px; animation-delay: -6s; }
+    @keyframes floatOrb {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33%       { transform: translate(30px, -20px) scale(1.05); }
+      66%       { transform: translate(-20px, 15px) scale(0.95); }
+    }
+
+    /* ─── Page Layout ───────────────────────────────────────────────────────── */
+    .page { position: relative; z-index: 1; }
+
+    /* ─── Header ─────────────────────────────────────────────────────────────── */
+    header {
+      padding: 24px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+      background: rgba(15,15,26,0.7);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo-icon {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 20px rgba(91,79,233,0.5);
+    }
+    .logo-text { font-weight: 800; font-size: 18px; letter-spacing: -0.5px; }
+    .logo-text span { color: var(--primary-light); }
+    .header-badge {
+      margin-left: auto;
+      background: rgba(0,212,170,0.12);
+      border: 1px solid rgba(0,212,170,0.25);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 999px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ─── Container ──────────────────────────────────────────────────────────── */
+    .container {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* ─── Step Views ─────────────────────────────────────────────────────────── */
+    .step { display: none; animation: fadeUp 0.4s ease; }
+    .step.active { display: block; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Hero Badge ─────────────────────────────────────────────────────────── */
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(91,79,233,0.12);
+      border: 1px solid rgba(91,79,233,0.25);
+      color: var(--primary-light);
+      font-size: 12px; font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 999px;
+      margin-bottom: 24px;
+      letter-spacing: 0.5px;
+    }
+    .hero-badge-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; }
+
+    /* ─── Typography ─────────────────────────────────────────────────────────── */
+    h1 {
+      font-size: 32px; font-weight: 800;
+      letter-spacing: -1px; line-height: 1.2;
+      margin-bottom: 12px;
+    }
+    h1 span { background: linear-gradient(135deg, var(--primary-light), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .subtitle { color: var(--text-secondary); font-size: 15px; line-height: 1.6; margin-bottom: 36px; }
+    .section-title {
+      font-size: 14px; font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase; letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    /* ─── Card ───────────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 16px;
+      transition: border-color var(--transition);
+    }
+    .card:hover { border-color: rgba(91,79,233,0.25); }
+
+    /* ─── Input ──────────────────────────────────────────────────────────────── */
+    .input-group { margin-bottom: 18px; }
+    .input-label {
+      display: block;
+      font-size: 13px; font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      letter-spacing: 0.3px;
+    }
+    .input-wrap { position: relative; }
+    .input-prefix {
+      position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+      color: var(--text-secondary); font-size: 14px; font-weight: 500;
+      pointer-events: none;
+    }
+    input[type="tel"],
+    input[type="text"] {
+      width: 100%;
+      background: var(--surface-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 16px;
+      padding: 14px 16px 14px 50px;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    input[type="tel"]:focus,
+    input[type="text"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(91,79,233,0.2);
+    }
+    input::placeholder { color: rgba(240,240,255,0.25); }
+
+    /* OTP Input Row */
+    .otp-row {
+      display: flex; gap: 10px; justify-content: center;
+      margin-bottom: 8px;
+    }
+    .otp-box {
+      width: 52px; height: 60px;
+      background: var(--surface-3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 24px; font-weight: 700;
+      text-align: center;
+      outline: none;
+      caret-color: var(--primary);
+      transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+    }
+    .otp-box:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(91,79,233,0.25);
+      transform: scale(1.05);
+    }
+    .otp-box.filled { border-color: var(--accent); }
+
+    /* ─── Buttons ────────────────────────────────────────────────────────────── */
+    .btn {
+      width: 100%; padding: 15px;
+      border: none; border-radius: var(--radius-sm);
+      font-family: inherit; font-size: 15px; font-weight: 700;
+      cursor: pointer; letter-spacing: 0.3px;
+      transition: transform var(--transition), box-shadow var(--transition), opacity var(--transition);
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: white;
+      box-shadow: 0 6px 24px rgba(91,79,233,0.4);
+    }
+    .btn-primary:hover:not(:disabled) {
+      box-shadow: 0 8px 32px rgba(91,79,233,0.6);
+      transform: translateY(-1px);
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 13px; font-weight: 500;
+      width: auto; padding: 8px 16px;
+    }
+    .btn-ghost:hover { border-color: var(--primary); color: var(--primary-light); }
+
+    /* Spinner */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: none;
+    }
+    .spinner.show { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Error / Success Toast ──────────────────────────────────────────────── */
+    .toast {
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 500;
+      margin-bottom: 16px;
+      display: none;
+      animation: fadeUp 0.3s ease;
+    }
+    .toast.show { display: flex; align-items: center; gap: 10px; }
+    .toast.error { background: rgba(255,71,87,0.12); border: 1px solid rgba(255,71,87,0.25); color: #FF6B7A; }
+    .toast.success { background: rgba(0,212,170,0.12); border: 1px solid rgba(0,212,170,0.25); color: var(--accent); }
+
+    /* ─── OTP Timer ──────────────────────────────────────────────────────────── */
+    .otp-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 12px;
+      font-size: 13px; color: var(--text-secondary);
+    }
+    #otp-timer { font-weight: 600; color: var(--accent); }
+    #resend-btn { display: none; }
+
+    /* ─── Vault Grid ─────────────────────────────────────────────────────────── */
+    .vault-header {
+      margin-bottom: 28px;
+    }
+    .vault-header h2 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .vault-header p { color: var(--text-secondary); font-size: 14px; }
+
+    .vault-grid {
+      display: flex; flex-direction: column; gap: 12px;
+    }
+
+    .vault-item {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      cursor: pointer;
+      transition: all var(--transition);
+      display: flex; align-items: center; gap: 16px;
+    }
+    .vault-item:hover {
+      border-color: rgba(91,79,233,0.4);
+      background: rgba(91,79,233,0.06);
+      transform: translateX(4px);
+    }
+
+    .item-icon {
+      width: 48px; height: 48px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .icon-note     { background: rgba(91,79,233,0.15); }
+    .icon-password { background: rgba(255,165,0,0.15); }
+    .icon-card     { background: rgba(0,212,170,0.15); }
+    .icon-crypto   { background: rgba(255,200,0,0.15); }
+    .icon-file     { background: rgba(100,149,237,0.15); }
+
+    .item-body { flex: 1; min-width: 0; }
+    .item-title { font-weight: 600; font-size: 15px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-meta { font-size: 12px; color: var(--text-secondary); }
+
+    .item-arrow {
+      color: var(--text-secondary);
+      font-size: 18px;
+      transition: transform var(--transition);
+    }
+    .vault-item:hover .item-arrow { transform: translateX(4px); color: var(--primary-light); }
+
+    /* ─── Detail Modal ───────────────────────────────────────────────────────── */
+    .modal-backdrop {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+      z-index: 1000; align-items: flex-end; justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; animation: backdropIn 0.25s ease; }
+    @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal {
+      background: var(--surface-2);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 28px 28px 0 0;
+      width: 100%; max-width: 520px;
+      padding: 28px;
+      max-height: 85vh; overflow-y: auto;
+      animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal-handle { width: 40px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 99px; margin: 0 auto 20px; }
+    .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+
+    .detail-row {
+      background: var(--surface-3);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+    .detail-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; margin-bottom: 6px; }
+    .detail-value {
+      font-size: 15px; font-weight: 500;
+      word-break: break-all; line-height: 1.5;
+    }
+    .detail-value.blur-value {
+      filter: blur(5px); transition: filter 0.3s;
+      cursor: pointer; user-select: none;
+    }
+    .detail-value.blur-value:hover { filter: blur(0); }
+    .reveal-hint { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+
+    /* ─── Empty State ────────────────────────────────────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 60px 24px;
+      color: var(--text-secondary);
+    }
+    .empty-state .empty-icon { font-size: 56px; margin-bottom: 16px; opacity: 0.4; }
+    .empty-state p { font-size: 15px; line-height: 1.6; }
+
+    /* ─── Stats Row ──────────────────────────────────────────────────────────── */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+      margin-bottom: 28px;
+    }
+    .stat-box {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px; text-align: center;
+    }
+    .stat-number { font-size: 24px; font-weight: 800; color: var(--primary-light); }
+    .stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 4px; font-weight: 500; }
+
+    /* ─── Info Banner ────────────────────────────────────────────────────────── */
+    .info-banner {
+      background: rgba(0,212,170,0.08);
+      border: 1px solid rgba(0,212,170,0.2);
+      border-radius: 12px; padding: 14px 16px;
+      font-size: 13px; color: rgba(0,212,170,0.9);
+      margin-bottom: 24px;
+      display: flex; gap: 10px; align-items: flex-start; line-height: 1.5;
+    }
+
+    /* ─── Copy button ────────────────────────────────────────────────────────── */
+    .copy-btn {
+      background: rgba(91,79,233,0.15); border: none;
+      color: var(--primary-light); font-size: 12px; font-weight: 600;
+      padding: 4px 10px; border-radius: 6px; cursor: pointer;
+      transition: background var(--transition);
+      font-family: inherit;
+    }
+    .copy-btn:hover { background: rgba(91,79,233,0.3); }
+
+    /* ─── Logout ──────────────────────────────────────────────────────────────── */
+    .logout-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; margin-bottom: 20px;
+    }
+    .user-pill {
+      background: var(--surface-3); border: 1px solid var(--border);
+      border-radius: 999px; padding: 6px 14px;
+      font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px;
+    }
+    .user-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* ─── Footer ─────────────────────────────────────────────────────────────── */
+    footer {
+      text-align: center; padding: 24px;
+      color: var(--text-secondary); font-size: 12px;
+      border-top: 1px solid var(--border);
+      position: relative; z-index: 1;
+    }
+    footer a { color: var(--primary-light); text-decoration: none; }
+
+    /* ─── Responsive ─────────────────────────────────────────────────────────── */
+    @media (max-width: 480px) {
+      header { padding: 16px 20px; }
+      .container { padding: 32px 16px 60px; }
+      h1 { font-size: 26px; }
+      .otp-box { width: 44px; height: 54px; font-size: 20px; }
+      .modal { border-radius: 24px 24px 0 0; padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="logo-icon">🛡️</div>
+    <div class="logo-text">Vasihat <span>Nama</span></div>
+    <div class="header-badge">NOMINEE PORTAL</div>
+  </header>
+
+  <div class="page">
+    <div class="container">
+
+      <!-- ── STEP 1: Enter Mobile ─────────────────────────────────────── -->
+      <div class="step active" id="step-mobile">
+        <div class="hero-badge"><div class="hero-badge-dot"></div> Secure Legacy Access</div>
+        <h1>Access Your <span>Inheritance</span></h1>
+        <p class="subtitle">You have been listed as a nominee. Enter your registered mobile number to receive a one-time verification code.</p>
+
+        <div class="card">
+          <div class="toast error" id="mobile-error">
+            <span>⚠️</span><span id="mobile-error-msg">Something went wrong.</span>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">Mobile Number</label>
+            <div class="input-wrap">
+              <span class="input-prefix">+91</span>
+              <input
+                type="tel" id="mobile-input"
+                placeholder="9876543210"
+                maxlength="10"
+                inputmode="numeric"
+                autocomplete="tel"
+              />
+            </div>
+          </div>
+
+          <button class="btn btn-primary" id="send-otp-btn" onclick="sendOtp()">
+            <div class="spinner" id="send-spinner"></div>
+            <span id="send-label">Send Verification Code</span>
+          </button>
+        </div>
+
+        <div style="text-align:center; color: var(--text-secondary); font-size: 12px; margin-top: 16px;">
+          🔒 Your data is encrypted. Only nominees can access assigned items.
+        </div>
+      </div>
+
+      <!-- ── STEP 2: OTP Verification ────────────────────────────────── -->
+      <div class="step" id="step-otp">
+        <div class="hero-badge"><div class="hero-badge-dot"></div> Verification</div>
+        <h1>Enter <span>OTP</span></h1>
+        <p class="subtitle" id="otp-subtitle">A 6-digit code was sent to your mobile number.</p>
+
+        <div class="card">
+          <div class="toast error" id="otp-error">
+            <span>⚠️</span><span id="otp-error-msg">Invalid code.</span>
+          </div>
+          <div class="toast success" id="otp-success">
+            <span>✅</span><span>OTP sent successfully!</span>
+          </div>
+
+          <p class="section-title">Enter 6-Digit Code</p>
+          <div class="otp-row">
+            <input class="otp-box" type="text" maxlength="1" inputmode="numeric" id="otp-0" />
+            <input class="otp-box" type="text" maxlength="1" inputmode="numeric" id="otp-1" />
+            <input class="otp-box" type="text" maxlength="1" inputmode="numeric" id="otp-2" />
+            <input class="otp-box" type="text" maxlength="1" inputmode="numeric" id="otp-3" />
+            <input class="otp-box" type="text" maxlength="1" inputmode="numeric" id="otp-4" />
+            <input class="otp-box" type="text" maxlength="1" inputmode="numeric" id="otp-5" />
+          </div>
+
+          <div class="otp-meta">
+            <span>Code expires in <span id="otp-timer">5:00</span></span>
+            <button class="btn btn-ghost" id="resend-btn" onclick="resendOtp()">Resend Code</button>
+          </div>
+
+          <div style="margin-top: 20px;">
+            <button class="btn btn-primary" id="verify-btn" onclick="verifyOtp()">
+              <div class="spinner" id="verify-spinner"></div>
+              <span id="verify-label">Verify &amp; Unlock Vault</span>
+            </button>
+          </div>
+          <div style="margin-top: 12px; display:flex; justify-content:center;">
+            <button class="btn btn-ghost" onclick="goBack()">← Change Number</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── STEP 3: Vault Items ──────────────────────────────────────── -->
+      <div class="step" id="step-vault">
+        <div class="logout-row">
+          <div class="user-pill">
+            <div class="user-dot"></div>
+            <span id="vault-mobile-display">+91 XXXXXXXXXX</span>
+          </div>
+          <button class="btn btn-ghost" onclick="logout()">Sign Out</button>
+        </div>
+
+        <div class="vault-header">
+          <h2>Your Inherited <span style="color: var(--primary-light)">Vault</span></h2>
+          <p id="owner-name-line" style="color: var(--text-secondary); font-size: 14px;"></p>
+        </div>
+
+        <div class="info-banner">
+          <span>🔐</span>
+          <span>These items were securely assigned to you by the account holder. Handle them with care and privacy.</span>
+        </div>
+
+        <div class="stats-row" id="stats-row">
+          <div class="stat-box"><div class="stat-number" id="stat-total">0</div><div class="stat-label">Total Items</div></div>
+          <div class="stat-box"><div class="stat-number" id="stat-notes">0</div><div class="stat-label">Notes</div></div>
+          <div class="stat-box"><div class="stat-number" id="stat-keys">0</div><div class="stat-label">Passwords</div></div>
+        </div>
+
+        <p class="section-title">Assigned Items</p>
+        <div class="vault-grid" id="vault-grid">
+          <!-- injected by JS -->
+        </div>
+      </div>
+
+    </div><!-- /container -->
+  </div><!-- /page -->
+
+  <!-- ── Detail Modal ──────────────────────────────────────────────────── -->
+  <div class="modal-backdrop" id="modal-backdrop" onclick="closeModal(event)">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="modal-title">Item Details</div>
+      <div id="modal-body">
+        <!-- injected by JS -->
+      </div>
+      <button class="btn btn-ghost" style="width:100%; margin-top: 16px;" onclick="closeModalDirect()">Close</button>
+    </div>
+  </div>
+
+  <footer>
+    <p>🛡️ Vasihat Nama &mdash; Secure Digital Estate Planning</p>
+    <p style="margin-top: 4px;">
+      <a href="/nominee-portal/privacy.html">Privacy Policy</a> &nbsp;·&nbsp;
+      <a href="https://vasihata-nama.in" target="_blank">Learn More</a>
+    </p>
+  </footer>
+
+  <script>
+    // ─── State ─────────────────────────────────────────────────────────────────
+    const API = '/api';
+    let state = {
+      mobile: '',
+      nomineeId: null,
+      token: null,
+      items: []
+    };
+    let otpTimer = null;
+
+    // ─── Restore Session ────────────────────────────────────────────────────────
+    (function restoreSession() {
+      const saved = sessionStorage.getItem('vn_nominee');
+      if (saved) {
+        try {
+          const s = JSON.parse(saved);
+          if (s.token && s.mobile) {
+            state = { ...state, ...s };
+            showStep('step-vault');
+            loadVaultItems();
+            return;
+          }
+        } catch (_) {}
+      }
+    })();
+
+    // ─── Navigation ─────────────────────────────────────────────────────────────
+    function showStep(id) {
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    function goBack() {
+      clearInterval(otpTimer);
+      showStep('step-mobile');
+    }
+
+    function logout() {
+      sessionStorage.removeItem('vn_nominee');
+      state = { mobile: '', nomineeId: null, token: null, items: [] };
+      showStep('step-mobile');
+    }
+
+    // ─── Toast Helpers ───────────────────────────────────────────────────────────
+    function showError(id, msg) {
+      const el = document.getElementById(id);
+      document.getElementById(id + '-msg').textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 5000);
+    }
+    function hideError(id) {
+      document.getElementById(id)?.classList.remove('show');
+    }
+    function showSuccess(id) {
+      const el = document.getElementById(id);
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    // ─── Button Loading State ────────────────────────────────────────────────────
+    function setLoading(btnId, spinnerId, labelId, loading) {
+      document.getElementById(btnId).disabled = loading;
+      document.getElementById(spinnerId).classList.toggle('show', loading);
+      document.getElementById(labelId).style.display = loading ? 'none' : 'inline';
+    }
+
+    // ─── Step 1: Send OTP ────────────────────────────────────────────────────────
+    async function sendOtp() {
+      hideError('mobile-error');
+      const mobile = document.getElementById('mobile-input').value.trim().replace(/\s/g, '');
+      if (!/^\d{10}$/.test(mobile)) {
+        showError('mobile-error', 'Please enter a valid 10-digit Indian mobile number.');
+        return;
+      }
+      state.mobile = mobile;
+      setLoading('send-otp-btn', 'send-spinner', 'send-label', true);
+      try {
+        const res = await fetch(`${API}/nominee-portal/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mobile })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          showError('mobile-error', data.error || 'Failed to send OTP. You may not be registered as a nominee.');
+          return;
+        }
+        document.getElementById('otp-subtitle').textContent = `A 6-digit code was sent to +91 ${mobile}`;
+        document.getElementById('vault-mobile-display').textContent = `+91 ${mobile}`;
+        showStep('step-otp');
+        showSuccess('otp-success');
+        startOtpTimer();
+        document.getElementById('otp-0').focus();
+      } catch (e) {
+        showError('mobile-error', 'Network error. Please try again.');
+      } finally {
+        setLoading('send-otp-btn', 'send-spinner', 'send-label', false);
+      }
+    }
+
+    // ─── OTP Timer ───────────────────────────────────────────────────────────────
+    function startOtpTimer() {
+      clearInterval(otpTimer);
+      let secs = 300;
+      document.getElementById('resend-btn').style.display = 'none';
+      const el = document.getElementById('otp-timer');
+
+      otpTimer = setInterval(() => {
+        secs--;
+        const m = Math.floor(secs / 60), s = secs % 60;
+        el.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+        if (secs <= 0) {
+          clearInterval(otpTimer);
+          el.textContent = 'Expired';
+          el.style.color = 'var(--danger)';
+          document.getElementById('resend-btn').style.display = 'inline-flex';
+        }
+      }, 1000);
+    }
+
+    async function resendOtp() {
+      clearOtpBoxes();
+      await sendOtp();
+    }
+
+    // ─── OTP Box Auto-advance ─────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      // Mobile input — send on Enter
+      document.getElementById('mobile-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') sendOtp();
+      });
+
+      // OTP boxes
+      for (let i = 0; i < 6; i++) {
+        const box = document.getElementById(`otp-${i}`);
+        box.addEventListener('input', e => {
+          const val = e.target.value.replace(/\D/g, '');
+          e.target.value = val.slice(-1);
+          e.target.classList.toggle('filled', val.length > 0);
+          if (val && i < 5) document.getElementById(`otp-${i+1}`).focus();
+          if (i === 5 && val) verifyOtp(); // Auto-submit on last digit
+        });
+        box.addEventListener('keydown', e => {
+          if (e.key === 'Backspace' && !e.target.value && i > 0) {
+            document.getElementById(`otp-${i-1}`).focus();
+          }
+          if (e.key === 'Enter') verifyOtp();
+        });
+        box.addEventListener('paste', e => {
+          e.preventDefault();
+          const text = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+          for (let j = 0; j < text.length; j++) {
+            const b = document.getElementById(`otp-${j}`);
+            if (b) { b.value = text[j]; b.classList.add('filled'); }
+          }
+          if (text.length === 6) verifyOtp();
+          else if (text.length > 0) document.getElementById(`otp-${Math.min(text.length, 5)}`).focus();
+        });
+      }
+    });
+
+    function clearOtpBoxes() {
+      for (let i = 0; i < 6; i++) {
+        const b = document.getElementById(`otp-${i}`);
+        b.value = ''; b.classList.remove('filled');
+      }
+    }
+
+    function getOtpValue() {
+      return Array.from({ length: 6 }, (_, i) => document.getElementById(`otp-${i}`).value).join('');
+    }
+
+    // ─── Step 2: Verify OTP ──────────────────────────────────────────────────────
+    async function verifyOtp() {
+      hideError('otp-error');
+      const otp = getOtpValue();
+      if (otp.length !== 6) {
+        showError('otp-error', 'Please enter all 6 digits.');
+        return;
+      }
+      setLoading('verify-btn', 'verify-spinner', 'verify-label', true);
+      try {
+        const res = await fetch(`${API}/nominee-portal/verify-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mobile: state.mobile, otp })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          showError('otp-error', data.error || 'Invalid or expired OTP. Please try again.');
+          clearOtpBoxes();
+          document.getElementById('otp-0').focus();
+          return;
+        }
+        state.token = data.token;
+        state.nomineeId = data.nominee_id;
+        clearInterval(otpTimer);
+
+        // Persist session
+        sessionStorage.setItem('vn_nominee', JSON.stringify({ mobile: state.mobile, token: state.token, nomineeId: state.nomineeId }));
+
+        showStep('step-vault');
+        await loadVaultItems();
+      } catch (e) {
+        showError('otp-error', 'Network error. Please try again.');
+      } finally {
+        setLoading('verify-btn', 'verify-spinner', 'verify-label', false);
+      }
+    }
+
+    // ─── Step 3: Load Vault Items ────────────────────────────────────────────────
+    async function loadVaultItems() {
+      const grid = document.getElementById('vault-grid');
+      grid.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--text-secondary);">
+        <div class="spinner show" style="margin: 0 auto 12px; width: 28px; height: 28px; border-width: 3px;"></div>
+        Loading your vault items…
+      </div>`;
+
+      try {
+        const res = await fetch(`${API}/nominee-portal/vault-items?nominee_id=${state.nomineeId}`, {
+          headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load');
+
+        state.items = data.items || [];
+        renderVaultItems(data);
+      } catch (e) {
+        grid.innerHTML = `<div class="empty-state">
+          <div class="empty-icon">⚠️</div>
+          <p>Could not load vault items.<br/>Please refresh the page.</p>
+        </div>`;
+      }
+    }
+
+    // ─── Render Items ─────────────────────────────────────────────────────────────
+    const ICONS = {
+      note:        { emoji: '📝', cls: 'icon-note',     label: 'Secure Note' },
+      password:    { emoji: '🔑', cls: 'icon-password', label: 'Password' },
+      credit_card: { emoji: '💳', cls: 'icon-card',     label: 'Payment Card' },
+      crypto:      { emoji: '₿',  cls: 'icon-crypto',   label: 'Crypto Wallet' },
+      file:        { emoji: '📄', cls: 'icon-file',     label: 'Document' }
+    };
+
+    function renderVaultItems(data) {
+      const grid = document.getElementById('vault-grid');
+      const items = data.items || [];
+
+      // Stats
+      document.getElementById('stat-total').textContent = items.length;
+      document.getElementById('stat-notes').textContent = items.filter(i => i.item_type === 'note').length;
+      document.getElementById('stat-keys').textContent = items.filter(i => i.item_type === 'password' || i.item_type === 'crypto').length;
+
+      // Owner name
+      if (data.owner_name) {
+        document.getElementById('owner-name-line').textContent = `Left to you by ${data.owner_name}`;
+      }
+
+      if (items.length === 0) {
+        grid.innerHTML = `<div class="empty-state">
+          <div class="empty-icon">🔒</div>
+          <p>No vault items have been assigned to you yet.<br/>Check back after the owner's heartbeat triggers.</p>
+        </div>`;
+        return;
+      }
+
+      grid.innerHTML = items.map((item, idx) => {
+        const ic = ICONS[item.item_type] || ICONS.file;
+        return `
+          <div class="vault-item" onclick="showItemDetail(${idx})" tabindex="0" role="button" aria-label="View ${item.title}">
+            <div class="item-icon ${ic.cls}">${ic.emoji}</div>
+            <div class="item-body">
+              <div class="item-title">${escHtml(item.title)}</div>
+              <div class="item-meta">${ic.label}</div>
+            </div>
+            <div class="item-arrow">›</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ─── Item Detail ──────────────────────────────────────────────────────────────
+    function showItemDetail(idx) {
+      const item = state.items[idx];
+      if (!item) return;
+      const ic = ICONS[item.item_type] || ICONS.file;
+
+      document.getElementById('modal-title').innerHTML = `${ic.emoji} ${escHtml(item.title)}`;
+
+      let bodyHtml = '';
+      const ed = parseEncryptedData(item.encrypted_data);
+
+      if (ed) {
+        if (item.item_type === 'note') {
+          bodyHtml = detailRow('Content', ed.content || ed.note || '(No content)', true);
+          if (ed.tags) bodyHtml += detailRow('Tags', ed.tags);
+        } else if (item.item_type === 'password') {
+          if (ed.website || ed.url)  bodyHtml += detailRow('Website', ed.website || ed.url);
+          if (ed.username || ed.email) bodyHtml += detailRow('Username / Email', ed.username || ed.email);
+          if (ed.password)  bodyHtml += detailRow('Password', ed.password, true);
+          if (ed.notes)     bodyHtml += detailRow('Notes', ed.notes);
+        } else if (item.item_type === 'credit_card') {
+          if (ed.card_number || ed.number) bodyHtml += detailRow('Card Number', maskCard(ed.card_number || ed.number), false, true);
+          if (ed.cardholder_name)           bodyHtml += detailRow('Cardholder Name', ed.cardholder_name);
+          if (ed.expiry || ed.expiry_date)  bodyHtml += detailRow('Expiry', ed.expiry || ed.expiry_date);
+          if (ed.cvv)                       bodyHtml += detailRow('CVV', ed.cvv, true);
+          if (ed.billing_address)           bodyHtml += detailRow('Billing Address', ed.billing_address);
+        } else if (item.item_type === 'crypto') {
+          if (ed.wallet_name) bodyHtml += detailRow('Wallet / Chain', ed.wallet_name);
+          if (ed.address)     bodyHtml += detailRow('Wallet Address', ed.address, false, true);
+          if (ed.seed_phrase) bodyHtml += detailRow('Seed Phrase', ed.seed_phrase, true);
+          if (ed.private_key) bodyHtml += detailRow('Private Key', ed.private_key, true);
+          if (ed.notes)       bodyHtml += detailRow('Notes', ed.notes);
+        } else {
+          // Generic / file
+          Object.entries(ed).forEach(([k, v]) => {
+            if (v) bodyHtml += detailRow(k.replace(/_/g, ' '), String(v));
+          });
+        }
+      } else {
+        // Raw encrypted data fallback
+        bodyHtml = `<div class="detail-row">
+          <div class="detail-label">Encrypted Data</div>
+          <div class="detail-value" style="font-size:12px; opacity:0.5; word-break:break-all;">${escHtml(item.encrypted_data?.slice(0,80) + '…')}</div>
+          <div class="reveal-hint" style="color:var(--danger);">⚠️ This item's data could not be decrypted in the portal.</div>
+        </div>`;
+      }
+
+      // Added date
+      if (item.created_at) {
+        bodyHtml += detailRow('Saved On', new Date(item.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }));
+      }
+
+      document.getElementById('modal-body').innerHTML = bodyHtml;
+      document.getElementById('modal-backdrop').classList.add('open');
+    }
+
+    function detailRow(label, value, sensitive = false, copyable = false) {
+      const id = `drv-${Math.random().toString(36).slice(2)}`;
+      const blurClass = sensitive ? 'blur-value' : '';
+      const blurTitle = sensitive ? 'title="Click to reveal"' : '';
+      const hint = sensitive ? '<div class="reveal-hint">👁 Click to reveal</div>' : '';
+      const copyBtn = copyable ? `<br/><button class="copy-btn" onclick="copyText('${id}')">Copy</button>` : '';
+      return `<div class="detail-row">
+        <div class="detail-label">${escHtml(label)}</div>
+        <div class="detail-value ${blurClass}" id="${id}" ${blurTitle} ${sensitive ? `onclick="this.classList.toggle('blur-value')"` : ''}>
+          ${escHtml(value)}
+        </div>
+        ${hint}${copyBtn}
+      </div>`;
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────────
+    function parseEncryptedData(raw) {
+      if (!raw) return null;
+      try {
+        // Try direct JSON first
+        if (typeof raw === 'object') return raw;
+        const parsed = JSON.parse(raw);
+        if (typeof parsed === 'object') return parsed;
+      } catch (_) {}
+      // Could be base64-encoded JSON (client-side encryption means portal can't fully decrypt AES)
+      // Return a partial view with fallback message
+      return null;
+    }
+
+    function maskCard(num) {
+      if (!num) return '';
+      const clean = num.replace(/\s/g, '');
+      return `**** **** **** ${clean.slice(-4)}`;
+    }
+
+    function escHtml(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    async function copyText(elId) {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      try {
+        await navigator.clipboard.writeText(el.textContent.trim());
+        const orig = el.nextElementSibling?.nextElementSibling;
+        if (orig) { orig.textContent = 'Copied!'; setTimeout(() => orig.textContent = 'Copy', 1500); }
+      } catch(_) {}
+    }
+
+    function closeModal(e) {
+      if (e.target === document.getElementById('modal-backdrop')) closeModalDirect();
+    }
+    function closeModalDirect() {
+      document.getElementById('modal-backdrop').classList.remove('open');
+    }
+  </script>
+</body>
+</html>
