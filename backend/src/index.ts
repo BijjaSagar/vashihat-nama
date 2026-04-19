@@ -780,7 +780,7 @@ app.post('/api/send_otp', async (req, res) => {
     }
 
     try {
-        // Check if user exists (Required for login)
+        // Check if user exists (Required for login, but NOT for register)
         const userCheck = await db.query('SELECT id FROM users WHERE mobile_number = $1', [mobile]);
 
         if (userCheck.rows.length === 0 && purpose === 'login') {
@@ -788,6 +788,16 @@ app.post('/api/send_otp', async (req, res) => {
                 success: false,
                 message: 'Mobile number not registered.',
                 action: 'register'
+            });
+            return;
+        }
+
+        // For register: block if already registered
+        if (userCheck.rows.length > 0 && purpose === 'register') {
+            res.status(409).json({
+                success: false,
+                message: 'This mobile number is already registered. Please login instead.',
+                action: 'login'
             });
             return;
         }
@@ -811,21 +821,39 @@ app.post('/api/send_otp', async (req, res) => {
         const encodedMessage = encodeURIComponent(message);
         const smsUrl = `http://sms.hspsms.com/sendSMS?username=${HSP_SMS_USERNAME}&message=${encodedMessage}&sendername=${HSP_SMS_SENDER_ID}&smstype=${HSP_SMS_TYPE}&numbers=${mobile}&apikey=${HSP_SMS_API_KEY}`;
 
-        // Send SMS via Axios
-        const smsResponse = await axios.get(smsUrl);
-        console.log('SMS API Response:', smsResponse.data);
+        // ✅ BUG FIX: Wrap SMS in try/catch — a failed SMS must not crash the whole OTP flow.
+        // The OTP is already safely stored in the DB above. If SMS fails, the dev_otp
+        // field (non-production only) allows testing without a live SMS gateway.
+        let smsSent = false;
+        try {
+            const smsResponse = await axios.get(smsUrl);
+            console.log('SMS API Response:', smsResponse.data);
+            await db.query(
+                'INSERT INTO otp_logs (mobile, purpose, status, details) VALUES ($1, $2, $3, $4)',
+                [mobile, purpose, 'sent', `Response: ${JSON.stringify(smsResponse.data)}`]
+            );
+            smsSent = true;
+        } catch (smsError: any) {
+            console.error('SMS send error (non-fatal):', smsError?.message);
+            await db.query(
+                'INSERT INTO otp_logs (mobile, purpose, status, details) VALUES ($1, $2, $3, $4)',
+                [mobile, purpose, 'sms_failed', `SMS error: ${smsError?.message}`]
+            ).catch(() => {});
+        }
 
-        // Log OTP request
-        await db.query(
-            'INSERT INTO otp_logs (mobile, purpose, status, details) VALUES ($1, $2, $3, $4)',
-            [mobile, purpose, 'sent', `Response: ${JSON.stringify(smsResponse.data)}`]
-        );
-
-        res.json({
+        // Always succeed — OTP is stored in DB regardless of SMS status
+        const responsePayload: any = {
             success: true,
-            message: 'OTP sent successfully',
+            message: smsSent ? 'OTP sent successfully' : 'OTP generated (SMS delivery may be delayed)',
             mobile: mobile.substring(0, 2) + 'XXXXXX' + mobile.substring(8)
-        });
+        };
+
+        // Expose OTP in non-production for testing
+        if (process.env.NODE_ENV !== 'production') {
+            responsePayload.debug_otp = otp;
+        }
+
+        res.json(responsePayload);
 
     } catch (error) {
         console.error('Error in send_otp:', error);
@@ -872,7 +900,25 @@ app.post('/api/verify_otp', async (req, res) => {
             return;
         }
 
-        // OTP Verified -> Get User
+        // Clean up OTP
+        await db.query('DELETE FROM otp_verifications WHERE mobile = $1 AND purpose = $2', [mobile, purpose]);
+
+        // ✅ BUG FIX: For 'register' purpose, the user does NOT exist yet in the DB.
+        // We should NOT try to fetch the user or issue a JWT here.
+        // Simply return success so the Flutter app can proceed to the profile-entry step.
+        if (purpose === 'register') {
+            await db.query(
+                'INSERT INTO otp_logs (mobile, purpose, status, details) VALUES ($1, $2, $3, $4)',
+                [mobile, purpose, 'verified', 'Mobile verified for registration']
+            ).catch(() => {});
+
+            return res.json({
+                success: true,
+                message: 'Mobile number verified. Please complete your profile.'
+            });
+        }
+
+        // For 'login' purpose — look up the existing user and issue a JWT
         const userResult = await db.query(
             'SELECT id, name, mobile_number, email FROM users WHERE mobile_number = $1',
             [mobile]
@@ -880,13 +926,15 @@ app.post('/api/verify_otp', async (req, res) => {
 
         const user = userResult.rows[0];
 
-        // Clean up OTP
-        await db.query('DELETE FROM otp_verifications WHERE mobile = $1 AND purpose = $2', [mobile, purpose]);
+        if (!user) {
+            res.status(404).json({ success: false, message: 'User not found. Please register first.' });
+            return;
+        }
 
         // Log Success
         await db.query(
             'INSERT INTO otp_logs (mobile, purpose, status, details) VALUES ($1, $2, $3, $4)',
-            [mobile, purpose, 'verified', `User ID: ${user?.id}`]
+            [mobile, purpose, 'verified', `User ID: ${user.id}`]
         );
 
         // ✅ SECURITY FIX: Issue a real signed JWT token

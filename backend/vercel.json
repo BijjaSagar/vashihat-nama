@@ -6,12 +6,6 @@
             "destination": "/api/index"
         }
     ],
-    "builds": [
-        {
-            "src": "api/**/*.php",
-            "use": "vercel-php"
-        }
-    ],
     "crons": [
         {
             "path": "/api/admin/trigger_heartbeat_check",
