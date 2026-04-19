@@ -1,0 +1,1165 @@
+:root {
+    --bg-dark: #05050A;
+    --text-main: #FFFFFF;
+    --text-muted: #A1A1AA;
+    --accent: #6366F1;
+    --accent-glow: rgba(99, 102, 241, 0.4);
+    --glass-bg: rgba(255, 255, 255, 0.06);
+    --glass-border: rgba(255, 255, 255, 0.15);
+
+    --purple: #8B5CF6;
+    --blue: #3B82F6;
+    --red: #EF4444;
+
+    --font-sans: 'Inter', sans-serif;
+    --font-display: 'Outfit', sans-serif;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    overflow-x: hidden;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+/* Typography */
+h1,
+h2,
+h3 {
+    font-family: var(--font-display);
+    font-weight: 800;
+}
+
+.gradient-text {
+    background: linear-gradient(135deg, #c4b5fd 0%, #818cf8 50%, #3b82f6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: inline-block;
+}
+
+.text-center {
+    text-align: center;
+}
+
+h2.section-heading {
+    font-size: 3.5rem;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+p.solution-sub {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+/* Navigation */
+.navbar {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1000;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 4rem;
+    transition: background 0.3s, backdrop-filter 0.3s;
+}
+
+.glass-nav {
+    background: rgba(5, 5, 10, 0.7);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: white;
+}
+
+.logo ion-icon {
+    font-size: 1.8rem;
+    color: var(--accent);
+}
+
+.nav-links {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+}
+
+.mobile-toggle {
+    display: none;
+    font-size: 2rem;
+    color: white;
+    cursor: pointer;
+    z-index: 1001;
+    /* Above mobile menu */
+}
+
+.nav-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s;
+}
+
+.nav-links a:hover {
+    color: white;
+}
+
+/* Buttons */
+.btn-primary-small,
+.btn-primary,
+.btn-primary-large {
+    background: white;
+    color: black !important;
+    text-decoration: none;
+    border-radius: 9999px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: inline-block;
+    border: none;
+}
+
+.btn-primary-small {
+    padding: 0.5rem 1.25rem;
+    font-size: 0.9rem;
+}
+
+.btn-primary {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+}
+
+.btn-primary-large {
+    padding: 1rem 2.5rem;
+    font-size: 1.1rem;
+}
+
+.btn-primary:hover,
+.btn-primary-small:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(255, 255, 255, 0.2);
+}
+
+/* Hero */
+.hero {
+    position: relative;
+    padding: 12rem 2rem 8rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    overflow: hidden;
+}
+
+.hero-content {
+    z-index: 10;
+    max-width: 900px;
+}
+
+.pill {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: #a5b4fc;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+}
+
+.hero-title {
+    font-size: 5rem;
+    line-height: 1;
+    margin-bottom: 2rem;
+    letter-spacing: -0.03em;
+}
+
+.hero-subtitle {
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    max-width: 700px;
+    margin: 0 auto 3rem;
+}
+
+/* Glows */
+.glow-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    z-index: 0;
+    opacity: 0.6;
+}
+
+.orb-1 {
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, rgba(99, 102, 241, 0) 70%);
+    top: -200px;
+    left: -200px;
+}
+
+.orb-2 {
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.2) 0%, rgba(139, 92, 246, 0) 70%);
+    bottom: -100px;
+    right: -100px;
+}
+
+/* Hero Video Dashboard */
+.hero-video-container {
+    margin-top: 4rem;
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 900px;
+}
+
+.glass-video-wrapper {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1.5rem;
+    padding: 1rem;
+    position: relative;
+    box-shadow: 0 40px 60px -15px rgba(0, 0, 0, 0.7);
+}
+
+.hero-video {
+    width: 100%;
+    height: auto;
+    border-radius: 1rem;
+    display: block;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.video-overlay-badge {
+    position: absolute;
+    top: 2rem;
+    left: 2rem;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #e2e8f0;
+}
+
+.video-overlay-badge ion-icon {
+    font-size: 1.2rem;
+    color: var(--accent);
+}
+
+
+/* --- INTERACTIVE VAULT SECTION --- */
+.interactive-vault-section {
+    padding: 8rem 0;
+}
+
+.feature-badge {
+    text-transform: uppercase;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+}
+
+.vault-grid {
+    display: flex;
+    gap: 4rem;
+    align-items: center;
+    margin-top: 5rem;
+}
+
+.vault-visual-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    position: relative;
+    height: 400px;
+}
+
+/* THE VAULT DEVICE */
+.vault-core {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Basic glow */
+    border-radius: 50%;
+    box-shadow: 0 0 40px rgba(99, 102, 241, 0.1);
+    transition: box-shadow 0.8s ease;
+}
+
+/* 3 Rotating Rings */
+.vault-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px dashed var(--glass-border);
+    transition: transform 1s cubic-bezier(0.25, 1, 0.5, 1), border-color 0.5s ease;
+}
+
+.ring-outer {
+    width: 100%;
+    height: 100%;
+    border: 2px solid rgba(255, 255, 255, 0.05);
+}
+
+.ring-middle {
+    width: 80%;
+    height: 80%;
+    border-width: 2px;
+}
+
+.ring-inner {
+    width: 60%;
+    height: 60%;
+    border-style: solid;
+}
+
+/* Vault Lock Center */
+.vault-lock {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(8px);
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border: 1px solid var(--glass-border);
+    transition: background 0.5s ease, transform 0.5s ease, box-shadow 0.5s ease;
+}
+
+.vault-lock ion-icon {
+    font-size: 2.5rem;
+    color: var(--text-muted);
+    transition: color 0.5s ease, transform 0.5s ease;
+}
+
+/* Hologram Item that pops out */
+.hologram-item {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.8s ease;
+}
+
+.hologram-item ion-icon {
+    font-size: 4rem;
+    color: white;
+    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.8));
+    animation: float 3s ease-in-out infinite;
+}
+
+/* Energy Beam connecting left and right */
+.energy-beam {
+    position: absolute;
+    top: 50%;
+    right: -100px;
+    /* Points towards the accordion */
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent) 0%, transparent 100%);
+    opacity: 0;
+    transform: translateY(-50%);
+    transition: width 0.6s ease, opacity 0.6s ease;
+    z-index: 0;
+}
+
+/* --- THE ACCORDION MENU --- */
+.feature-accordion {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.feature-item {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: background 0.4s ease, border-color 0.4s ease, transform 0.2s ease;
+}
+
+.feature-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.4s ease, transform 0.4s ease;
+}
+
+.header-icon ion-icon {
+    font-size: 1.3rem;
+    color: var(--text-muted);
+    transition: color 0.4s ease;
+}
+
+.feature-header h3 {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    transition: color 0.4s ease;
+}
+
+.feature-details {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.6s ease, opacity 0.4s ease 0.1s, margin-top 0.4s ease;
+}
+
+.feature-details p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+/* 
+=====================================
+    HOVER STATES (Vault Magic)
+===================================== 
+When user hovers over a feature-item...   
+1. The item expands and highlights
+2. The Vault on the left reacts
+*/
+
+.feature-item.active {
+    background: rgba(99, 102, 241, 0.05);
+    border-color: rgba(99, 102, 241, 0.3);
+    transform: translateX(-10px);
+    /* Pulled towards the vault */
+}
+
+.feature-item.active .header-icon {
+    background: var(--accent);
+    transform: rotate(10deg);
+}
+
+.feature-item.active .header-icon ion-icon {
+    color: white;
+}
+
+.feature-item.active h3 {
+    color: white;
+}
+
+.feature-item.active .feature-details {
+    max-height: 200px;
+    opacity: 1;
+    margin-top: 1rem;
+}
+
+/* State Classes applied to Vault via JS based on active type */
+.vault-core.unlocked {
+    box-shadow: 0 0 60px rgba(99, 102, 241, 0.3);
+}
+
+.vault-core.unlocked .ring-outer {
+    transform: rotate(180deg);
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.vault-core.unlocked .ring-middle {
+    transform: rotate(-90deg);
+    border-color: rgba(99, 102, 241, 0.5);
+}
+
+.vault-core.unlocked .ring-inner {
+    transform: rotate(45deg);
+    border-color: var(--accent);
+    border-style: dashed;
+}
+
+.vault-core.unlocked .vault-lock {
+    background: rgba(0, 0, 0, 0.8);
+    border-color: var(--accent);
+    transform: scale(0.8);
+    /* Shrinks back */
+}
+
+.vault-core.unlocked .vault-lock ion-icon {
+    color: var(--accent);
+    transform: scale(0.5);
+    opacity: 0.2;
+    /* Lock fades out to reveal hologram */
+}
+
+/* The item shooting out */
+.vault-core.unlocked .hologram-item {
+    transform: translate(-50%, -50%) scale(1) translateY(-30px);
+    /* Pops up and out */
+    opacity: 1;
+}
+
+/* Beam bridging the gap */
+.vault-core.unlocked .energy-beam {
+    width: 150px;
+    opacity: 0.5;
+}
+
+/* Theme Colors per type (changed via JS inline styles/classes) */
+/* Handled in JS to recolor the beam and hologram dynamically */
+
+
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+/* General Layout Elements */
+.glass-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+    border: 1px solid var(--glass-border);
+    border-top: 1px solid rgba(255, 255, 255, 0.25);
+    border-left: 1px solid rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 1.5rem;
+    padding: 2.5rem;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Ambient Glassmorphism Orbs */
+.ambient-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--bg-dark);
+}
+
+.ambient-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.5;
+    animation: floatAmbient 20s infinite ease-in-out alternate;
+}
+
+.ambient-blue {
+    top: -10%;
+    left: -10%;
+    width: 600px;
+    height: 600px;
+    background: rgba(59, 130, 246, 0.4);
+    animation-delay: 0s;
+}
+
+.ambient-purple {
+    bottom: -10%;
+    right: -10%;
+    width: 700px;
+    height: 700px;
+    background: rgba(139, 92, 246, 0.3);
+    animation-delay: -5s;
+}
+
+.ambient-green {
+    top: 40%;
+    left: 60%;
+    width: 500px;
+    height: 500px;
+    background: rgba(16, 185, 129, 0.2);
+    animation-delay: -10s;
+}
+
+@keyframes floatAmbient {
+    0% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    50% {
+        transform: translate(100px, 50px) scale(1.1);
+    }
+
+    100% {
+        transform: translate(-50px, 150px) scale(0.9);
+    }
+}
+
+/* CTA */
+.cta-section {
+    padding: 4rem 0;
+}
+
+.cta-container {
+    text-align: center;
+    padding: 5rem 2rem;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(99, 102, 241, 0.1) 100%);
+    margin-bottom: 2rem;
+}
+
+.cta-container h2 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.cta-container p {
+    color: var(--text-muted);
+    margin-bottom: 3rem;
+    font-size: 1.2rem;
+}
+
+.cta-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+}
+
+/* Footer */
+footer {
+    border-top: 1px solid var(--glass-border);
+    padding: 2rem;
+}
+
+.footer-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.footer-brand p {
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.copyright {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: 1rem;
+}
+
+
+/* Animations */
+.reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.delay-1 {
+    transition-delay: 0.2s;
+}
+
+.fade-in-up {
+    animation: fadeInUp 1s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive design overrides logic moved to bottom of file */
+/* =========================================
+   EXTENDED SECTIONS (Story, Timeline, Grid)
+========================================= */
+
+/* The Story / Problem Section */
+.problem-section {
+    padding: 8rem 0;
+    position: relative;
+    background: linear-gradient(180deg, var(--bg-dark) 0%, rgba(10, 10, 14, 0.8) 100%);
+}
+
+.line-story {
+    position: relative;
+    padding-left: 4rem;
+    margin-left: 2rem;
+}
+
+.line-story::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 2px;
+    height: 100%;
+    background: linear-gradient(180deg, transparent 0%, var(--glass-border) 20%, var(--glass-border) 80%, transparent 100%);
+}
+
+.story-block {
+    margin-bottom: 5rem;
+    position: relative;
+}
+
+.story-icon {
+    position: absolute;
+    left: -5rem;
+    top: 0.5rem;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(10px);
+}
+
+.story-icon ion-icon {
+    font-size: 1.5rem;
+    color: white;
+}
+
+/* Timeline Section */
+.timeline-section {
+    padding: 8rem 0;
+    background: radial-gradient(circle at center, rgba(30, 30, 40, 0.5) 0%, var(--bg-dark) 100%);
+}
+
+.timeline-container {
+    max-width: 800px;
+    margin: 5rem auto 0;
+    position: relative;
+    padding: 2rem 0;
+}
+
+.timeline-line {
+    position: absolute;
+    left: 2rem;
+    top: 0;
+    width: 2px;
+    height: 100%;
+    background: linear-gradient(180deg, transparent 0%, var(--accent) 50%, transparent 100%);
+    opacity: 0.3;
+}
+
+.timeline-step {
+    position: relative;
+    padding-left: 6rem;
+    margin-bottom: 4rem;
+}
+
+.timeline-dot {
+    position: absolute;
+    left: 0.5rem;
+    top: 1rem;
+    width: 3rem;
+    height: 3rem;
+    background: var(--bg-dark);
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-family: var(--font-display);
+    color: var(--accent);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+    z-index: 10;
+}
+
+.timeline-content h3 {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.4rem;
+}
+
+.timeline-content p {
+    color: var(--text-muted);
+}
+
+.hover-lift {
+    transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.hover-lift:hover {
+    transform: translateY(-5px);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Storage Grid */
+.storage-section {
+    padding: 8rem 0;
+}
+
+.storage-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-top: 4rem;
+}
+
+.storage-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 1.5rem;
+    padding: 2.5rem;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.storage-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.storage-card ion-icon {
+    font-size: 3rem;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+    transition: color 0.3s ease;
+}
+
+.storage-card:hover ion-icon {
+    color: var(--accent);
+}
+
+.storage-card h4 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+}
+
+.storage-card p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}
+
+.mb-4 {
+    margin-bottom: 4rem;
+}
+
+.text-green {
+    color: var(--green);
+}
+
+.text-blue {
+    color: var(--blue);
+}
+
+.text-red {
+    color: var(--red);
+}
+
+.text-purple {
+    color: var(--purple);
+}
+
+.bg-blue {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: var(--blue);
+}
+
+.bg-red {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: var(--red);
+}
+
+.bg-green {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: var(--green);
+}
+
+/* =========================================
+   RESPONSIVE DESIGN OVERRIDES
+========================================= */
+
+@media (max-width: 1024px) {
+    .hero-title {
+        font-size: 4rem;
+    }
+
+    h2.section-heading {
+        font-size: 3rem;
+    }
+
+    .storage-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 900px) {
+
+    /* Vault Grid */
+    .vault-grid {
+        flex-direction: column;
+        gap: 4rem;
+        margin-top: 3rem;
+    }
+
+    .vault-visual-container {
+        height: 350px;
+    }
+
+    .energy-beam {
+        display: none;
+    }
+
+    /* Nav */
+    .navbar {
+        padding: 1rem 2rem;
+    }
+
+    .nav-links {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background: rgba(10, 10, 14, 0.95);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        padding: 2rem;
+        border-bottom: 1px solid var(--glass-border);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .nav-links.active {
+        display: flex;
+    }
+
+    .nav-links a {
+        font-size: 1.2rem;
+        padding: 1rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        color: white;
+    }
+
+    .nav-links a:last-child {
+        border-bottom: none;
+    }
+
+    .mobile-toggle {
+        display: block;
+    }
+
+    /* Layout */
+    .hero {
+        padding: 10rem 1.5rem 6rem;
+    }
+
+    .line-story {
+        padding-left: 3rem;
+        margin-left: 1rem;
+    }
+
+    .story-icon {
+        left: -4rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: 3rem;
+    }
+
+    h2.section-heading {
+        font-size: 2.25rem;
+    }
+
+    /* Nav & Hero tweaks */
+    .hero-subtitle {
+        font-size: 1.15rem;
+    }
+
+    .btn-primary {
+        padding: 0.8rem 1.5rem;
+        font-size: 1rem;
+    }
+
+    .timeline-container {
+        padding: 0 1rem;
+    }
+
+    .cta-container {
+        padding: 4rem 1.5rem;
+    }
+
+    .cta-container h2 {
+        font-size: 2.5rem;
+    }
+}
+
+@media (max-width: 600px) {
+
+    /* Main Layout */
+    .container {
+        padding: 0 1rem;
+    }
+
+    .hero {
+        padding: 8rem 1rem 4rem;
+    }
+
+    .hero-title {
+        font-size: 2.5rem;
+    }
+
+    /* Vault Core Scale Down */
+    .vault-core {
+        width: 220px;
+        height: 220px;
+    }
+
+    .vault-lock {
+        width: 70px;
+        height: 70px;
+    }
+
+    .vault-lock ion-icon {
+        font-size: 1.8rem;
+    }
+
+    .hologram-item ion-icon {
+        font-size: 3rem;
+    }
+
+    .feature-item {
+        padding: 1rem;
+    }
+
+    .feature-header h3 {
+        font-size: 1rem;
+    }
+
+    /* Timeline & Story */
+    .storage-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .timeline-step {
+        padding-left: 3rem;
+    }
+
+    .timeline-dot {
+        width: 2.2rem;
+        height: 2.2rem;
+        left: -0.1rem;
+        font-size: 0.9rem;
+    }
+
+    .timeline-line {
+        left: 1rem;
+    }
+
+    .line-story {
+        padding-left: 2rem;
+        margin-left: 0.5rem;
+    }
+
+    .story-icon {
+        left: -2.5rem;
+        width: 40px;
+        height: 40px;
+    }
+
+    .story-icon ion-icon {
+        font-size: 1.2rem;
+    }
+
+    /* Video embed responsive fix */
+    .hero-video-container {
+        margin-top: 3rem;
+    }
+
+    /* Footer */
+    .cta-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .btn-primary-large {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+@media (max-width: 400px) {
+    .hero-title {
+        font-size: 2.1rem;
+    }
+
+    .vault-core {
+        width: 200px;
+        height: 200px;
+    }
+}

@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vasihat Nama — Project Documentation</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #2563EB;
+      --primary-dark: #1E40AF;
+      --accent: #7C3AED;
+      --bg: #F8FAFC;
+      --text: #1E293B;
+      --text-secondary: #64748B;
+      --border: #E2E8F0;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    @media print {
+      body {
+        background: white;
+        font-size: 11pt;
+      }
+
+      .no-print {
+        display: none;
+      }
+
+      .page-break {
+        page-break-before: always;
+      }
+    }
+
+    /* Cover Page */
+    .cover {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0F172A 0%, #1E3A5F 40%, #2563EB 100%);
+      color: white;
+      text-align: center;
+      padding: 60px 40px;
+      page-break-after: always;
+    }
+
+    .cover .shield {
+      font-size: 80px;
+      margin-bottom: 20px;
+    }
+
+    .cover h1 {
+      font-size: 52px;
+      font-weight: 900;
+      letter-spacing: -2px;
+      margin-bottom: 8px;
+    }
+
+    .cover .subtitle {
+      font-size: 20px;
+      font-weight: 300;
+      color: #93C5FD;
+      margin-bottom: 40px;
+      letter-spacing: 2px;
+    }
+
+    .cover .tagline {
+      font-size: 16px;
+      color: #CBD5E1;
+      max-width: 500px;
+      line-height: 1.8;
+    }
+
+    .cover .meta {
+      margin-top: 60px;
+      font-size: 12px;
+      color: #94A3B8;
+    }
+
+    .cover .meta span {
+      display: block;
+      margin: 4px 0;
+    }
+
+    .cover .line {
+      width: 80px;
+      height: 3px;
+      background: #3B82F6;
+      margin: 20px auto;
+      border-radius: 2px;
+    }
+
+    /* Content */
+    .content {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 50px;
+    }
+
+    /* Section Headers */
+    .section-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      color: white;
+      padding: 20px 30px;
+      border-radius: 12px;
+      margin: 40px 0 24px 0;
+    }
+
+    .section-header h2 {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .section-header p {
+      font-size: 13px;
+      opacity: 0.85;
+      margin-top: 4px;
+    }
+
+    h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--primary-dark);
+      margin: 28px 0 12px 0;
+      border-left: 4px solid var(--primary);
+      padding-left: 12px;
+    }
+
+    h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 16px 0 8px 0;
+    }
+
+    p,
+    li {
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    ul {
+      padding-left: 20px;
+    }
+
+    li {
+      margin-bottom: 4px;
+    }
+
+    strong {
+      color: var(--primary-dark);
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px 0;
+      font-size: 13px;
+    }
+
+    th {
+      background: linear-gradient(135deg, #1E293B, #334155);
+      color: white;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    th:first-child {
+      border-radius: 8px 0 0 0;
+    }
+
+    th:last-child {
+      border-radius: 0 8px 0 0;
+    }
+
+    td {
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tr:nth-child(even) {
+      background: #F1F5F9;
+    }
+
+    tr:hover {
+      background: #E8F0FE;
+    }
+
+    code {
+      background: #EEF2FF;
+      color: var(--primary-dark);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: 'SF Mono', monospace;
+    }
+
+    /* Cards */
+    .card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 12px 0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    @media print {
+      .card-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .card .icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .card h4 {
+      margin: 0 0 6px 0;
+      border: none;
+      padding: 0;
+      font-size: 14px;
+    }
+
+    .card p {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    /* Flow Diagrams */
+    .flow {
+      background: #F8FAFC;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 16px 0;
+      font-family: 'SF Mono', monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    /* Highlight Boxes */
+    .highlight {
+      background: linear-gradient(135deg, #EEF2FF, #E0E7FF);
+      border-left: 4px solid var(--primary);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+    }
+
+    .highlight.warning {
+      background: linear-gradient(135deg, #FFFBEB, #FEF3C7);
+      border-color: var(--warning);
+    }
+
+    .highlight.success {
+      background: linear-gradient(135deg, #ECFDF5, #D1FAE5);
+      border-color: var(--success);
+    }
+
+    /* USP Banner */
+    .usp {
+      background: linear-gradient(135deg, #0F172A, #1E293B);
+      color: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 8px 0;
+    }
+
+    .usp h4 {
+      color: #93C5FD;
+      border: none;
+      padding: 0;
+      margin: 0 0 4px 0;
+    }
+
+    .usp p {
+      color: #CBD5E1;
+      margin: 0;
+      font-size: 12px;
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-blue {
+      background: #DBEAFE;
+      color: #1E40AF;
+    }
+
+    .badge-green {
+      background: #D1FAE5;
+      color: #065F46;
+    }
+
+    .badge-purple {
+      background: #EDE9FE;
+      color: #5B21B6;
+    }
+
+    .badge-red {
+      background: #FEE2E2;
+      color: #991B1B;
+    }
+
+    /* TOC */
+    .toc {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px 30px;
+      margin: 30px 0;
+    }
+
+    .toc h3 {
+      border: none;
+      padding: 0;
+      margin: 0 0 16px 0;
+      text-align: center;
+    }
+
+    .toc ol {
+      padding-left: 20px;
+    }
+
+    .toc li {
+      padding: 4px 0;
+      font-weight: 500;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      border-top: 1px solid var(--border);
+      margin-top: 60px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- COVER PAGE -->
+  <div class="cover">
+    <div class="shield">🛡️</div>
+    <h1>Vasihat Nama</h1>
+    <div class="line"></div>
+    <div class="subtitle">YOUR DIGITAL LEGACY, SECURED FOREVER</div>
+    <div class="tagline">A zero-knowledge encrypted digital vault with AI-powered estate planning, biometric
+      proof-of-life verification, and automated nominee access transfer.</div>
+    <div class="meta">
+      <span>Project Documentation v2.0</span>
+      <span>February 2026</span>
+      <span>Flutter • Node.js • PostgreSQL • AWS • OpenAI</span>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- TOC -->
+    <div class="toc">
+      <h3>📋 Table of Contents</h3>
+      <ol>
+        <li>Project Overview & Problem Statement</li>
+        <li>Core Philosophy & Key Points</li>
+        <li>Application Flow</li>
+        <li>Feature Modules (18 Modules)</li>
+        <li>AI-Powered Features (10 New Modules)</li>
+        <li>System Architecture</li>
+        <li>Database Schema</li>
+        <li>Security Architecture</li>
+        <li>Unique Selling Points</li>
+      </ol>
+    </div>
+
+    <!-- SECTION 1 -->
+    <div class="section-header">
+      <h2>1. Project Overview</h2>
+      <p>What is Vasihat Nama and why does it matter?</p>
+    </div>
+
+    <p><strong>Vasihat Nama</strong> (Urdu: "Letter of Advice") is a cross-platform mobile application that solves a
+      critical real-world problem: <em>What happens to your digital assets when you're no longer around?</em></p>
+
+    <p>The app provides a <strong>secure, encrypted vault</strong> where users store sensitive information — bank
+      accounts, passwords, legal documents, credit cards — and designate <strong>nominees</strong> who automatically
+      receive access when the user fails to perform regular biometric "Proof of Life" check-ins.</p>
+
+    <h3>The Problem We Solve</h3>
+    <div class="card-grid">
+      <div class="card">
+        <div class="icon">💰</div>
+        <h4>Digital Asset Loss</h4>
+        <p>Billions in crypto, bank accounts & digital assets are lost annually because heirs lack access credentials.
+        </p>
+      </div>
+      <div class="card">
+        <div class="icon">📄</div>
+        <h4>Document Scattering</h4>
+        <p>Important legal documents (wills, deeds, policies) are scattered across physical and digital locations.</p>
+      </div>
+      <div class="card">
+        <div class="icon">❤️</div>
+        <h4>Life Verification</h4>
+        <p>No automated way to verify a person is alive and trigger asset transfer upon death or incapacitation.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🌍</div>
+        <h4>Regional Compliance</h4>
+        <p>Different countries have different legal requirements for estate planning and document management.</p>
+      </div>
+    </div>
+
+    <!-- SECTION 2 -->
+    <div class="section-header page-break">
+      <h2>2. Core Philosophy & Key Points</h2>
+      <p>The five pillars that define Vasihat Nama</p>
+    </div>
+
+    <div class="highlight">
+      <h4>🔐 Zero-Knowledge Security</h4>
+      <p>The server <strong>never sees</strong> plaintext data. All vault items are encrypted client-side using RSA/AES
+        before transmission. Even the server operator cannot read user data.</p>
+    </div>
+    <div class="highlight success">
+      <h4>❤️ Proof of Life (Dead Man's Switch)</h4>
+      <p>Users set a check-in frequency (e.g., every 30 days). <strong>Biometric authentication</strong>
+        (fingerprint/face) is required for each check-in. If the user fails to check in, nominees are automatically
+        notified and granted access.</p>
+    </div>
+    <div class="highlight">
+      <h4>🧑‍🤝‍🧑 Selective Nominee Access</h4>
+      <p>Each vault item can be individually assigned to specific nominees. Supports both <strong>Digital</strong>
+        (email/app) and <strong>Physical</strong> (hand-delivery with identity verification) delivery modes.</p>
+    </div>
+    <div class="highlight warning">
+      <h4>🤖 AI-Powered Intelligence</h4>
+      <p>AI Will Drafter with voice input, Smart OCR document scanning, credit card detection, document classification,
+        conflict checking, tone analysis, and an AI Legal Assistant chatbot.</p>
+    </div>
+    <div class="highlight success">
+      <h4>📊 Security Health Score</h4>
+      <p>Gamified 0-100% score with a visual checklist. One-tap "Fix" buttons navigate directly to resolve each security
+        gap.</p>
+    </div>
+
+    <!-- SECTION 3 -->
+    <div class="section-header page-break">
+      <h2>3. Application Flow</h2>
+      <p>How users navigate through the application</p>
+    </div>
+
+    <h3>4.1 Onboarding Flow</h3>
+    <div class="flow">Login Screen ──▸ Enter Mobile ──▸ Send OTP (SMS) ──▸ Verify OTP ──▸ Dashboard
+      │
+      ▼ (New User)
+      Register Screen ──▸ Name + Email + Mobile ──▸ OTP Verify ──▸ Create Keys ──▸ Dashboard</div>
+
+    <h3>4.2 Main Dashboard (9 Feature Tiles)</h3>
+    <div class="card-grid">
+      <div class="card">
+        <div class="icon">📁</div>
+        <h4>Secure Folders</h4>
+        <p>Encrypted folder management with vault items</p>
+      </div>
+      <div class="card">
+        <div class="icon">👥</div>
+        <h4>Nominees</h4>
+        <p>Manage beneficiaries and access assignments</p>
+      </div>
+      <div class="card">
+        <div class="icon">🧠</div>
+        <h4>AI Will Drafter</h4>
+        <p>Voice-powered AI will generation</p>
+      </div>
+      <div class="card">
+        <div class="icon">📷</div>
+        <h4>Smart Scan</h4>
+        <p>OCR document & credit card scanning</p>
+      </div>
+      <div class="card">
+        <div class="icon">🔔</div>
+        <h4>Smart Alerts</h4>
+        <p>Document expiry tracking & reminders</p>
+      </div>
+      <div class="card">
+        <div class="icon">❤️</div>
+        <h4>Proof of Life</h4>
+        <p>Biometric dead man's switch check-in</p>
+      </div>
+      <div class="card">
+        <div class="icon">🛡️</div>
+        <h4>Security Health</h4>
+        <p>Gamified security score with fix actions</p>
+      </div>
+      <div class="card">
+        <div class="icon">🌍</div>
+        <h4>Regional Compliance</h4>
+        <p>Country-specific legal requirements</p>
+      </div>
+      <div class="card">
+        <div class="icon">⚖️</div>
+        <h4>AI Legal Assistant</h4>
+        <p>Chat-based legal guidance</p>
+      </div>
+    </div>
+
+    <h3>4.3 Vault Item Lifecycle</h3>
+    <div class="flow">User Creates Item ──▸ Client-Side Encryption ──▸ Server Stores Encrypted Blob
+      │
+      Assign to Nominee
+      │
+      Re-encrypt key with Nominee's RSA Key
+      │
+      Dead Man's Switch Triggers (no check-in)
+      │
+      Nominee Notified & Access Granted</div>
+
+    <h3>4.4 Proof of Life System</h3>
+    <div class="flow">User Activates ──▸ Sets Frequency (30d/4h/etc) ──▸ Hourly Notifications (vibrate)
+      │
+      User Taps "I'm Safe"
+      │
+      Biometric Verification
+      (Fingerprint / Face ID)
+      │
+      ✅ Authenticated ──▸ Timer Reset
+      │
+      ❌ Missed Deadline ──▸ NOMINEES NOTIFIED
+      ACCESS GRANTED</div>
+
+    <!-- SECTION 4 -->
+    <div class="section-header page-break">
+      <h2>4. Feature Modules</h2>
+      <p>Detailed breakdown of all 18 modules (9 core + 9 AI-powered)</p>
+    </div>
+
+    <h3>5.1 🔐 Secure Folders & Vault Items</h3>
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>Folder CRUD</td>
+        <td>Create, rename, and delete encrypted folders with 3-dot menu</td>
+      </tr>
+      <tr>
+        <td>Notes</td>
+        <td>Securely store text notes (credentials, instructions, messages)</td>
+      </tr>
+      <tr>
+        <td>Passwords</td>
+        <td>Store website/service credentials with encrypted fields</td>
+      </tr>
+      <tr>
+        <td>Credit Cards</td>
+        <td>Full card details with animated 3D card widget preview</td>
+      </tr>
+      <tr>
+        <td>Files</td>
+        <td>Upload via AWS S3 presigned URLs (up to 4.5MB)</td>
+      </tr>
+      <tr>
+        <td>Nominee Assignment</td>
+        <td>Selectively assign any item to specific nominees</td>
+      </tr>
+      <tr>
+        <td>Filter</td>
+        <td>Filter by type: Notes, Passwords, Cards, Files</td>
+      </tr>
+    </table>
+
+    <h3>5.2 🧑‍🤝‍🧑 Nominee Management</h3>
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>Add Nominees</td>
+        <td>Name, email, mobile, relationship, identity proof</td>
+      </tr>
+      <tr>
+        <td>Digital Delivery</td>
+        <td>Access shared via email/app upon trigger</td>
+      </tr>
+      <tr>
+        <td>Physical Delivery</td>
+        <td>Requires address + identity proof; hand-delivery rules</td>
+      </tr>
+      <tr>
+        <td>View Assigned Items</td>
+        <td>See which vault items are assigned to each nominee</td>
+      </tr>
+      <tr>
+        <td>Full CRUD</td>
+        <td>Create, read, update, delete nominee records</td>
+      </tr>
+    </table>
+
+    <h3>5.3 🤖 AI Will Drafter</h3>
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>Voice Input</td>
+        <td>Dictate will using speech-to-text</td>
+      </tr>
+      <tr>
+        <td>AI Generation</td>
+        <td>OpenAI-powered will text from instructions</td>
+      </tr>
+      <tr>
+        <td>Conflict Checker</td>
+        <td>AI detects legal conflicts or contradictions</td>
+      </tr>
+      <tr>
+        <td>Tone Analyzer</td>
+        <td>Ensures appropriate, clear language</td>
+      </tr>
+    </table>
+
+    <h3>5.4 📷 Smart Scan & OCR</h3>
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>Document Scanning</td>
+        <td>Camera capture + Google ML Kit OCR</td>
+      </tr>
+      <tr>
+        <td>Credit Card Detection</td>
+        <td>Auto-extract card number, expiry, CVV, name</td>
+      </tr>
+      <tr>
+        <td>Auto-Classification</td>
+        <td>AI categorizes: Aadhaar, Passport, PAN, License, etc.</td>
+      </tr>
+      <tr>
+        <td>Smart Alert Creation</td>
+        <td>Extracted expiry dates auto-create renewal reminders</td>
+      </tr>
+    </table>
+
+    <h3>5.5 🔔 Smart Alerts &nbsp;|&nbsp; 5.6 ❤️ Proof of Life</h3>
+    <table>
+      <tr>
+        <th>Module</th>
+        <th>Feature</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>Smart Alerts</td>
+        <td>Expiry Tracking</td>
+        <td>Track passport, license, insurance expiry dates</td>
+      </tr>
+      <tr>
+        <td>Smart Alerts</td>
+        <td>Auto-Notifications</td>
+        <td>Push notifications for docs expiring within 30 days</td>
+      </tr>
+      <tr>
+        <td>Smart Alerts</td>
+        <td>Stats Dashboard</td>
+        <td>Total, Urgent, and Expired document counts</td>
+      </tr>
+      <tr>
+        <td>Proof of Life</td>
+        <td>Biometric Check-In</td>
+        <td>Real fingerprint/face recognition verification</td>
+      </tr>
+      <tr>
+        <td>Proof of Life</td>
+        <td>Configurable Timer</td>
+        <td>Days (0-90) + Hours (0-24) + Minutes (0-30)</td>
+      </tr>
+      <tr>
+        <td>Proof of Life</td>
+        <td>Vibration Alerts</td>
+        <td>Hourly notifications with vibration pattern</td>
+      </tr>
+      <tr>
+        <td>Proof of Life</td>
+        <td>Overdue Modal</td>
+        <td>Full-screen warning when deadline passed</td>
+      </tr>
+      <tr>
+        <td>Proof of Life</td>
+        <td>Test Notification</td>
+        <td>Verify notification system is working</td>
+      </tr>
+    </table>
+
+    <h3>5.7 🛡️ Security Health &nbsp;|&nbsp; 5.8 🌍 Regional &nbsp;|&nbsp; 5.9 ⚖️ Legal AI</h3>
+    <table>
+      <tr>
+        <th>Module</th>
+        <th>Feature</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>Security Health</td>
+        <td>Dynamic Score</td>
+        <td>0-100% based on security posture</td>
+      </tr>
+      <tr>
+        <td>Security Health</td>
+        <td>One-Tap Fix</td>
+        <td>Navigate to fix each security gap</td>
+      </tr>
+      <tr>
+        <td>Regional</td>
+        <td>Country Checklists</td>
+        <td>Legal document requirements by country</td>
+      </tr>
+      <tr>
+        <td>Regional</td>
+        <td>AI Generation</td>
+        <td>AI creates region-specific compliance lists</td>
+      </tr>
+      <tr>
+        <td>Legal AI</td>
+        <td>Chat Interface</td>
+        <td>AI-powered estate planning guidance</td>
+      </tr>
+    </table>
+
+    <!-- SECTION 4B: 10 NEW AI-POWERED FEATURES -->
+    <div class="section-header page-break">
+      <h2>5. AI-Powered Features (10 New Modules)</h2>
+      <p>Advanced AI-driven features powered by OpenAI GPT</p>
+    </div>
+
+    <h3>5.10 🏥 AI Vault Health Analyzer</h3>
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>Completeness Score</td>
+        <td>AI-calculated 0-100% vault health score based on item coverage</td>
+      </tr>
+      <tr>
+        <td>Animated Dashboard</td>
+        <td>Circular progress indicator with color-coded score (green/orange/red)</td>
+      </tr>
+      <tr>
+        <td>Stats Cards</td>
+        <td>Quick-view cards showing folders, nominees, and files count</td>
+      </tr>
+      <tr>
+        <td>AI Recommendations</td>
+        <td>Prioritized actionable suggestions (high/medium/low) to improve vault</td>
+      </tr>
+      <tr>
+        <td>Category Analysis</td>
+        <td>Checks for vault type diversity: notes, passwords, cards, files</td>
+      </tr>
+    </table>
+
+    <h3>5.11 📹 AI Video Will / Voice Message</h3>
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>Text Messages</td>
+        <td>Write personal messages addressed to specific nominees</td>
+      </tr>
+      <tr>
+        <td>Nominee Selection</td>
+        <td>Assign each message to a specific nominee via dropdown</td>
+      </tr>
+      <tr>
+        <td>AI Summarization</td>
+        <td>OpenAI automatically summarizes long transcripts</td>
+      </tr>
+      <tr>
+        <td>Message Management</td>
+        <td>View, create, and delete personal will messages</td>
+      </tr>
+      <tr>
+        <td>Multiple Types</td>
+        <td>Support for text, audio, and video message types</td>
+      </tr>
+    </table>
+
+    <h3>5.12 🔍 Smart Asset Discovery Assistant</h3>
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>AI Checklist Generation</td>
+        <td>AI creates personalized asset checklist based on country, age, occupation</td>
+      </tr>
+      <tr>
+        <td>Category Grouping</td>
+        <td>Assets organized by: Financial, Property, Insurance, Digital, Personal, Legal</td>
+      </tr>
+      <tr>
+        <td>Progress Tracking</td>
+        <td>Visual progress bar shows % of suggested assets added to vault</td>
+      </tr>
+      <tr>
+        <td>Toggle Completion</td>
+        <td>Tap items to mark as added/not added with visual strikethrough</td>
+      </tr>
+      <tr>
+        <td>Priority Badges</td>
+        <td>Each asset marked as High, Medium, or Low priority</td>
+      </tr>
+    </table>
+
+    <h3>5.13 ✅ AI Nominee Readiness Report</h3>
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>Overall Score</td>
+        <td>Combined readiness percentage across all nominees</td>
+      </tr>
+      <tr>
+        <td>Per-Nominee Score</td>
+        <td>Individual readiness % with circular progress indicators</td>
+      </tr>
+      <tr>
+        <td>Readiness Checks</td>
+        <td>8-point checklist: name, email, phone, ID proof, address, items, relationship, delivery</td>
+      </tr>
+      <tr>
+        <td>Fix Suggestions</td>
+        <td>"Fix" badges for each failing check with guidance</td>
+      </tr>
+      <tr>
+        <td>Expandable Cards</td>
+        <td>Tap to expand nominee details and see full checklist</td>
+      </tr>
+    </table>
+
+    <h3>5.14 📊 AI Estate Summary Dashboard</h3>
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>Executive Summary</td>
+        <td>AI-generated natural language summary of entire estate</td>
+      </tr>
+      <tr>
+        <td>Stats Grid</td>
+        <td>Vault items, nominees, files, and alerts at a glance</td>
+      </tr>
+      <tr>
+        <td>Strengths Analysis</td>
+        <td>AI identifies what the user is doing well</td>
+      </tr>
+      <tr>
+        <td>Risk Identification</td>
+        <td>AI highlights potential gaps and vulnerabilities</td>
+      </tr>
+      <tr>
+        <td>Numbered Recommendations</td>
+        <td>Prioritized action items for estate improvement</td>
+      </tr>
+    </table>
+
+    <h3>5.15 🚨 AI Fraud & Anomaly Detection</h3>
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>Activity Logging</td>
+        <td>All user actions logged with device info and IP address</td>
+      </tr>
+      <tr>
+        <td>Suspicious Detection</td>
+        <td>AI flags unusual patterns (multiple logins, bulk deletes, odd hours)</td>
+      </tr>
+      <tr>
+        <td>Security Status Card</td>
+        <td>Green "All Clear" or Red "Attention Required" dashboard</td>
+      </tr>
+      <tr>
+        <td>Filter Toggle</td>
+        <td>Show all activity or suspicious events only</td>
+      </tr>
+      <tr>
+        <td>Timeline View</td>
+        <td>Chronological activity feed with action icons and timestamps</td>
+      </tr>
+    </table>
+
+    <h3>5.16 💙 AI Grief Support Chatbot</h3>
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>Compassionate AI</td>
+        <td>GPT-powered chatbot specifically trained for grief support</td>
+      </tr>
+      <tr>
+        <td>Chat Interface</td>
+        <td>Modern chat bubbles with typing indicators and smooth animations</td>
+      </tr>
+      <tr>
+        <td>Context-Aware</td>
+        <td>Understands nominee name and deceased name for personalized support</td>
+      </tr>
+      <tr>
+        <td>Vault Guidance</td>
+        <td>Helps nominees understand how to access and manage inherited vault</td>
+      </tr>
+      <tr>
+        <td>Legal Guidance</td>
+        <td>Provides gentle guidance on legal steps and procedures</td>
+      </tr>
+    </table>
+
+    <h3>5.17 📜 AI Legal Document Generator</h3>
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>8 Document Types</td>
+        <td>Power of Attorney, Gift Deed, Succession Certificate, Nominee Claim Letter, Insurance Claim, Last Will,
+          Property Transfer, Bank Closure</td>
+      </tr>
+      <tr>
+        <td>AI Generation</td>
+        <td>OpenAI generates professional legal document drafts</td>
+      </tr>
+      <tr>
+        <td>Full-Screen Viewer</td>
+        <td>Read and review generated documents with selectable text</td>
+      </tr>
+      <tr>
+        <td>Multi-Language</td>
+        <td>Generate documents in English, Hindi, Urdu, and other languages</td>
+      </tr>
+      <tr>
+        <td>Document Library</td>
+        <td>View, manage, and delete all generated legal documents</td>
+      </tr>
+    </table>
+
+    <h3>5.18 🆘 AI Emergency Card</h3>
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>Live Preview Card</td>
+        <td>Real-time card preview showing name, blood group, allergies, emergency contact</td>
+      </tr>
+      <tr>
+        <td>Medical Information</td>
+        <td>Store blood group, allergies, conditions, medications</td>
+      </tr>
+      <tr>
+        <td>Emergency Contacts</td>
+        <td>Doctor name/phone + 2 emergency contacts</td>
+      </tr>
+      <tr>
+        <td>Insurance & Donor</td>
+        <td>Insurance policy details and organ donor status</td>
+      </tr>
+      <tr>
+        <td>AI Suggestions</td>
+        <td>AI recommends medical fields to fill based on age and conditions</td>
+      </tr>
+    </table>
+
+    <!-- SECTION 6 -->
+    <div class="section-header page-break">
+      <h2>6. System Architecture</h2>
+      <p>Full client-server architecture overview</p>
+    </div>
+
+    <div class="flow" style="font-size:10px;">
+      ┌──────────────────────────────────────────────────────────────────────────┐
+      │ CLIENT (Flutter App) — 18 Feature Screens │
+      │ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ │
+      │ │ Login │ │Dashboard │ │ Folders │ │ Nominees │ │Heartbeat │ │
+      │ │VaultHealth│ │Video Will│ │AssetDisc │ │NomReadnss│ │EstateSumm│ │
+      │ │FraudDetect│ │GriefChat │ │LegalDocs │ │Emergency │ │AI Tools │ │
+      │ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ │
+      │ ┌────▼──────────────▼─────────────▼─────────────▼─────────────▼─────┐ │
+      │ │ ApiService (HTTP) │ NotificationService │ AuthService │ Encrypt │ │
+      │ └───────────────────────────────┬────────────────────────────────────┘ │
+      └──────────────────────────────────┼───────────────────────────────────────┘
+      │ HTTPS REST API
+      ┌──────────────────────────────────▼───────────────────────────────────────┐
+      │ BACKEND (Node.js / Express / TypeScript) │
+      │ Hosted on Vercel (Serverless) — 50+ API Endpoints │
+      │ ┌──────────────────────────────────────────────────────────────────┐ │
+      │ │ /api/users /api/folders /api/vault_items /api/nominees │ │
+      │ │ /api/send_otp /api/files /api/smart_docs /api/heartbeat │ │
+      │ │ /api/ai/chat /api/security /api/regional │ │
+      │ │ /api/vault-health /api/video-wills /api/asset-discovery │ │
+      │ │ /api/nominee-readiness /api/estate-summary /api/activity-log│ │
+      │ │ /api/ai/grief-support /api/legal-documents /api/ai/translate │ │
+      │ │ /api/emergency-card │ │
+      │ └──────────────────────┬───────────────────────────────────────────┘ │
+      │ ┌──────────────────────▼───────────────────────────────────────────┐ │
+      │ │ PostgreSQL │ AWS S3 (Files) │ OpenAI GPT │ HSP SMS Gateway │ │
+      │ └──────────────────────────────────────────────────────────────────┘ │
+      └──────────────────────────────────────────────────────────────────────────┘</div>
+
+    <!-- SECTION 7 -->
+    <div class="section-header">
+      <h2>7. Database Schema</h2>
+      <p>17 tables powering the application</p>
+    </div>
+
+    <table>
+      <tr>
+        <th>Table</th>
+        <th>Purpose</th>
+        <th>Key Relations</th>
+      </tr>
+      <tr>
+        <td><code>users</code></td>
+        <td>User accounts, RSA keys, heartbeat settings</td>
+        <td>Parent of all</td>
+      </tr>
+      <tr>
+        <td><code>folders</code></td>
+        <td>Encrypted folder containers</td>
+        <td>→ users</td>
+      </tr>
+      <tr>
+        <td><code>files</code></td>
+        <td>Encrypted file references (S3)</td>
+        <td>→ users, folders</td>
+      </tr>
+      <tr>
+        <td><code>nominees</code></td>
+        <td>Beneficiaries with contact details</td>
+        <td>→ users</td>
+      </tr>
+      <tr>
+        <td><code>file_permissions</code></td>
+        <td>Per-nominee encrypted file keys</td>
+        <td>→ files, nominees</td>
+      </tr>
+      <tr>
+        <td><code>vault_items</code></td>
+        <td>Notes, passwords, cards, files</td>
+        <td>→ users, folders</td>
+      </tr>
+      <tr>
+        <td><code>vault_item_nominees</code></td>
+        <td>Item ↔ Nominee assignments</td>
+        <td>→ vault_items, nominees</td>
+      </tr>
+      <tr>
+        <td><code>smart_docs</code></td>
+        <td>Document expiry & renewal alerts</td>
+        <td>→ users</td>
+      </tr>
+      <tr>
+        <td><code>otp_verifications</code></td>
+        <td>Active OTP codes</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><code>otp_logs</code></td>
+        <td>OTP audit trail</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><code>heartbeat_logs</code></td>
+        <td>Check-in audit trail</td>
+        <td>→ users</td>
+      </tr>
+      <tr>
+        <td><code>regional_checklists</code></td>
+        <td>Country-specific requirements</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><code>user_regional_docs</code></td>
+        <td>User's compliance progress</td>
+        <td>→ users, checklists</td>
+      </tr>
+      <tr>
+        <td><code>video_wills</code></td>
+        <td>Personal messages for nominees (text/audio/video)</td>
+        <td>→ users, nominees</td>
+      </tr>
+      <tr>
+        <td><code>asset_discovery</code></td>
+        <td>AI-generated asset checklists with completion status</td>
+        <td>→ users</td>
+      </tr>
+      <tr>
+        <td><code>activity_logs</code></td>
+        <td>User activity tracking for fraud detection</td>
+        <td>→ users</td>
+      </tr>
+      <tr>
+        <td><code>legal_documents</code></td>
+        <td>AI-generated legal document drafts</td>
+        <td>→ users</td>
+      </tr>
+    </table>
+
+    <!-- SECTION 8 -->
+    <div class="section-header page-break">
+      <h2>8. Security Architecture</h2>
+      <p>Zero-knowledge encryption model</p>
+    </div>
+
+    <h3>Encryption Flow</h3>
+    <div class="flow">1. User creates vault item (e.g., password)
+      │
+      2. Generate random AES-256 key
+      │
+      3. Encrypt data with AES key ──▸ Encrypted Blob
+      │
+      4. Encrypt AES key with User's RSA Public Key ──▸ Encrypted Key
+      │
+      5. Send BOTH encrypted blobs to server
+      ⚠️ Server NEVER sees plaintext
+
+      ═══════════════════════════════════════════════════
+
+      NOMINEE ACCESS GRANT:
+
+      6. Decrypt AES key with User's Private Key
+      7. Re-encrypt AES key with Nominee's RSA Public Key
+      8. Store nominee's encrypted key separately
+      9. Nominee decrypts with THEIR Private Key
+      (without ever needing User's Private Key)</div>
+
+    <h3>Authentication Security</h3>
+    <table>
+      <tr>
+        <th>Layer</th>
+        <th>Mechanism</th>
+      </tr>
+      <tr>
+        <td>Login</td>
+        <td>OTP via SMS — 6-digit code with 5-minute expiry</td>
+      </tr>
+      <tr>
+        <td>Check-In</td>
+        <td>Device biometrics — Fingerprint / Face Recognition</td>
+      </tr>
+      <tr>
+        <td>No Passwords</td>
+        <td>Authentication is mobile number + OTP only</td>
+      </tr>
+      <tr>
+        <td>Audit Trail</td>
+        <td>All OTP attempts and check-ins are logged</td>
+      </tr>
+    </table>
+
+    <!-- SECTION 9 -->
+    <div class="section-header">
+      <h2>9. Unique Selling Points</h2>
+      <p>What makes Vasihat Nama unique — 16 differentiators</p>
+    </div>
+
+    <div class="usp">
+      <h4>1. 🏆 First-of-its-kind "Digital Will Vault"</h4>
+      <p>Combines secure storage with death-triggered automated asset transfer — no other app does this.</p>
+    </div>
+    <div class="usp">
+      <h4>2. 🔐 True Zero-Knowledge Architecture</h4>
+      <p>Even the server operator cannot read user data. Client-side RSA/AES encryption ensures complete privacy.</p>
+    </div>
+    <div class="usp">
+      <h4>3. ❤️ Biometric Dead Man's Switch</h4>
+      <p>Fingerprint/face-verified proof of life check-ins with configurable deadlines and vibration alerts.</p>
+    </div>
+    <div class="usp">
+      <h4>4. 🧠 AI-Powered Will Drafting</h4>
+      <p>Voice-dictate your will with automatic conflict detection and tone analysis powered by OpenAI.</p>
+    </div>
+    <div class="usp">
+      <h4>5. 📷 Smart OCR with Auto-Alerts</h4>
+      <p>Scan any document — AI auto-creates expiry reminders. Detects credit cards, passports, licenses automatically.
+      </p>
+    </div>
+    <div class="usp">
+      <h4>6. 🌍 Regional Legal Compliance</h4>
+      <p>Country-specific estate planning checklists generated by AI for global coverage.</p>
+    </div>
+    <div class="usp">
+      <h4>7. 📬 Dual Delivery Modes</h4>
+      <p>Digital email delivery OR physical hand-delivery with mandatory identity verification for nominees.</p>
+    </div>
+    <div class="usp">
+      <h4>8. 🛡️ Gamified Security Score</h4>
+      <p>Dynamic 0-100% security health score with one-tap fix actions for immediate improvement.</p>
+    </div>
+    <div class="usp">
+      <h4>9. 🏥 AI Vault Health Analyzer</h4>
+      <p>AI analyzes vault completeness with animated score dashboard and prioritized improvement recommendations.</p>
+    </div>
+    <div class="usp">
+      <h4>10. 📹 Video Will / Voice Message</h4>
+      <p>Leave personal text, audio, or video messages for specific nominees — AI auto-summarizes long content.</p>
+    </div>
+    <div class="usp">
+      <h4>11. 🔍 Smart Asset Discovery</h4>
+      <p>AI generates a personalized asset checklist based on demographics — tracks completion progress visually.</p>
+    </div>
+    <div class="usp">
+      <h4>12. ✅ Nominee Readiness Report</h4>
+      <p>Per-nominee 8-point readiness score with "Fix" action buttons for each gap — ensures zero handoff failures.</p>
+    </div>
+    <div class="usp">
+      <h4>13. 📊 AI Estate Summary</h4>
+      <p>One-click executive summary with strengths, risks, and recommendations — generated by GPT in natural language.
+      </p>
+    </div>
+    <div class="usp">
+      <h4>14. 🚨 AI Fraud & Anomaly Detection</h4>
+      <p>Real-time activity monitoring with AI-powered suspicious behavior flagging — protects against unauthorized
+        access.</p>
+    </div>
+    <div class="usp">
+      <h4>15. 💙 Grief Support Chatbot</h4>
+      <p>Compassionate AI assistant for nominees — helps with emotional support, vault guidance, and next legal steps.
+      </p>
+    </div>
+    <div class="usp">
+      <h4>16. 📜 AI Legal Document Generator</h4>
+      <p>Generate 8 types of legal documents (Will, POA, Gift Deed, etc.) using AI — multi-language support included.
+      </p>
+    </div>
+
+    <div class="footer">
+      <p><strong>Vasihat Nama</strong> — Your Digital Legacy, Secured Forever</p>
+      <p>Documentation v2.0 • February 2026</p>
+      <p>Built with Flutter • Node.js • PostgreSQL • AWS • OpenAI GPT</p>
+    </div>
+
+  </div>
+</body>
+
+</html>
