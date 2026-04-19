@@ -1,31 +1,44 @@
 {
   "version": 2,
-  "builds": [
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "public/**"
+    }
+  },
+  "rewrites": [
     {
-      "src": "backend/api/**/*.php",
-      "use": "vercel-php"
+      "source": "/api/send-otp.php",
+      "destination": "/backend/api/send-otp.php"
     },
     {
-      "src": "index.js",
-      "use": "@vercel/node"
+      "source": "/api/verify-otp.php",
+      "destination": "/backend/api/verify-otp.php"
+    },
+    {
+      "source": "/api/get-presigned-url.php",
+      "destination": "/backend/api/get-presigned-url.php"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/nominee-portal(.*)",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/api/index.ts"
     }
   ],
-  "routes": [
+  "builds": [
     {
-      "src": "/api/get-presigned-url",
-      "dest": "index.js"
+      "src": "api/index.ts",
+      "use": "@vercel/node"
     },
     {
-      "src": "/api/(.*).php",
-      "dest": "backend/api/$1.php"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "backend/api/$1.php"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "index.js"
+      "src": "backend/api/*.php",
+      "use": "vercel-php"
     }
   ]
 }
