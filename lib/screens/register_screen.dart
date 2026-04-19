@@ -230,7 +230,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: GestureDetector(
-                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LegalScreen())),
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => LegalScreen())),
                                 child: Text(
                                   "I agree to GDPR terms & acknowledge that this is for secure storage only.",
                                   style: TextStyle(

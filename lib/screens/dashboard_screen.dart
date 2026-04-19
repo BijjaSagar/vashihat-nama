@@ -480,7 +480,7 @@ class _SecureDashboardScreenState extends State<SecureDashboardScreen> {
                           const SizedBox(height: 12),
                           TextButton(
                             onPressed: () {
-                              Navigator.push(context, MaterialPageRoute(builder: (context) => const LegalScreen()));
+                              Navigator.push(context, MaterialPageRoute(builder: (context) => LegalScreen()));
                             },
                             child: const Text(
                               "GDPR Compliance & Privacy Policy",
