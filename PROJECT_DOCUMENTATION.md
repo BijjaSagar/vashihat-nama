@@ -1,7 +1,7 @@
-# Vasihat Nama - Project Documentation
+# Eversafe - Project Documentation
 
 ## 1. Project Concept
-**Vasihat Nama** (meaning "The Will") is an AI-powered legal and inheritance planning application. Its primary purpose is to solve the "lost assets" problem—where trillions of dollars globally are left in dormant bank accounts, digital wallets, and forgotten insurance policies because the owners passed away without sharing access with their families.
+**Eversafe** (meaning "Secure Legacy") is an AI-powered legal and inheritance planning application. Its primary purpose is to solve the "lost assets" problem—where trillions of dollars globally are left in dormant bank accounts, digital wallets, and forgotten insurance policies because the owners passed away without sharing access with their families.
 
 The app acts as a **Digital Vault** and a **Dead Man's Switch**. It allows users to store sensitive information (credentials, property titles, bank details) and automatically releases this access to "Trusted Nominees" only if the user fails to "Check-In" after a predefined period (Proof of Life).
 

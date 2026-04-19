@@ -20,7 +20,7 @@ class _GriefSupportScreenState extends State<GriefSupportScreen> {
   @override
   void initState() {
     super.initState();
-    _messages.add({'role': 'assistant', 'content': 'I\'m here for you. 💙\n\nI understand this is an incredibly difficult time. I\'m the Vasihat Nama support assistant, and I\'m here to gently guide you through the process of understanding and accessing the digital legacy that has been entrusted to you.\n\nTake your time. There\'s no rush. Whenever you\'re ready, you can ask me anything — about the vault, about next legal steps, or just share how you\'re feeling.'});
+    _messages.add({'role': 'assistant', 'content': 'I\'m here for you. 💙\n\nI understand this is an incredibly difficult time. I\'m the Eversafe support assistant, and I\'m here to gently guide you through the process of understanding and accessing the digital legacy that has been entrusted to you.\n\nTake your time. There\'s no rush. Whenever you\'re ready, you can ask me anything — about the vault, about next legal steps, or just share how you\'re feeling.'});
   }
 
   Future<void> _sendMessage() async {

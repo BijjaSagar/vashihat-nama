@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:vasihat_nama/screens/dashboard_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:eversafe/screens/dashboard_screen.dart';
+import 'package:eversafe/screens/legal_screen.dart';
 import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
@@ -21,6 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool otpSent = false;
   bool otpVerified = false;
   bool _isLoading = false;
+  bool _agreeToTerms = false;
 
   void sendOTP() async {
     setState(() => _isLoading = true);
@@ -67,8 +71,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> completeRegistration() async {
+    if (phoneController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mobile number missing. Please verify again.")));
+      return;
+    }
     if (nameController.text.isEmpty || emailController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please fill all details")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter your name and email")));
       return;
     }
 
@@ -88,8 +96,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
           emailController.text
         );
         
+        final prefs = await SharedPreferences.getInstance();
+        if (registeredUser['user'] != null) {
+          await prefs.setString('userProfile', jsonEncode(registeredUser['user']));
+        }
+        if (registeredUser['token'] != null) {
+          await prefs.setString('authToken', registeredUser['token']);
+        }
+
         if (!mounted) return;
-        navigateToDashboard(registeredUser['user']);
+        navigateToDashboard(registeredUser['user'] ?? {});
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -198,7 +214,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
                              keyboardType: TextInputType.emailAddress
                            ),
                         ],
-                        const SizedBox(height: 30),
+                        const SizedBox(height: 20),
+                        // GDPR & DISCLAIMER CHECKBOX
+                        Row(
+                          children: [
+                            SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: Checkbox(
+                                value: _agreeToTerms,
+                                onChanged: (val) => setState(() => _agreeToTerms = val ?? false),
+                                activeColor: AppTheme.primaryColor,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LegalScreen())),
+                                child: Text(
+                                  "I agree to GDPR terms & acknowledge that this is for secure storage only.",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.textSecondary,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
 
                         // Action Button
                         SizedBox(
@@ -206,6 +251,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         height: 55,
                         child: ElevatedButton(
                             onPressed: _isLoading ? null : () {
+                              if (!_agreeToTerms) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text("Please agree to the GDPR terms and disclaimer to proceed.")),
+                                );
+                                return;
+                              }
                               if (otpVerified) {
                                 completeRegistration();
                               } else if (otpSent) {

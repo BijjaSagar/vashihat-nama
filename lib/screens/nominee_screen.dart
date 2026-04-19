@@ -559,7 +559,7 @@ class _NomineeScreenState extends State<NomineeScreen> {
       builder: (context) => AlertDialog(
         title: const Text("Terms for Physical Handover"),
         content: const Text(
-          "By enabling physical handover, you grant Vasihat Nama the right to access, print, and securely handle your documents for the purpose of notarization and physical delivery. A one-time processing fee will be charged upon trigger.",
+          "By enabling physical handover, you grant Eversafe the right to access, print, and securely handle your documents for the purpose of notarization and physical delivery. A one-time processing fee will be charged upon trigger.",
           style: TextStyle(fontSize: 14),
         ),
         actions: [

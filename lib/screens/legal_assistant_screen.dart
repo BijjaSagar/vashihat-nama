@@ -14,7 +14,7 @@ class LegalAssistantScreen extends StatefulWidget {
 class _LegalAssistantScreenState extends State<LegalAssistantScreen> {
   final TextEditingController _messageController = TextEditingController();
   final List<Map<String, String>> _messages = [
-    {"role": "assistant", "content": "Hello! I am your Vasihat Nama Legal Assistant. How can I help you with inheritance or estate planning today?"}
+    {"role": "assistant", "content": "Hello! I am your Eversafe Legal Assistant. How can I help you with inheritance or estate planning today?"}
   ];
   final List<dynamic> _history = [];
   bool _isLoading = false;

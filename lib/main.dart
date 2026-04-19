@@ -43,7 +43,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Vasihat Nama',
+      title: 'Eversafe',
       theme: AppTheme.darkTheme, // Apply the new Dark Theme
       home: const SecureLoginScreen(), // Start with the new Secure Login Screen
     );

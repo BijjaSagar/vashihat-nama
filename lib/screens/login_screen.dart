@@ -164,7 +164,7 @@ class _SecureLoginScreenState extends State<SecureLoginScreen> {
                 const Icon(Icons.shield_rounded, size: 80, color: AppTheme.primaryColor),
                 const SizedBox(height: 20),
                 Text(
-                  "Vasihat Nama",
+                  "Eversafe",
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                     color: AppTheme.textPrimary,
                     fontWeight: FontWeight.bold,

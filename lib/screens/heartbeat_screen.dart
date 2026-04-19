@@ -59,6 +59,9 @@ class _HeartbeatScreenState extends State<HeartbeatScreen> {
       if (mounted) {
         setState(() {
           isActive = status['dead_mans_switch_active'] ?? false;
+          if (!isActive) {
+            NotificationService().cancelHeartbeatReminder();
+          }
           frequencyDays = status['check_in_frequency_days'] ?? 30;
           frequencyHours = status['check_in_frequency_hours'] ?? 0;
           frequencyMinutes = status['check_in_frequency_minutes'] ?? 0;

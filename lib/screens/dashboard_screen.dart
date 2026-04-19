@@ -462,6 +462,40 @@ class _SecureDashboardScreenState extends State<SecureDashboardScreen> {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => EmergencyCardScreen(userId: userId)));
                         },
                       ),
+                    const SizedBox(height: 32),
+                    // LEGAL DISCLAIMER & GDPR
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        children: [
+                          Text(
+                            "This application is for secure storage purposes only. It is not legally challengeable under Indian law for any purpose.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AppTheme.textSecondary.withOpacity(0.7),
+                              fontSize: 11,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(context, MaterialPageRoute(builder: (context) => const LegalScreen()));
+                            },
+                            child: const Text(
+                              "GDPR Compliance & Privacy Policy",
+                              style: TextStyle(
+                                color: AppTheme.primaryColor,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 100), // Extra space for bottom nav
                   ],
                 ),
               ),

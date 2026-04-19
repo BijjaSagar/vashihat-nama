@@ -150,7 +150,20 @@ void onBackgroundServiceStart(ServiceInstance service) async {
 
     final prefs = await SharedPreferences.getInstance();
     final nextDueStr = prefs.getString(_kNextDueKey);
-    if (nextDueStr == null) return;
+    if (nextDueStr == null) {
+      if (alarmPlaying) {
+        await player.stop();
+        alarmPlaying = false;
+        await flnp.cancel(id: 8888);
+        if (service is AndroidServiceInstance) {
+          service.setForegroundNotificationInfo(
+            title: 'Vault Heartbeat Disabled',
+            content: 'Monitoring is currently paused.',
+          );
+        }
+      }
+      return;
+    }
 
     final nextDue = DateTime.tryParse(nextDueStr);
     if (nextDue == null) return;

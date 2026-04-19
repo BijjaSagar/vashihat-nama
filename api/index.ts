@@ -74,7 +74,7 @@ const authMiddleware = (req: any, res: any, next: any) => {
 app.get('/', (req, res) => {
     res.send(`
         <div style="font-family: sans-serif; text-align: center; padding: 50px;">
-            <h1>🛡️ Vasihat Nama Security Server</h1>
+            <h1>🛡️ Eversafe Security Server</h1>
             <p>Secure Zero-Knowledge Backend is Active.</p>
             <p>Status: <strong>Operational</strong> (Max Upload: 4.5MB)</p>
             <p><a href="/nominee-portal">Nominee Portal →</a></p>
@@ -147,7 +147,7 @@ app.post('/api/nominee-portal/send-otp', async (req, res) => {
         );
 
         // 4. Send SMS
-        const message = `Your Vasihat Nama Nominee Portal OTP is ${otp}. Valid for 5 minutes. Do not share this code. GGISKB`;
+        const message = `Your Eversafe Nominee Portal OTP is ${otp}. Valid for 5 minutes. Do not share this code. GGISKB`;
         const encodedMessage = encodeURIComponent(message);
         const smsUrl = `http://sms.hspsms.com/sendSMS?username=${HSP_SMS_USERNAME}&message=${encodedMessage}&sendername=${HSP_SMS_SENDER_ID}&smstype=${HSP_SMS_TYPE}&numbers=${mobileTrimmed}&apikey=${HSP_SMS_API_KEY}`;
 
@@ -759,14 +759,28 @@ app.post('/api/users/register', async (req, res) => {
             [mobile_number, public_key, encrypted_private_key, name, email]
         );
 
+        const user = result.rows[0];
+        
+        // Generate a token for the newly registered user
+        const token = jwt.sign(
+            { userId: user.id, mobile: user.mobile_number },
+            JWT_SECRET,
+            { expiresIn: JWT_EXPIRES_IN } as any
+        );
+
         res.status(201).json({
             success: true,
-            user: result.rows[0],
+            user: user,
+            token: token,
             message: 'User registered successfully'
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Registration Error:', error);
-        res.status(500).json({ error: 'Failed to register user' });
+        if (error.code === '23505') {
+            res.status(400).json({ error: 'Email or Mobile number already in use by another account.' });
+        } else {
+            res.status(500).json({ error: 'Failed to register user' });
+        }
     }
 });
 
@@ -872,6 +886,20 @@ app.post('/api/verify_otp', async (req, res) => {
             return;
         }
 
+        if (purpose === 'register') {
+            await db.query('DELETE FROM otp_verifications WHERE mobile = $1 AND purpose = $2', [mobile, purpose]);
+            await db.query(
+                'INSERT INTO otp_logs (mobile, purpose, status, details) VALUES ($1, $2, $3, $4)',
+                [mobile, purpose, 'verified', 'OTP verified for new registration']
+            );
+            res.json({
+                success: true,
+                message: 'Verification successful',
+                next_step: 'complete_profile'
+            });
+            return;
+        }
+
         // OTP Verified -> Get User
         const userResult = await db.query(
             'SELECT id, name, mobile_number, email FROM users WHERE mobile_number = $1',
@@ -880,13 +908,24 @@ app.post('/api/verify_otp', async (req, res) => {
 
         const user = userResult.rows[0];
 
+        // If user doesn't exist yet, they need to register
+        if (!user) {
+            await db.query('DELETE FROM otp_verifications WHERE mobile = $1 AND purpose = $2', [mobile, purpose]);
+            res.json({
+                success: true,
+                message: 'Account not found',
+                next_step: 'register'
+            });
+            return;
+        }
+
         // Clean up OTP
         await db.query('DELETE FROM otp_verifications WHERE mobile = $1 AND purpose = $2', [mobile, purpose]);
 
         // Log Success
         await db.query(
             'INSERT INTO otp_logs (mobile, purpose, status, details) VALUES ($1, $2, $3, $4)',
-            [mobile, purpose, 'verified', `User ID: ${user?.id}`]
+            [mobile, purpose, 'verified', `User ID: ${user.id}`]
         );
 
         // ✅ SECURITY FIX: Issue a real signed JWT token
@@ -900,7 +939,7 @@ app.post('/api/verify_otp', async (req, res) => {
             success: true,
             message: 'Verification successful',
             user: user,
-            token: token  // Real JWT — valid for JWT_EXPIRES_IN (default: 7 days)
+            token: token  // Real JWT
         });
 
     } catch (error) {
@@ -1495,7 +1534,7 @@ app.all('/api/admin/trigger_heartbeat_check', checkAdmin, async (req, res) => {
 
             for (const nominee of nomineesResult.rows) {
                 const mobileNumber = nominee.primary_mobile || 'UNKNOWN';
-                const message = `Alert: ${user.name} has not checked in. You have been granted access to their Vasihat Nama vault. GGISKB`;
+                const message = `Alert: ${user.name} has not checked in. You have been granted access to their Eversafe vault. GGISKB`;
                 const encodedMessage = encodeURIComponent(message);
                 const smsUrl = `http://sms.hspsms.com/sendSMS?username=${HSP_SMS_USERNAME}&message=${encodedMessage}&sendername=${HSP_SMS_SENDER_ID}&smstype=${HSP_SMS_TYPE}&numbers=${mobileNumber}&apikey=${HSP_SMS_API_KEY}`;
 
@@ -1546,7 +1585,7 @@ app.all('/api/admin/cron/check-expiries', checkAdmin, async (req, res) => {
 
         for (const doc of expiringDocs.rows) {
             const daysLeft = Math.ceil((new Date(doc.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-            const message = `Vasihat Nama Alert: Your ${doc.doc_type} (${doc.title}) is expiring in ${daysLeft} days. Please renew it soon. GGISKB`;
+            const message = `Eversafe Alert: Your ${doc.doc_type} (${doc.title}) is expiring in ${daysLeft} days. Please renew it soon. GGISKB`;
             
             // Logic to send SMS (Simulated - calls SMS API)
             if (doc.mobile_number) {
@@ -1875,7 +1914,7 @@ app.post('/api/ai/chat', async (req, res) => {
         // Flutter history: [{role: 'user', parts: [{text: '...'}]}, {role: 'model', parts: [{text: '...'}]}]
         // OpenAI format: [{role: 'user', content: '...'}, {role: 'assistant', content: '...'}]
         const messages: any[] = [
-            { role: "system", content: "You are the Vasihat Nama Legal Assistant. Your goal is to help users with inheritance, wills, succession laws, and estate planning. Be professional, empathetic, and clear. Always advise users that your guidance is for informational purposes and they should consult a real lawyer for final legal documents." }
+            { role: "system", content: "You are the Eversafe Legal Assistant. Your goal is to help users with inheritance, wills, succession laws, and estate planning. Be professional, empathetic, and clear. Always advise users that your guidance is for informational purposes and they should consult a real lawyer for final legal documents." }
         ];
 
         if (history && Array.isArray(history)) {
@@ -2824,7 +2863,7 @@ app.get('/admin-panel', (req, res) => {
         <html lang="en">
         <head>
             <meta charset="UTF-8">
-            <title>Vasihat Nama | Superadmin Dashboard</title>
+            <title>Eversafe | Superadmin Dashboard</title>
             <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
             <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
             <style>
@@ -2859,7 +2898,7 @@ app.get('/admin-panel', (req, res) => {
             <div class="container">
                 <div class="header">
                     <div>
-                        <h1 style="margin:0">Vasihat Nama</h1>
+                        <h1 style="margin:0">Eversafe</h1>
                         <p style="color:#6366f1; margin:0; font-weight:600">Superadmin Infrastructure</p>
                     </div>
                     <div style="display:flex; gap:12px">

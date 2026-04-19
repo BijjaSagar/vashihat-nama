@@ -6,7 +6,7 @@
   "scripts": {
     "test": "jest --detectOpenHandles --forceExit",
     "start": "npm run dev",
-    "dev": "nodemon -e ts,sql --exec ts-node src/index.ts",
+    "dev": "nodemon -e ts,sql --exec ts-node api/index.ts",
     "build": "tsc",
     "deploy": "vercel --prod"
   },
