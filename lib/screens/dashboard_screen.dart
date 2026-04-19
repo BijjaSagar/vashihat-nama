@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/glassmorphism.dart';
+import 'legal_screen.dart';
 import '../theme/app_theme.dart';
 import 'folders_screen.dart'; 
 import 'nominee_screen.dart'; 
