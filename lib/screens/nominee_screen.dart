@@ -50,6 +50,7 @@ class _NomineeScreenState extends State<NomineeScreen> {
     String deliveryMode = 'digital',
     int handoverWaitingDays = 0,
     bool requireOtpForAccess = false,
+    bool isProofOfLifeContact = false,
   }) async {
     try {
       await ApiService().addNominee(
@@ -63,8 +64,9 @@ class _NomineeScreenState extends State<NomineeScreen> {
         identityProof: identityProof,
         handDeliveryRules: handDeliveryRules,
         deliveryMode: deliveryMode,
-        handoverWaitingDays: handoverWaitingDays, // Added
-        requireOtpForAccess: requireOtpForAccess, // Added
+        handoverWaitingDays: handoverWaitingDays,
+        requireOtpForAccess: requireOtpForAccess,
+        isProofOfLifeContact: isProofOfLifeContact,
       );
       _loadNominees(); // Refresh list
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nominee Added")));
@@ -86,6 +88,7 @@ class _NomineeScreenState extends State<NomineeScreen> {
     String deliveryMode = 'digital',
     int handoverWaitingDays = 0,
     bool requireOtpForAccess = false,
+    bool isProofOfLifeContact = false,
   }) async {
     try {
       await ApiService().updateNominee(
@@ -99,8 +102,9 @@ class _NomineeScreenState extends State<NomineeScreen> {
         identityProof: identityProof,
         handDeliveryRules: handDeliveryRules,
         deliveryMode: deliveryMode,
-        handoverWaitingDays: handoverWaitingDays, // Added
-        requireOtpForAccess: requireOtpForAccess, // Added
+        handoverWaitingDays: handoverWaitingDays,
+        requireOtpForAccess: requireOtpForAccess,
+        isProofOfLifeContact: isProofOfLifeContact,
       );
       _loadNominees();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nominee Updated")));
@@ -166,6 +170,7 @@ class _NomineeScreenState extends State<NomineeScreen> {
     final landmarkCtrl = TextEditingController(text: nominee?['landmark'] ?? '');
     final waitingDaysCtrl = TextEditingController(text: (nominee?['handover_waiting_days'] ?? 0).toString());
     bool localRequireOtp = nominee?['require_otp_for_access'] ?? false;
+    bool localIsProofOfLife = nominee?['is_proof_of_life_contact'] ?? false;
     String localDeliveryMode = nominee?['delivery_mode'] ?? 'digital';
     bool acceptedTerms = false;
 
@@ -405,6 +410,28 @@ class _NomineeScreenState extends State<NomineeScreen> {
                                   ),
                                 ],
                               ),
+                              const Divider(height: 32),
+                              Row(
+                                children: [
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text("Proof of Life Contact", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+                                        SizedBox(height: 2),
+                                        Text("Receive alerts if check-in is missed", style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                                      ],
+                                    ),
+                                  ),
+                                  Switch.adaptive(
+                                    value: localIsProofOfLife,
+                                    activeColor: Colors.redAccent,
+                                    onChanged: (val) {
+                                      setDialogState(() => localIsProofOfLife = val);
+                                    },
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                           const SizedBox(height: 80),
@@ -451,6 +478,7 @@ class _NomineeScreenState extends State<NomineeScreen> {
                                 acceptedTerms: acceptedTerms,
                                 handoverWaitingDays: int.tryParse(waitingDaysCtrl.text) ?? 0,
                                 requireOtpForAccess: localRequireOtp,
+                                isProofOfLifeContact: localIsProofOfLife,
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: isEdit ? const Color(0xFF1A73E8) : const Color(0xFF00897B),
@@ -585,6 +613,7 @@ class _NomineeScreenState extends State<NomineeScreen> {
     required bool acceptedTerms,
     required int handoverWaitingDays,
     required bool requireOtpForAccess,
+    required bool isProofOfLifeContact,
   }) {
     if (name.isEmpty || relation.isEmpty || email.isEmpty || primaryMobile.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please fill all mandatory fields")));
@@ -612,6 +641,7 @@ class _NomineeScreenState extends State<NomineeScreen> {
         deliveryMode: mode,
         handoverWaitingDays: handoverWaitingDays,
         requireOtpForAccess: requireOtpForAccess,
+        isProofOfLifeContact: isProofOfLifeContact,
       );
     } else {
       _addNominee(
@@ -626,6 +656,7 @@ class _NomineeScreenState extends State<NomineeScreen> {
         deliveryMode: mode,
         handoverWaitingDays: handoverWaitingDays,
         requireOtpForAccess: requireOtpForAccess,
+        isProofOfLifeContact: isProofOfLifeContact,
       );
     }
     Navigator.pop(context);

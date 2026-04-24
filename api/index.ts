@@ -427,8 +427,9 @@ app.post('/api/nominees', async (req, res) => {
         primary_mobile, optional_mobile,
         address, identity_proof, hand_delivery_rules,
         delivery_mode = 'digital',
-        handover_waiting_days = 0,        // ✅ BUG FIX: was missing
-        require_otp_for_access = false    // ✅ BUG FIX: was missing
+        handover_waiting_days = 0,
+        require_otp_for_access = false,
+        is_proof_of_life_contact = false
     } = req.body;
 
     // Base mandatory fields for both modes
@@ -449,15 +450,17 @@ app.post('/api/nominees', async (req, res) => {
                 user_id, name, email, relationship, 
                 primary_mobile, optional_mobile, 
                 address, identity_proof, hand_delivery_rules,
-                delivery_mode, handover_waiting_days, require_otp_for_access
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+                delivery_mode, handover_waiting_days, require_otp_for_access,
+                is_proof_of_life_contact
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
             [
                 user_id, name, email, relationship,
                 primary_mobile, optional_mobile,
                 address, identity_proof, hand_delivery_rules,
                 delivery_mode,
                 handover_waiting_days,
-                require_otp_for_access
+                require_otp_for_access,
+                is_proof_of_life_contact
             ]
         );
         res.status(201).json({ success: true, id: result.rows[0].id, message: 'Nominee added successfully' });
@@ -486,8 +489,9 @@ app.put('/api/nominees/:id', async (req, res) => {
         primary_mobile, optional_mobile,
         address, identity_proof, hand_delivery_rules,
         delivery_mode,
-        handover_waiting_days,        // ✅ BUG FIX: was missing
-        require_otp_for_access        // ✅ BUG FIX: was missing
+        handover_waiting_days,
+        require_otp_for_access,
+        is_proof_of_life_contact
     } = req.body;
 
     try {
@@ -498,8 +502,9 @@ app.put('/api/nominees/:id', async (req, res) => {
                  address = $6, identity_proof = $7, hand_delivery_rules = $8,
                  delivery_mode = $9,
                  handover_waiting_days = COALESCE($10, handover_waiting_days),
-                 require_otp_for_access = COALESCE($11, require_otp_for_access)
-             WHERE id = $12 RETURNING *`,
+                 require_otp_for_access = COALESCE($11, require_otp_for_access),
+                 is_proof_of_life_contact = COALESCE($12, is_proof_of_life_contact)
+             WHERE id = $13 RETURNING *`,
             [
                 name, email, relationship,
                 primary_mobile, optional_mobile,
@@ -507,6 +512,7 @@ app.put('/api/nominees/:id', async (req, res) => {
                 delivery_mode,
                 handover_waiting_days,
                 require_otp_for_access,
+                is_proof_of_life_contact,
                 id
             ]
         );
@@ -1508,7 +1514,14 @@ app.all('/api/admin/trigger_heartbeat_check', checkAdmin, async (req, res) => {
             const token = crypto.randomBytes(16).toString('hex');
             await db.query("UPDATE users SET life_verification_status = 'pending', life_verification_token = $1 WHERE id = $2", [token, user.id]);
 
-            const nomineesResult = await db.query('SELECT name, email, primary_mobile FROM nominees WHERE user_id = $1', [user.id]);
+            // Find nominees for this user. 
+            // Priority: Nominees marked as 'is_proof_of_life_contact' = TRUE.
+            // Fallback: If none marked, send to all nominees.
+            let nomineesResult = await db.query('SELECT name, email, primary_mobile FROM nominees WHERE user_id = $1 AND is_proof_of_life_contact = TRUE', [user.id]);
+            
+            if (nomineesResult.rows.length === 0) {
+                nomineesResult = await db.query('SELECT name, email, primary_mobile FROM nominees WHERE user_id = $1', [user.id]);
+            }
             
             for (const nominee of nomineesResult.rows) {
                 const baseUrl = process.env.BASE_URL || 'https://backend-sagar-bijjas-projects.vercel.app';
@@ -1770,6 +1783,7 @@ app.get('/api/migrate', checkAdmin, async (req, res) => {
             ALTER TABLE nominees ADD COLUMN IF NOT EXISTS address TEXT;
             ALTER TABLE nominees ADD COLUMN IF NOT EXISTS identity_proof VARCHAR(100);
             ALTER TABLE nominees ADD COLUMN IF NOT EXISTS delivery_mode VARCHAR(20) DEFAULT 'digital';
+            ALTER TABLE nominees ADD COLUMN IF NOT EXISTS is_proof_of_life_contact BOOLEAN DEFAULT FALSE;
 
             -- Add hours and minutes for testing
             ALTER TABLE users ADD COLUMN IF NOT EXISTS check_in_frequency_hours INTEGER DEFAULT 0;

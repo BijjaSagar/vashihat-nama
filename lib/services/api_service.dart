@@ -24,6 +24,12 @@ class ApiService {
   }
   final Dio _dio = Dio();
 
+  /// Clears stored auth data and logs the user out.
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); // Safest way to reset all session data
+  }
+
   // ─── JWT Token Helpers ───────────────────────────────────────────────────────
 
   /// Retrieves the stored JWT auth token.
@@ -362,6 +368,7 @@ class ApiService {
     String deliveryMode = 'digital',
     int handoverWaitingDays = 0,
     bool requireOtpForAccess = false,
+    bool isProofOfLifeContact = false,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/nominees'),
@@ -379,6 +386,7 @@ class ApiService {
         'delivery_mode': deliveryMode,
         'handover_waiting_days': handoverWaitingDays,
         'require_otp_for_access': requireOtpForAccess,
+        'is_proof_of_life_contact': isProofOfLifeContact,
       }),
     );
 
@@ -401,6 +409,7 @@ class ApiService {
     String deliveryMode = 'digital',
     int? handoverWaitingDays,
     bool? requireOtpForAccess,
+    bool? isProofOfLifeContact,
   }) async {
     final response = await http.put(
       Uri.parse('$baseUrl/nominees/$nomineeId'),
@@ -417,6 +426,7 @@ class ApiService {
         'delivery_mode': deliveryMode,
         'handover_waiting_days': handoverWaitingDays,
         'require_otp_for_access': requireOtpForAccess,
+        'is_proof_of_life_contact': isProofOfLifeContact,
       }),
     );
 

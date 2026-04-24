@@ -204,7 +204,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 24),
                 // Security / Logout placeholder
                 TextButton.icon(
-                  onPressed: () {}, 
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text("Logout"),
+                        content: const Text("Are you sure you want to log out?"),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true), 
+                            child: const Text("Logout", style: TextStyle(color: Colors.red))
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      await ApiService().logout();
+                      if (mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (context) => const SecureLoginScreen()),
+                          (route) => false,
+                        );
+                      }
+                    }
+                  }, 
                   icon: const Icon(Icons.logout, color: Colors.red), 
                   label: const Text("Logout", style: TextStyle(color: Colors.red))
                 ),
