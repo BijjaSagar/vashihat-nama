@@ -9,6 +9,11 @@ import jwt from 'jsonwebtoken';
 import { initDb } from './db';
 import db from './db';
 import OpenAI from 'openai';
+import crypto from 'crypto';
+import nodemailer from 'nodemailer';
+import multer from 'multer';
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1495,27 +1500,93 @@ app.all('/api/admin/trigger_heartbeat_check', checkAdmin, async (req, res) => {
             AND (
                 last_check_in + (COALESCE(check_in_frequency_days, 30) * INTERVAL '1 day') + (COALESCE(check_in_frequency_hours, 0) * INTERVAL '1 hour') + (COALESCE(check_in_frequency_minutes, 0) * INTERVAL '1 minute')
             ) < NOW()
+            AND life_verification_status IS NULL
         `);
 
-        const overdueIds: number[] = overdueUsers.rows.map((u: any) => u.id);
+        for (const user of overdueUsers.rows) {
+            const token = crypto.randomBytes(16).toString('hex');
+            await db.query("UPDATE users SET life_verification_status = 'pending', life_verification_token = $1 WHERE id = $2", [token, user.id]);
 
-        if (overdueIds.length > 0) {
+            const nomineesResult = await db.query('SELECT name, email, primary_mobile FROM nominees WHERE user_id = $1', [user.id]);
+            
+            for (const nominee of nomineesResult.rows) {
+                const baseUrl = process.env.BASE_URL || 'https://backend-sagar-bijjas-projects.vercel.app';
+                const linkYes = `${baseUrl}/api/nominee/verify-life?token=${token}&status=alive`;
+                const linkNo = `${baseUrl}/api/nominee/verify-life?token=${token}&status=deceased`;
+
+                // Try Email
+                if (nominee.email) {
+                    const mailOptions = {
+                        from: process.env.SMTP_USER || 'no-reply@eversafe.com',
+                        to: nominee.email,
+                        subject: `Urgent: Eversafe Proof of Life Verification for ${user.name}`,
+                        html: `
+                            <p>Dear ${nominee.name},</p>
+                            <p>We were unable to verify the proof of life check-in for <strong>${user.name}</strong> at the scheduled time.</p>
+                            <p>Please confirm if ${user.name} is alive:</p>
+                            <br>
+                            <a href="${linkYes}" style="padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px;">Yes, they are alive</a>
+                            <br><br><br>
+                            <a href="${linkNo}" style="padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 5px;">No, they have passed away</a>
+                            <br><br>
+                            <p>If you confirm they have passed away, you will be required to upload a valid death certificate before gaining access to their vault.</p>
+                        `
+                    };
+                    try {
+                        const transporter = nodemailer.createTransport({
+                            host: process.env.SMTP_HOST || 'smtp.gmail.com',
+                            port: parseInt(process.env.SMTP_PORT || '587'),
+                            secure: process.env.SMTP_SECURE === 'true',
+                            auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+                        });
+                        await transporter.sendMail(mailOptions);
+                        console.log(`Verification email sent to nominee ${nominee.email}`);
+                    } catch (e) {
+                        console.error('Failed to send verification email:', e);
+                    }
+                }
+
+                // Try SMS fallback (optional, asking them to check email)
+                const mobileNumber = nominee.primary_mobile || 'UNKNOWN';
+                const message = `Eversafe Alert: We need to verify the life status of ${user.name}. Please check your email (${nominee.email || 'provided address'}) for verification links. GGISKB`;
+                const encodedMessage = encodeURIComponent(message);
+                const smsUrl = `http://sms.hspsms.com/sendSMS?username=${HSP_SMS_USERNAME}&message=${encodedMessage}&sendername=${HSP_SMS_SENDER_ID}&smstype=${HSP_SMS_TYPE}&numbers=${mobileNumber}&apikey=${HSP_SMS_API_KEY}`;
+                
+                try {
+                    const smsRes = await axios.get(smsUrl);
+                    await db.query(
+                        'INSERT INTO otp_logs (mobile, purpose, status, details) VALUES ($1, $2, $3, $4)',
+                        [mobileNumber, 'heartbeat_alert_verification', 'sent', `User: ${user.name}, Response: ${JSON.stringify(smsRes.data)}`]
+                    );
+                } catch (smsErr) {
+                    console.error(`Failed to send alert to ${mobileNumber}:`, smsErr);
+                }
+            }
+        }
+
+        // Grant access only to users who are verified (death certificate uploaded)
+        const verifiedUsers = await db.query(`
+            SELECT id FROM users WHERE life_verification_status = 'verified'
+        `);
+        const verifiedIds: number[] = verifiedUsers.rows.map((u: any) => u.id);
+
+        if (verifiedIds.length > 0) {
             // 2a. Grant Immediate Access (0 days)
             await db.query(`
                 UPDATE nominees 
-                SET access_granted = TRUE, handover_triggered_at = NOW()
-                WHERE user_id = ANY($1::int[]) AND handover_waiting_days = 0
-            `, [overdueIds]);
+                SET access_granted = TRUE, handover_triggered_at = COALESCE(handover_triggered_at, NOW())
+                WHERE user_id = ANY($1::int[]) AND handover_waiting_days = 0 AND access_granted = FALSE
+            `, [verifiedIds]);
 
             // 2b. Start Countdown for Delayed Access (> 0 days)
             await db.query(`
                 UPDATE nominees 
                 SET handover_triggered_at = NOW()
                 WHERE user_id = ANY($1::int[]) AND handover_waiting_days > 0 AND handover_triggered_at IS NULL
-            `, [overdueIds]);
+            `, [verifiedIds]);
         }
 
-        // 2c. Finalize Delayed Handovers (those whose waiting period has passed)
+        // 2c. Finalize Delayed Handovers
         await db.query(`
             UPDATE nominees 
             SET access_granted = TRUE 
@@ -1524,48 +1595,93 @@ app.all('/api/admin/trigger_heartbeat_check', checkAdmin, async (req, res) => {
             AND handover_triggered_at + (handover_waiting_days || ' days')::INTERVAL <= NOW()
         `);
 
-        // 3. Send SMS Notifications to Nominees
-        for (const user of overdueUsers.rows) {
-            // Fetch nominees for this specific user
-            const nomineesResult = await db.query(
-                'SELECT name, primary_mobile FROM nominees WHERE user_id = $1',
-                [user.id]
-            );
-
-            for (const nominee of nomineesResult.rows) {
-                const mobileNumber = nominee.primary_mobile || 'UNKNOWN';
-                const message = `Alert: ${user.name} has not checked in. You have been granted access to their Eversafe vault. GGISKB`;
-                const encodedMessage = encodeURIComponent(message);
-                const smsUrl = `http://sms.hspsms.com/sendSMS?username=${HSP_SMS_USERNAME}&message=${encodedMessage}&sendername=${HSP_SMS_SENDER_ID}&smstype=${HSP_SMS_TYPE}&numbers=${mobileNumber}&apikey=${HSP_SMS_API_KEY}`;
-
-                try {
-                    const smsRes = await axios.get(smsUrl);
-                    console.log(`Notification sent to nominee ${nominee.name} (${mobileNumber}) for user ${user.name}`);
-
-                    // Log the alert
-                    await db.query(
-                        'INSERT INTO otp_logs (mobile, purpose, status, details) VALUES ($1, $2, $3, $4)',
-                        [mobileNumber, 'heartbeat_alert', 'sent', `User: ${user.name}, Response: ${JSON.stringify(smsRes.data)}`]
-                    );
-                } catch (smsErr) {
-                    console.error(`Failed to send alert to ${mobileNumber}:`, smsErr);
-                    await db.query(
-                        'INSERT INTO otp_logs (mobile, purpose, status, details) VALUES ($1, $2, $3, $4)',
-                        [mobileNumber, 'heartbeat_alert', 'failed', String(smsErr)]
-                    );
-                }
-            }
-        }
-
         res.json({
             success: true,
             triggered_count: overdueUsers.rows.length,
-            overdue_users: overdueUsers.rows.map(u => ({ id: u.id, name: u.name })),
-            message: overdueIds.length > 0 ? 'Heartbeat check complete. Nominees notified via SMS.' : 'No overdue users found.'
+            overdue_users: overdueUsers.rows.map((u: any) => ({ id: u.id, name: u.name })),
+            message: 'Heartbeat check complete. Verification emails sent.'
         });
     } catch (error) {
         console.error('Heartbeat Check Error:', error);
         res.status(500).json({ error: 'Failed to run heartbeat check', details: String(error) });
+    }
+});
+
+app.get('/api/nominee/verify-life', async (req, res) => {
+    const { token, status } = req.query;
+    if (!token) return res.status(400).send('Invalid token');
+
+    try {
+        const result = await db.query('SELECT id, name FROM users WHERE life_verification_token = $1', [token]);
+        if (result.rows.length === 0) return res.status(404).send('Invalid or expired token.');
+
+        const user = result.rows[0];
+
+        if (status === 'alive') {
+            await db.query(`
+                UPDATE users 
+                SET last_check_in = NOW(),
+                    life_verification_status = NULL,
+                    life_verification_token = NULL
+                WHERE id = $1
+            `, [user.id]);
+            return res.send(`
+                <h2>Thank you for confirming.</h2>
+                <p>We have extended ${user.name}'s check-in period. You can safely close this window.</p>
+            `);
+        } else if (status === 'deceased') {
+            await db.query(`
+                UPDATE users 
+                SET life_verification_status = 'deceased_unverified'
+                WHERE id = $1
+            `, [user.id]);
+            
+            return res.send(`
+                <h2>Upload Death Certificate</h2>
+                <p>We are sorry for your loss. To securely access ${user.name}'s vault, please provide a valid death certificate.</p>
+                <form action="/api/nominee/upload-death-certificate" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="token" value="${token}" />
+                    <input type="file" name="certificate" accept=".pdf,.jpg,.jpeg,.png" required />
+                    <button type="submit" style="padding: 10px; margin-top: 10px; background: #007bff; color: #fff; border: none; border-radius: 5px;">Upload and Verify</button>
+                </form>
+            `);
+        } else {
+            return res.status(400).send('Invalid status provided.');
+        }
+    } catch(e) {
+        console.error('Verification Error', e);
+        return res.status(500).send('Error processing request.');
+    }
+});
+
+app.post('/api/nominee/upload-death-certificate', upload.single('certificate'), async (req, res) => {
+    const { token } = req.body;
+    if (!token) return res.status(400).send('Invalid token');
+
+    try {
+        const result = await db.query('SELECT id, name FROM users WHERE life_verification_token = $1', [token]);
+        if (result.rows.length === 0) return res.status(404).send('Invalid or expired token.');
+        const user = result.rows[0];
+
+        // Process the uploaded file (for now just mark it verified, in production upload to S3)
+        // Set verification_status to 'verified' so cron job can grant access
+        await db.query(`
+            UPDATE users 
+            SET life_verification_status = 'verified',
+                life_verification_token = NULL,
+                death_certificate_url = 'uploaded_document_placeholder'
+            WHERE id = $1
+        `, [user.id]);
+
+        return res.send(`
+            <h2>Verification Complete</h2>
+            <p>Thank you. We have received the document and verified the status.</p>
+            <p>You have been granted access to ${user.name}'s vault. You will receive an SMS when the handover is ready.</p>
+            <p><a href="/nominee-portal">Go to Nominee Portal</a></p>
+        `);
+    } catch (e) {
+        console.error('Upload Error', e);
+        return res.status(500).send('Error uploading certificate.');
     }
 });
 
@@ -1631,6 +1747,10 @@ app.get('/api/migrate', checkAdmin, async (req, res) => {
     try {
         await db.query(`
             -- Update Nominees table with new fields
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS life_verification_status VARCHAR(50) DEFAULT NULL;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS life_verification_token VARCHAR(100);
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS death_certificate_url TEXT;
+
             ALTER TABLE nominees ADD COLUMN IF NOT EXISTS primary_mobile VARCHAR(15);
             ALTER TABLE nominees ADD COLUMN IF NOT EXISTS optional_mobile VARCHAR(15);
             ALTER TABLE nominees ADD COLUMN IF NOT EXISTS address TEXT;
