@@ -21,6 +21,7 @@ const PORT = process.env.PORT || 3000;
 // ─── CORS (restrict to known origins) ──────────────────────────────────────
 const allowedOrigins = [
     'https://backend-sagar-bijjas-projects.vercel.app',
+    'https://vashihat-nama-main.vercel.app',
     'https://vasihata-nama.in',
     'http://localhost:3000',
     'http://localhost:8080',
