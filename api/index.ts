@@ -153,7 +153,7 @@ app.post('/api/nominee-portal/send-otp', async (req, res) => {
         );
 
         // 4. Send SMS
-        const message = `Your Eversafe Nominee Portal OTP is ${otp}. Valid for 5 minutes. Do not share this code. GGISKB`;
+        const message = `${otp} is your OTP for login into your account. GGISKB`;
         const encodedMessage = encodeURIComponent(message);
         const smsUrl = `http://sms.hspsms.com/sendSMS?username=${HSP_SMS_USERNAME}&message=${encodedMessage}&sendername=${HSP_SMS_SENDER_ID}&smstype=${HSP_SMS_TYPE}&numbers=${mobileTrimmed}&apikey=${HSP_SMS_API_KEY}`;
 
