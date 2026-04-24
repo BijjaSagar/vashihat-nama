@@ -1664,15 +1664,28 @@ app.post('/api/nominee/upload-death-certificate', upload.single('certificate'), 
         if (result.rows.length === 0) return res.status(404).send('Invalid or expired token.');
         const user = result.rows[0];
 
-        // Process the uploaded file (for now just mark it verified, in production upload to S3)
+        const file = req.file;
+        let s3Url = 'uploaded_document_placeholder';
+
+        if (file) {
+            const fileKey = `death-certificates/${user.id}-${Date.now()}-${file.originalname}`;
+            await s3.send(new PutObjectCommand({
+                Bucket: BUCKET_NAME,
+                Key: fileKey,
+                Body: file.buffer,
+                ContentType: file.mimetype,
+            }));
+            s3Url = `https://${BUCKET_NAME}.s3.${process.env.AWS_DEFAULT_REGION}.amazonaws.com/${fileKey}`;
+        }
+
         // Set verification_status to 'verified' so cron job can grant access
         await db.query(`
             UPDATE users 
             SET life_verification_status = 'verified',
                 life_verification_token = NULL,
-                death_certificate_url = 'uploaded_document_placeholder'
-            WHERE id = $1
-        `, [user.id]);
+                death_certificate_url = $1
+            WHERE id = $2
+        `, [s3Url, user.id]);
 
         return res.send(`
             <h2>Verification Complete</h2>
