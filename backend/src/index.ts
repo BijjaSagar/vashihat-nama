@@ -377,19 +377,43 @@ app.post('/api/get-presigned-url', async (req, res) => {
 });
 
 // Download File — Presigned GET URL
+// Accepts either { key } (S3 storage path) or { file_id } (looks up from DB)
 app.post('/api/get-presigned-download-url', async (req, res) => {
-    const { key } = req.body;
-    if (!key) {
-        res.status(400).json({ error: 'Missing file key' });
+    const { key, file_id, user_id } = req.body;
+
+    let storagePath = key;
+
+    // If no key provided, look up from DB using file_id
+    if (!storagePath && file_id) {
+        try {
+            const fileResult = await db.query(
+                'SELECT storage_path, file_name FROM files WHERE id = $1',
+                [file_id]
+            );
+            if (fileResult.rows.length === 0) {
+                res.status(404).json({ error: 'File not found' });
+                return;
+            }
+            storagePath = fileResult.rows[0].storage_path;
+        } catch (dbErr) {
+            console.error('DB lookup error for file_id:', dbErr);
+            res.status(500).json({ error: 'Failed to look up file' });
+            return;
+        }
+    }
+
+    if (!storagePath) {
+        res.status(400).json({ error: 'Missing file key or file_id' });
         return;
     }
+
     try {
         const command = new GetObjectCommand({
             Bucket: BUCKET_NAME,
-            Key: key,
+            Key: storagePath,
         });
         const downloadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
-        res.json({ downloadUrl, key });
+        res.json({ downloadUrl, key: storagePath });
     } catch (error) {
         console.error('Error generating presigned download URL:', error);
         res.status(500).json({ error: 'Failed to generate download URL' });

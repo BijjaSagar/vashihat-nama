@@ -240,20 +240,23 @@ export default function VaultPage() {
                       try {
                         setDownloading(true);
                         const data = parseEncryptedData(viewItem.encrypted_data || '{}');
-                        // storage_path is embedded in encrypted_data for file items
-                        const storagePath = data.storage_path || viewItem.storage_path;
-                        if (!storagePath) { alert("No file storage path found."); return; }
+                        // Try storage_path from encrypted_data, then direct field, then fall back to file_id DB lookup
+                        const storagePath = data.storage_path || viewItem.storage_path || null;
                         const res = await ApiService.request('/get-presigned-download-url', {
                           method: 'POST',
-                          body: JSON.stringify({ key: storagePath })
+                          body: JSON.stringify({
+                            key: storagePath || undefined,
+                            file_id: storagePath ? undefined : viewItem.id,
+                            user_id: ApiService.getUserId()
+                          })
                         });
                         if (res.downloadUrl) {
                           window.open(res.downloadUrl, '_blank');
                         } else {
-                          alert("Failed to get download link.");
+                          alert("Could not generate download link. File may not be in storage.");
                         }
-                      } catch (err) {
-                        alert("Failed to get secure download link. Please try again.");
+                      } catch (err: any) {
+                        alert("Failed to get download link: " + (err?.message || 'Unknown error'));
                       } finally {
                         setDownloading(false);
                       }

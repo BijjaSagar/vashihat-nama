@@ -87,7 +87,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 glass-panel border-r border-white/50 transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 flex flex-col`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 glass-panel border-r border-white/50 transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col`}>
         {/* Logo */}
         <div className="flex h-16 items-center justify-between px-5 border-b border-white/50 flex-shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2">
@@ -157,8 +157,8 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
       </aside>
 
       {/* Main content */}
-      <div className="lg:pl-64 flex flex-col flex-1 min-h-screen">
-        <header className="sticky top-0 z-40 flex h-16 items-center justify-between px-4 sm:px-6 glass-panel border-b border-white/50 lg:hidden">
+      <div className="md:pl-64 flex flex-col flex-1 min-h-screen">
+        <header className="sticky top-0 z-40 flex h-16 items-center justify-between px-4 sm:px-6 glass-panel border-b border-white/50 md:hidden">
           <button onClick={() => setSidebarOpen(true)} className="text-slate-800 p-1">
             <Menu className="w-6 h-6" />
           </button>
