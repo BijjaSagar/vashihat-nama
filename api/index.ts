@@ -26,6 +26,7 @@ const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:8080',
     'http://10.0.2.2:8080',  // Android emulator
+    'https://web-app-ten-eosin.vercel.app', // New Web App
 ];
 app.use(cors({
     origin: (origin, callback) => {
@@ -376,6 +377,27 @@ app.post('/api/get-presigned-url', async (req, res) => {
     } catch (error) {
         console.error('Error generating presigned URL:', error);
         res.status(500).json({ error: 'Failed to generate upload URL' });
+    }
+});
+
+// Download File (Presigned URL)
+app.post('/api/get-presigned-download-url', async (req, res) => {
+    const { key } = req.body;
+    if (!key) {
+        res.status(400).json({ error: 'Missing file key' });
+        return;
+    }
+    try {
+        const { GetObjectCommand } = require('@aws-sdk/client-s3');
+        const command = new GetObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: key,
+        });
+        const downloadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
+        res.json({ downloadUrl });
+    } catch (error) {
+        console.error('Error generating download URL:', error);
+        res.status(500).json({ error: 'Failed to generate download URL' });
     }
 });
 

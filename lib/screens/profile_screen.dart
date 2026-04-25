@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../theme/glassmorphism.dart';
 import '../services/api_service.dart';
 import 'subscription_screen.dart';
+import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Map<String, dynamic>? userProfile;
@@ -224,7 +225,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       await ApiService().logout();
                       if (mounted) {
                         Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (context) => const SecureLoginScreen()),
+                          MaterialPageRoute(builder: (context) => SecureLoginScreen()),
                           (route) => false,
                         );
                       }

@@ -1,0 +1,14 @@
+.dart_tool
+build
+ios
+android
+linux
+macos
+windows
+web
+node_modules
+.git
+.firebase
+.vscode
+*.apk
+*.ipa
