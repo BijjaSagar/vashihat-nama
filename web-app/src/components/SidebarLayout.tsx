@@ -7,7 +7,8 @@ import {
   Settings, LogOut, Menu, X, Shield, LayoutDashboard, Folder, Scale,
   FileSignature, Users, HeartPulse, ShieldCheck, Bell, Activity,
   Cpu, MessageSquareHeart, Map, Video, Search, ClipboardCheck,
-  BarChart3, AlertTriangle, CreditCard, ChevronDown, ChevronRight
+  BarChart3, AlertTriangle, CreditCard, ChevronDown, ChevronRight,
+  HeartHandshake
 } from "lucide-react";
 import { ApiService } from "@/lib/api";
 
@@ -52,6 +53,7 @@ const navGroups = [
     items: [
       { name: "Video Will", href: "/video-will", icon: Video },
       { name: "Emergency Card", href: "/emergency-card", icon: CreditCard },
+      { name: "Grief Support", href: "/grief-support", icon: HeartHandshake },
     ]
   },
 ];
