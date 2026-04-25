@@ -31,28 +31,39 @@ export default function VaultPage() {
         setLoading(false);
         return;
       }
+
       const [itemsRes, foldersRes, filesRes] = await Promise.all([
         ApiService.request(`/vault_items?user_id=${userId}`),
         ApiService.request(`/folders?user_id=${userId}`),
-        ApiService.request(`/files?user_id=${userId}`) // Fetch S3 files
+        ApiService.request(`/files?user_id=${userId}`)
       ]);
-      
-      const parsedItems = Array.isArray(itemsRes) ? itemsRes : [];
-      const parsedFiles = Array.isArray(filesRes) ? filesRes.map(f => ({
+
+      // Backend returns { success: true, items: [...] } for vault_items
+      const rawItems = itemsRes?.items ?? (Array.isArray(itemsRes) ? itemsRes : []);
+
+      // Backend returns plain array for files
+      const rawFiles = Array.isArray(filesRes) ? filesRes : (filesRes?.files ?? []);
+
+      const parsedFiles = rawFiles.map((f: any) => ({
         ...f,
         item_type: 'file',
         title: f.file_name,
-        encrypted_data: JSON.stringify({ file_size: f.file_size, type: f.mime_type })
-      })) : [];
+        encrypted_data: JSON.stringify({
+          file_size: f.file_size,
+          type: f.mime_type,
+          storage_path: f.storage_path
+        })
+      }));
 
-      setItems([...parsedItems, ...parsedFiles]);
-      setFolders(Array.isArray(foldersRes) ? foldersRes : []);
+      setItems([...rawItems, ...parsedFiles]);
+      setFolders(Array.isArray(foldersRes) ? foldersRes : (foldersRes?.folders ?? []));
     } catch (err) {
-      console.error(err);
+      console.error('Vault load error:', err);
     } finally {
       setLoading(false);
     }
   };
+
 
   const getItemIcon = (type: string) => {
     switch (type) {
@@ -229,13 +240,20 @@ export default function VaultPage() {
                       try {
                         setDownloading(true);
                         const data = parseEncryptedData(viewItem.encrypted_data || '{}');
+                        // storage_path is embedded in encrypted_data for file items
+                        const storagePath = data.storage_path || viewItem.storage_path;
+                        if (!storagePath) { alert("No file storage path found."); return; }
                         const res = await ApiService.request('/get-presigned-download-url', {
                           method: 'POST',
-                          body: JSON.stringify({ key: data.storage_path })
+                          body: JSON.stringify({ key: storagePath })
                         });
-                        window.open(res.downloadUrl, '_blank');
+                        if (res.downloadUrl) {
+                          window.open(res.downloadUrl, '_blank');
+                        } else {
+                          alert("Failed to get download link.");
+                        }
                       } catch (err) {
-                        alert("Failed to get secure download link.");
+                        alert("Failed to get secure download link. Please try again.");
                       } finally {
                         setDownloading(false);
                       }

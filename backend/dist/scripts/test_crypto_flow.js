@@ -13,56 +13,53 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const axios_1 = __importDefault(require("axios"));
-const BASE_URL = 'http://localhost:3000/api'; // Testing against local just in case? Or remote config in test_full_flow: 'https://backend-rjtaianyt-sagar-bijjas-projects.vercel.app/api'
-// Let's use the remote one
-const REMOTE_URL = 'https://backend-rjtaianyt-sagar-bijjas-projects.vercel.app/api';
-function testCrypto() {
+const REMOTE_URL = 'http://localhost:8080/api';
+const ADMIN_SECRET = 'secure_admin_123';
+function testCryptoVault() {
     return __awaiter(this, void 0, void 0, function* () {
         var _a;
-        console.log('Testing Crypto Vault Item creation...');
+        console.log('--- Testing Crypto Vault Flow ---');
         try {
-            // 1. Register User Mock
-            const mobile = `98${Math.floor(10000000 + Math.random() * 90000000)}`;
-            let res = yield axios_1.default.post(`${REMOTE_URL}/users/register`, {
-                mobile_number: mobile,
-                public_key: 'test_pub_key',
-                encrypted_private_key: 'test_priv_key',
-                name: 'Crypto Tester',
-                email: `crypto${mobile}@test.com`
-            });
-            const userId = res.data.id;
-            console.log('User created:', userId);
-            // 2. Create Folder
-            res = yield axios_1.default.post(`${REMOTE_URL}/folders`, {
-                user_id: userId,
-                name: 'Crypto Vault'
-            });
-            const folderId = res.data.id;
-            console.log('Folder created:', folderId);
-            // 3. Add Crypto Item
-            const cryptoData = JSON.stringify({
-                coin: 'Bitcoin',
-                wallet_address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-                network: 'BTC',
-                seed_phrase: 'apple banana cherry date elderberry fig grape hazelnut ice juice kiwi lemon',
-                notes: 'Satoshi wallet'
-            });
-            res = yield axios_1.default.post(`${REMOTE_URL}/vault_items`, {
-                user_id: userId,
-                folder_id: folderId,
+            // 1. Create a "Crypto Vault" entry
+            const cryptoPayload = {
+                user_id: 2, // Use existing User ID
+                folder_id: null,
                 item_type: 'crypto',
-                title: 'My Genesis Block Wallet',
-                encrypted_data: cryptoData
-            });
-            console.log('Crypto Vault Item created successfully:', res.data.item.id);
-            // 4. Fetch the item
-            res = yield axios_1.default.get(`${REMOTE_URL}/vault_items/${folderId}?user_id=${userId}`);
-            console.log('Fetched Items:', JSON.stringify(res.data, null, 2));
-            console.log('✅ Crypto testing successful!');
+                title: 'My Ledger Seed (Hardware)',
+                encrypted_data: JSON.stringify({
+                    category: 'seed_phrase',
+                    words: 'pioneer gadget modify fossil engine... (encrypted on client)',
+                    blockchain: 'Multi-Chain',
+                    notes: 'Hidden in safe box 2'
+                })
+            };
+            console.log('Step 1: Storing encrypted seed phrase...');
+            const createRes = yield axios_1.default.post(`${REMOTE_URL}/vault_items`, cryptoPayload);
+            const itemId = createRes.data.item.id;
+            console.log(`✅ Crypto Vault item created: ID ${itemId}`);
+            // 2. Fetch the crypto vault items
+            console.log('Step 2: Fetching vault items (User 2)...');
+            const listRes = yield axios_1.default.get(`${REMOTE_URL}/vault_items?user_id=2`);
+            const items = listRes.data.items;
+            const cryptoItem = items.find((i) => i.item_type === 'crypto');
+            if (cryptoItem) {
+                console.log(`✅ Found Crypto Item: ${cryptoItem.title}`);
+            }
+            else {
+                throw new Error('Crypto item not found in vault');
+            }
+            // 3. Test "Security Score" for Crypto (New Logic)
+            console.log('Step 3: Calculating Security Score for this user...');
+            const scoreRes = yield axios_1.default.get(`${REMOTE_URL}/security/score?user_id=2`);
+            console.log(`✅ Security Score: ${scoreRes.data.score}%`);
+            const failedChecks = scoreRes.data.checks.filter((c) => !c.passed);
+            console.log(`🔍 Recommendations: ${failedChecks.map((c) => c.fix || c.label).join(', ')}`);
+            console.log('\n🎉 CRYPTO VAULT TESTED SUCCESSFULLY!');
         }
-        catch (e) {
-            console.error('❌ Test failed:', ((_a = e.response) === null || _a === void 0 ? void 0 : _a.data) || e.message);
+        catch (error) {
+            console.error('❌ Test failed:', ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
+            process.exit(1);
         }
     });
 }
-testCrypto();
+testCryptoVault();

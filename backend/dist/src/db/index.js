@@ -94,8 +94,17 @@ CREATE TABLE IF NOT EXISTS nominees (
   relationship VARCHAR(100),
   nominee_public_key TEXT, 
   access_granted BOOLEAN DEFAULT FALSE,
+  handover_waiting_days INTEGER DEFAULT 0, -- 0 means immediate
+  require_otp_for_access BOOLEAN DEFAULT FALSE,
+  handover_triggered_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Migration for advanced rules
+ALTER TABLE nominees ADD COLUMN IF NOT EXISTS handover_waiting_days INTEGER DEFAULT 0;
+ALTER TABLE nominees ADD COLUMN IF NOT EXISTS require_otp_for_access BOOLEAN DEFAULT FALSE;
+ALTER TABLE nominees ADD COLUMN IF NOT EXISTS handover_triggered_at TIMESTAMP WITH TIME ZONE;
+
 
 -- Migration for existing installs
 ALTER TABLE nominees ADD COLUMN IF NOT EXISTS primary_mobile VARCHAR(15);
@@ -186,6 +195,32 @@ CREATE TABLE IF NOT EXISTS payments (
 );
 CREATE INDEX IF NOT EXISTS idx_payments_user ON payments (user_id);
 CREATE INDEX IF NOT EXISTS idx_payments_status ON payments (status);
+
+-- 13. Smart Documents Table (Scanning + Alerts)
+CREATE TABLE IF NOT EXISTS smart_docs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    file_id INTEGER REFERENCES files(id) ON DELETE SET NULL,
+    doc_type VARCHAR(50) NOT NULL, -- passport, license, visa, insurance
+    doc_number VARCHAR(100),
+    title VARCHAR(255), -- User provided notes
+    expiry_date DATE NOT NULL,
+    renewal_date DATE,
+    issuing_authority VARCHAR(255),
+    notes TEXT,
+    reminder_days_before INTEGER DEFAULT 30,
+    is_reminded BOOLEAN DEFAULT FALSE,
+    s3_key VARCHAR(255), 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_smart_docs_user ON smart_docs (user_id);
+CREATE INDEX IF NOT EXISTS idx_smart_docs_expiry ON smart_docs (expiry_date);
+
+
+-- Migration for payments table (ensuring columns exist)
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS provider VARCHAR(50);
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(255);
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS plan_id VARCHAR(50);
         `;
         yield client.query(schema);
         console.log('Database initialized successfully');

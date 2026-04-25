@@ -17,7 +17,10 @@ const PORT = process.env.PORT || 3000;
 const allowedOrigins = [
     'https://backend-sagar-bijjas-projects.vercel.app',
     'https://vasihata-nama.in',
+    'https://web-app-ten-eosin.vercel.app',
+    'https://vashihat-nama-main.vercel.app',
     'http://localhost:3000',
+    'http://localhost:3001',
     'http://localhost:8080',
     'http://10.0.2.2:8080',  // Android emulator
 ];
@@ -332,7 +335,7 @@ app.get('/api/nominee-portal/vault-items', async (req, res) => {
 // ─── End Nominee Portal Routes ─────────────────────────────────────────────────
 
 // Configure S3 Client
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 const s3 = new S3Client({
@@ -370,6 +373,26 @@ app.post('/api/get-presigned-url', async (req, res) => {
     } catch (error) {
         console.error('Error generating presigned URL:', error);
         res.status(500).json({ error: 'Failed to generate upload URL' });
+    }
+});
+
+// Download File — Presigned GET URL
+app.post('/api/get-presigned-download-url', async (req, res) => {
+    const { key } = req.body;
+    if (!key) {
+        res.status(400).json({ error: 'Missing file key' });
+        return;
+    }
+    try {
+        const command = new GetObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: key,
+        });
+        const downloadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
+        res.json({ downloadUrl, key });
+    } catch (error) {
+        console.error('Error generating presigned download URL:', error);
+        res.status(500).json({ error: 'Failed to generate download URL' });
     }
 });
 
