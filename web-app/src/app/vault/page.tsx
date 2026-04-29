@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Folder, FileText, Plus, ShieldAlert, Loader2, Key, CreditCard, Bitcoin, X, ExternalLink, Download } from "lucide-react";
+import { Folder, FileText, Plus, ShieldAlert, Loader2, Key, CreditCard, Bitcoin, X, Download } from "lucide-react";
 import { ApiService } from "@/lib/api";
+import { SecurityService } from "@/lib/security";
 import Link from "next/link";
 
 export default function VaultPage() {
@@ -17,6 +18,7 @@ export default function VaultPage() {
   const [savingFolder, setSavingFolder] = useState(false);
 
   const [viewItem, setViewItem] = useState<any | null>(null);
+  const [decryptedViewData, setDecryptedViewData] = useState<any | null>(null);
   const [activeFolderId, setActiveFolderId] = useState<number | null>(null);
   const [downloading, setDownloading] = useState(false);
 
@@ -38,20 +40,19 @@ export default function VaultPage() {
         ApiService.request(`/files?user_id=${userId}`)
       ]);
 
-      // Backend returns { success: true, items: [...] } for vault_items
       const rawItems = itemsRes?.items ?? (Array.isArray(itemsRes) ? itemsRes : []);
-
-      // Backend returns plain array for files
       const rawFiles = Array.isArray(filesRes) ? filesRes : (filesRes?.files ?? []);
 
       const parsedFiles = rawFiles.map((f: any) => ({
         ...f,
         item_type: 'file',
         title: f.file_name,
+        // For files, we keep meta in encrypted_data field for the UI logic
         encrypted_data: JSON.stringify({
           file_size: f.file_size,
           type: f.mime_type,
-          storage_path: f.storage_path
+          storage_path: f.storage_path,
+          is_encrypted: f.encrypted_file_key === 'client-side-aes-gcm'
         })
       }));
 
@@ -64,6 +65,29 @@ export default function VaultPage() {
     }
   };
 
+  // Automated decryption when an item is selected
+  useEffect(() => {
+    if (viewItem && viewItem.item_type !== 'file') {
+      decryptItem(viewItem);
+    } else {
+      setDecryptedViewData(null);
+    }
+  }, [viewItem]);
+
+  const decryptItem = async (item: any) => {
+    try {
+      // Try to decrypt. If it fails, assume it's legacy plaintext.
+      const decrypted = await SecurityService.decrypt(item.encrypted_data);
+      setDecryptedViewData(JSON.parse(decrypted));
+    } catch (e) {
+      // Legacy plaintext support
+      try {
+        setDecryptedViewData(JSON.parse(item.encrypted_data));
+      } catch {
+        setDecryptedViewData({ content: item.encrypted_data });
+      }
+    }
+  };
 
   const getItemIcon = (type: string) => {
     switch (type) {
@@ -94,14 +118,6 @@ export default function VaultPage() {
       alert("Failed to create folder");
     } finally {
       setSavingFolder(false);
-    }
-  };
-
-  const parseEncryptedData = (dataStr: string) => {
-    try {
-      return JSON.parse(dataStr);
-    } catch (e) {
-      return { content: dataStr };
     }
   };
 
@@ -239,8 +255,7 @@ export default function VaultPage() {
                     onClick={async () => {
                       try {
                         setDownloading(true);
-                        const data = parseEncryptedData(viewItem.encrypted_data || '{}');
-                        // Try storage_path from encrypted_data, then direct field, then fall back to file_id DB lookup
+                        const data = JSON.parse(viewItem.encrypted_data || '{}');
                         const storagePath = data.storage_path || viewItem.storage_path || null;
                         const res = await ApiService.request('/get-presigned-download-url', {
                           method: 'POST',
@@ -250,10 +265,35 @@ export default function VaultPage() {
                             user_id: ApiService.getUserId()
                           })
                         });
+                        
                         if (res.downloadUrl) {
-                          window.open(res.downloadUrl, '_blank');
+                          // If encrypted, we must fetch and decrypt
+                          if (data.is_encrypted) {
+                            const fileRes = await fetch(res.downloadUrl);
+                            const encryptedText = await fileRes.text();
+                            const decryptedBase64 = await SecurityService.decrypt(encryptedText);
+                            
+                            // Convert base64 back to blob
+                            const binaryString = atob(decryptedBase64);
+                            const bytes = new Uint8Array(binaryString.length);
+                            for (let i = 0; i < binaryString.length; i++) {
+                              bytes[i] = binaryString.charCodeAt(i);
+                            }
+                            const blob = new Blob([bytes], { type: data.type || 'application/octet-stream' });
+                            
+                            // Trigger download
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = viewItem.title;
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                          } else {
+                            // Legacy plaintext file
+                            window.open(res.downloadUrl, '_blank');
+                          }
                         } else {
-                          alert("Could not generate download link. File may not be in storage.");
+                          alert("Could not generate download link.");
                         }
                       } catch (err: any) {
                         alert("Failed to get download link: " + (err?.message || 'Unknown error'));
@@ -266,8 +306,8 @@ export default function VaultPage() {
                     {downloading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Download Secure File"}
                   </button>
                 </div>
-              ) : (
-                Object.entries(parseEncryptedData(viewItem.encrypted_data || '{}')).map(([key, val]) => (
+              ) : decryptedViewData ? (
+                Object.entries(decryptedViewData).map(([key, val]) => (
                   <div key={key} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                     <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                       {key.replace('_', ' ')}
@@ -275,11 +315,13 @@ export default function VaultPage() {
                     <p className="text-slate-800 break-words font-mono text-sm">{String(val)}</p>
                   </div>
                 ))
+              ) : (
+                <div className="flex justify-center p-4"><Loader2 className="w-5 h-5 animate-spin text-blue-600" /> Decrypting...</div>
               )}
             </div>
 
             <button 
-              onClick={() => setViewItem(null)}
+              onClick={() => { setViewItem(null); setDecryptedViewData(null); }}
               className="mt-8 w-full py-3 rounded-xl bg-slate-200 text-slate-700 font-bold hover:bg-slate-300 transition-colors"
             >
               Close

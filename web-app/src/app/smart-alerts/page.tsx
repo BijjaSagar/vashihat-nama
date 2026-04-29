@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Bell, Plus, Trash2, AlertTriangle, CheckCircle2, Clock, Loader2, X } from "lucide-react";
 import { ApiService } from "@/lib/api";
 import { motion } from "framer-motion";
+import { SecurityService } from "@/lib/security";
 
 interface SmartDoc { id: number; document_name: string; expiry_date: string; status: string; days_until_expiry: number; }
 
@@ -19,7 +20,20 @@ export default function SmartAlertsPage() {
     if (!userId) return;
     try {
       const r = await ApiService.request(`/api/smart_docs?user_id=${userId}`);
-      setDocs(r.docs || r || []);
+      const rawDocs = r.docs || r || [];
+      
+      // Decrypt document names
+      const decryptedDocs = await Promise.all(rawDocs.map(async (d: any) => {
+        try {
+          const decryptedName = await SecurityService.decrypt(d.document_name);
+          return { ...d, document_name: decryptedName };
+        } catch (e) {
+          // Legacy or failed decryption
+          return d;
+        }
+      }));
+      
+      setDocs(decryptedDocs);
     } catch { setDocs([]); } finally { setLoading(false); }
   };
 
@@ -29,7 +43,17 @@ export default function SmartAlertsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await ApiService.request("/api/smart_docs", { method: "POST", body: JSON.stringify({ user_id: ApiService.getUserId(), document_name: name, expiry_date: expiry }) });
+      // ENCRYPT DOCUMENT NAME
+      const encryptedName = await SecurityService.encrypt(name);
+      
+      await ApiService.request("/api/smart_docs", { 
+        method: "POST", 
+        body: JSON.stringify({ 
+          user_id: ApiService.getUserId(), 
+          document_name: encryptedName, 
+          expiry_date: expiry 
+        }) 
+      });
       setShowAdd(false); setName(""); setExpiry(""); load();
     } catch { } finally { setSaving(false); }
   };

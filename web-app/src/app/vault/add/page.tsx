@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Loader2, ArrowLeft, Save, Check } from "lucide-react";
 import { ApiService } from "@/lib/api";
+import { SecurityService } from "@/lib/security";
 import Link from "next/link";
 
 export default function AddVaultItemPage() {
@@ -60,41 +61,53 @@ export default function AddVaultItemPage() {
     setSaving(true);
     try {
       const userId = ApiService.getUserId();
-      let data: any = {};
+      let rawData: any = {};
 
       if (selectedType === 'note') {
-        data = { content };
+        rawData = { content };
       } else if (selectedType === 'password') {
-        data = { username, password, url, notes };
+        rawData = { username, password, url, notes };
       } else if (selectedType === 'credit_card') {
-        data = { card_number: cardNumber, notes };
+        rawData = { card_number: cardNumber, notes };
       }
+      
+      // CLIENT-SIDE ENCRYPTION
+      const encryptedData = await SecurityService.encrypt(JSON.stringify(rawData));
       
       if (selectedType === 'file') {
         if (!file) throw new Error("Please select a file to upload.");
         
-        // 1. Get Presigned URL
+        // 1. Read and Encrypt File
+        const fileArrayBuffer = await file.arrayBuffer();
+        const fileString = btoa(String.fromCharCode(...new Uint8Array(fileArrayBuffer)));
+        const encryptedFileContent = await SecurityService.encrypt(fileString);
+        
+        // 2. Optional: Compress (for large text-based files, binary files like images/video are already compressed)
+        // For now, we just proceed with encrypted blob
+        const encryptedBlob = new Blob([encryptedFileContent], { type: 'application/octet-stream' });
+
+        // 3. Get Presigned URL
         const presignedRes = await ApiService.request('/get-presigned-url', {
           method: 'POST',
           body: JSON.stringify({
             folder_id: selectedFolderId,
-            file_name: file.name,
-            file_type: file.type || 'application/octet-stream'
+            file_name: file.name + ".enc", // Tag as encrypted
+            file_type: 'application/octet-stream'
           })
         });
 
-        // 2. Upload to S3 directly
+        // 4. Upload to S3 directly
         const s3Upload = await fetch(presignedRes.uploadUrl, {
           method: 'PUT',
           headers: {
-            'Content-Type': file.type || 'application/octet-stream'
+            'Content-Type': 'application/octet-stream'
           },
-          body: file
+          body: encryptedBlob
         });
         
         if (!s3Upload.ok) throw new Error("Failed to upload to S3.");
 
-        // 3. Confirm upload
+        // 5. Confirm upload
         await ApiService.request('/files/confirm-upload', {
           method: 'POST',
           body: JSON.stringify({
@@ -102,8 +115,9 @@ export default function AddVaultItemPage() {
             folder_id: selectedFolderId,
             file_name: file.name,
             key: presignedRes.key,
-            file_size: file.size,
-            mime_type: file.type
+            file_size: encryptedBlob.size,
+            mime_type: file.type,
+            encrypted_file_key: 'client-side-aes-gcm' // Marker for frontend
           })
         });
 
@@ -116,7 +130,7 @@ export default function AddVaultItemPage() {
             folder_id: selectedFolderId,
             item_type: selectedType,
             title,
-            encrypted_data: JSON.stringify(data), // Sending as JSON string for now
+            encrypted_data: encryptedData, // Sending real encrypted data
             nominee_ids: selectedNominees,
           })
         });
@@ -125,7 +139,7 @@ export default function AddVaultItemPage() {
       router.push('/vault');
     } catch (err) {
       console.error(err);
-      alert("Failed to save item");
+      alert("Failed to save item securely");
     } finally {
       setSaving(false);
     }

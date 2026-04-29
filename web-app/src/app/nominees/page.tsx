@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Users, Plus, ShieldAlert, Loader2, Edit2, Trash2, X } from "lucide-react";
 import { ApiService } from "@/lib/api";
+import { SecurityService } from "@/lib/security";
 
 export default function NomineesPage() {
   const [nominees, setNominees] = useState<any[]>([]);
@@ -28,7 +29,28 @@ export default function NomineesPage() {
       const userId = ApiService.getUserId();
       if (!userId) return;
       const res = await ApiService.request(`/nominees?user_id=${userId}`);
-      setNominees(res);
+      
+      // Decrypt each nominee's sensitive info
+      const decryptedNominees = await Promise.all(res.map(async (n: any) => {
+        try {
+          // If the name is base64 (encrypted), decrypt it. 
+          // We check if it looks like encrypted data (IV + data)
+          const decryptedName = await SecurityService.decrypt(n.name);
+          const decryptedRel = await SecurityService.decrypt(n.relationship);
+          
+          return {
+            ...n,
+            name: decryptedName,
+            relationship: decryptedRel,
+            is_encrypted: true
+          };
+        } catch (e) {
+          // Fallback to plaintext for legacy entries
+          return { ...n, is_encrypted: false };
+        }
+      }));
+
+      setNominees(decryptedNominees);
     } catch (err) {
       console.error(err);
     } finally {
@@ -52,14 +74,19 @@ export default function NomineesPage() {
     setSaving(true);
     try {
       const userId = ApiService.getUserId();
+      
+      // ENCRYPT SENSITIVE IDENTITY DATA
+      const encryptedName = await SecurityService.encrypt(name);
+      const encryptedRel = await SecurityService.encrypt(relationship);
+
       await ApiService.request('/nominees', {
         method: 'POST',
         body: JSON.stringify({
           user_id: userId,
-          name,
-          relationship,
-          email,
-          primary_mobile: primaryMobile,
+          name: encryptedName, // Store encrypted
+          relationship: encryptedRel, // Store encrypted
+          email, // Keep plaintext for backend notifications
+          primary_mobile: primaryMobile, // Keep plaintext for backend notifications
           handover_waiting_days: delayDays,
           is_proof_of_life_contact: isEmergencyContact,
           delivery_mode: 'digital',
@@ -67,12 +94,11 @@ export default function NomineesPage() {
         })
       });
       setShowAddModal(false);
-      // reset form
       setName(''); setRelationship(''); setEmail(''); setPrimaryMobile(''); setDelayDays(0); setIsEmergencyContact(false);
       await loadNominees();
     } catch (err) {
       console.error(err);
-      alert("Failed to add nominee");
+      alert("Failed to add nominee securely");
     } finally {
       setSaving(false);
     }
@@ -124,7 +150,7 @@ export default function NomineesPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-slate-800">{nominee.name}</h3>
-                    <p className="text-sm text-slate-500">{nominee.relation}</p>
+                    <p className="text-sm text-slate-500">{nominee.relationship}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
