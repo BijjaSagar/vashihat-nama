@@ -2,45 +2,62 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http_certificate_pinning/http_certificate_pinning.dart';
 import 'dart:io';
 
 class ApiService {
-  // Replace with your actual backend URL
-  // For Android Emulator: 'http://10.0.2.2:3000/api'
-  // For iOS Simulator: 'http://localhost:3000/api'
-  // For Physical Device: Use your machine's local IP (e.g., http://192.168.1.5:3000/api)
+  static const String serverFingerprint = "f832dfb2653761e8b0001dbaf84eab20667c9bfb0520700547d3b3bf548143aa";
+  
   static String get baseUrl {
-    // 1. Local Development (Uncomment if needed)
-    /*
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8080/api';
-    } else {
-      return 'http://localhost:8080/api'; 
-    }
-    */
-
-    // 2. Production URL (Vercel)
     return 'https://backend-sagar-bijjas-projects.vercel.app/api'; 
   }
   final Dio _dio = Dio();
 
+  /// Validates SSL Certificate Pinning (Elite Security)
+  static Future<bool> validateConnection() async {
+    try {
+      final secure = await HttpCertificatePinning.check(
+        serverURL: baseUrl,
+        headerHttp: {},
+        sha: SHA.SHA256,
+        allowedSHAFingerprints: [serverFingerprint],
+        timeout: 10,
+      );
+      return secure == "CONNECTION_SECURE";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Checks if the current session is a Decoy Vault session
+  Future<bool> isDecoySession() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('isDecoyVault') ?? false;
+  }
+
   /// Clears stored auth data and logs the user out.
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear(); // Safest way to reset all session data
+    await prefs.clear();
   }
 
   // ─── JWT Token Helpers ───────────────────────────────────────────────────────
 
   /// Retrieves the stored JWT auth token.
   Future<String?> getAuthToken() async {
+    // SECURITY: If decoy session, we might want to return a different token 
+    // or restricted scope if the backend supports it.
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('authToken');
   }
 
   /// Builds headers with Content-Type and the Bearer auth token.
-  /// Pass [requiresAuth] = false for public endpoints (login, register, send_otp).
   Future<Map<String, String>> _authHeaders({bool requiresAuth = true}) async {
+    // VERIFY CONNECTION BEFORE ANY AUTH REQUEST
+    if (requiresAuth && !await validateConnection()) {
+      throw Exception("UNSECURE CONNECTION: Possible MITM Attack Detected!");
+    }
+
     final headers = {'Content-Type': 'application/json'};
     if (requiresAuth) {
       final token = await getAuthToken();

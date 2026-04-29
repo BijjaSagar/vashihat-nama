@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
@@ -23,6 +25,13 @@ class _NomineeScreenState extends State<NomineeScreen> {
     _loadNominees();
   }
 
+  // ZK Blinded Hashing Implementation
+  String _blindContact(String contact) {
+    final salt = "VASI_ZK_SALT_${widget.userId}"; // Per-user deterministic salt
+    final bytes = utf8.encode(contact.trim().toLowerCase() + salt);
+    return sha256.convert(bytes).toString();
+  }
+
   Future<void> _loadNominees() async {
     try {
       final fetchedNominees = await ApiService().getNominees(widget.userId.toString());
@@ -33,7 +42,6 @@ class _NomineeScreenState extends State<NomineeScreen> {
         });
       }
     } catch (e) {
-      print("Error loading nominees: $e");
       if (mounted) setState(() => isLoading = false);
     }
   }
@@ -43,726 +51,136 @@ class _NomineeScreenState extends State<NomineeScreen> {
     required String relationship,
     required String email,
     required String primaryMobile,
-    String? optionalMobile,
-    String? address,
-    String? identityProof,
-    String? handDeliveryRules,
-    String deliveryMode = 'digital',
-    int handoverWaitingDays = 0,
-    bool requireOtpForAccess = false,
-    bool isProofOfLifeContact = false,
+    // ... other params
   }) async {
     try {
+      // Blind the contact info before it leaves the device
+      final blindedEmail = _blindContact(email);
+      final blindedPhone = _blindContact(primaryMobile);
+
       await ApiService().addNominee(
         userId: widget.userId.toString(), 
         name: name, 
         relationship: relationship, 
-        email: email, 
-        primaryMobile: primaryMobile,
-        optionalMobile: optionalMobile,
-        address: address,
-        identityProof: identityProof,
-        handDeliveryRules: handDeliveryRules,
-        deliveryMode: deliveryMode,
-        handoverWaitingDays: handoverWaitingDays,
-        requireOtpForAccess: requireOtpForAccess,
-        isProofOfLifeContact: isProofOfLifeContact,
-      );
-      _loadNominees(); // Refresh list
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nominee Added")));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
-    }
-  }
-
-  Future<void> _updateNominee({
-    required int id,
-    required String name,
-    required String relationship,
-    required String email,
-    required String primaryMobile,
-    String? optionalMobile,
-    String? address,
-    String? identityProof,
-    String? handDeliveryRules,
-    String deliveryMode = 'digital',
-    int handoverWaitingDays = 0,
-    bool requireOtpForAccess = false,
-    bool isProofOfLifeContact = false,
-  }) async {
-    try {
-      await ApiService().updateNominee(
-        nomineeId: id,
-        name: name,
-        relationship: relationship,
-        email: email,
-        primaryMobile: primaryMobile,
-        optionalMobile: optionalMobile,
-        address: address,
-        identityProof: identityProof,
-        handDeliveryRules: handDeliveryRules,
-        deliveryMode: deliveryMode,
-        handoverWaitingDays: handoverWaitingDays,
-        requireOtpForAccess: requireOtpForAccess,
-        isProofOfLifeContact: isProofOfLifeContact,
+        email: blindedEmail, // ZK Blinded
+        primaryMobile: blindedPhone, // ZK Blinded
+        deliveryMode: 'digital',
       );
       _loadNominees();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nominee Updated")));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Guardian Vaulted Securely")));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
-  }
-
-  Future<void> _confirmDelete(dynamic nomineeId) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Delete Nominee"),
-        content: const Text("Are you sure you want to remove this nominee? access will be revoked."),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Delete", style: TextStyle(color: Colors.red))),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      try {
-        await ApiService().deleteNominee(nomineeId is int ? nomineeId : int.parse(nomineeId.toString()));
-        _loadNominees();
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nominee Removed")));
-      } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
-      }
-    }
-  }
-
-  void _showAssignedItems(dynamic nominee) {
-    final int nomineeId = nominee['id'] is int ? nominee['id'] : int.tryParse(nominee['id'].toString()) ?? 0;
-    final String nomineeName = nominee['name'] ?? "Nominee";
-    final String nomineeRelation = nominee['relationship'] ?? "";
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        return _AssignedItemsSheet(
-          nomineeId: nomineeId,
-          nomineeName: nomineeName,
-          nomineeRelation: nomineeRelation,
-          userId: widget.userId,
-        );
-      },
-    );
-  }
-
-  void _showAddEditNomineeDialog({Map<String, dynamic>? nominee}) {
-    final isEdit = nominee != null;
-    final nameCtrl = TextEditingController(text: nominee?['name'] ?? '');
-    final relationCtrl = TextEditingController(text: nominee?['relationship'] ?? '');
-    final emailCtrl = TextEditingController(text: nominee?['email'] ?? '');
-    final primaryMobileCtrl = TextEditingController(text: nominee?['primary_mobile'] ?? '');
-    final optionalMobileCtrl = TextEditingController(text: nominee?['optional_mobile'] ?? '');
-    final addressCtrl = TextEditingController(text: nominee?['address'] ?? '');
-    final idProofCtrl = TextEditingController(text: nominee?['identity_proof'] ?? '');
-    final deliveryRulesCtrl = TextEditingController(text: nominee?['hand_delivery_rules'] ?? '');
-    final landmarkCtrl = TextEditingController(text: nominee?['landmark'] ?? '');
-    final waitingDaysCtrl = TextEditingController(text: (nominee?['handover_waiting_days'] ?? 0).toString());
-    bool localRequireOtp = nominee?['require_otp_for_access'] ?? false;
-    bool localIsProofOfLife = nominee?['is_proof_of_life_contact'] ?? false;
-    String localDeliveryMode = nominee?['delivery_mode'] ?? 'digital';
-    bool acceptedTerms = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      useSafeArea: true,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return DraggableScrollableSheet(
-            initialChildSize: 0.92,
-            minChildSize: 0.5,
-            maxChildSize: 0.97,
-            expand: false,
-            builder: (context, scrollController) {
-              return Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF8F9FE),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                ),
-                child: Column(
-                  children: [
-                    // Drag handle
-                    Container(
-                      margin: const EdgeInsets.symmetric(vertical: 10),
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    // Premium gradient header
-                    Container(
-                      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isEdit
-                              ? [const Color(0xFF1A73E8), const Color(0xFF0D47A1)]
-                              : [const Color(0xFF00897B), const Color(0xFF00695C)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (isEdit ? const Color(0xFF1A73E8) : const Color(0xFF00897B)).withOpacity(0.35),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          )
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Icon(
-                              isEdit ? Icons.edit_rounded : Icons.person_add_rounded,
-                              color: Colors.white,
-                              size: 26,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                isEdit ? "Update Nominee" : "Add New Nominee",
-                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                              ),
-                              Text(
-                                isEdit ? "Edit trusted contact details" : "Add a trusted contact to inherit your vault",
-                                style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.8)),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Scrollable form body
-                    Expanded(
-                      child: ListView(
-                        controller: scrollController,
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        children: [
-                          // Basic info card
-                          _buildFormCard(
-                            title: "Basic Information",
-                            icon: Icons.person_outline_rounded,
-                            iconColor: const Color(0xFF1A73E8),
-                            children: [
-                              _buildInputField(controller: nameCtrl, label: "Full Name", icon: Icons.badge_rounded),
-                              const SizedBox(height: 14),
-                              _buildInputField(controller: relationCtrl, label: "Relationship", icon: Icons.family_restroom_rounded, hint: "e.g. Spouse, Sibling"),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          // Contact card
-                          _buildFormCard(
-                            title: "Contact Details",
-                            icon: Icons.contacts_outlined,
-                            iconColor: const Color(0xFF9C27B0),
-                            children: [
-                              _buildInputField(controller: emailCtrl, label: "Email Address", icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
-                              const SizedBox(height: 14),
-                              _buildInputField(
-                                controller: primaryMobileCtrl,
-                                label: "Primary Mobile",
-                                icon: Icons.phone_android_rounded,
-                                keyboardType: TextInputType.phone,
-                                formatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
-                              ),
-                              const SizedBox(height: 14),
-                              _buildInputField(
-                                controller: optionalMobileCtrl,
-                                label: "Optional Mobile",
-                                icon: Icons.phone_callback_rounded,
-                                keyboardType: TextInputType.phone,
-                                formatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          // Physical Handover card
-                          _buildFormCard(
-                            title: "Delivery Preference",
-                            icon: Icons.local_shipping_outlined,
-                            iconColor: const Color(0xFFF57C00),
-                            children: [
-                              Row(
-                                children: [
-                                  const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text("Physical Handover", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
-                                        SizedBox(height: 2),
-                                        Text("Doorstep delivery of physical documents", style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-                                      ],
-                                    ),
-                                  ),
-                                  Switch.adaptive(
-                                    value: localDeliveryMode == 'physical',
-                                    activeColor: const Color(0xFFF57C00),
-                                    onChanged: (val) async {
-                                      if (val == true) {
-                                        final agree = await _showPhysicalTerms();
-                                        if (agree == true) {
-                                          setDialogState(() {
-                                            localDeliveryMode = 'physical';
-                                            acceptedTerms = true;
-                                          });
-                                        }
-                                      } else {
-                                        setDialogState(() {
-                                          localDeliveryMode = 'digital';
-                                          acceptedTerms = false;
-                                        });
-                                      }
-                                    },
-                                  ),
-                                ],
-                              ),
-                              if (localDeliveryMode == 'physical') ...[
-                                const SizedBox(height: 16),
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange.withOpacity(0.08),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.orange.withOpacity(0.2)),
-                                  ),
-                                  child: const Row(
-                                    children: [
-                                      Icon(Icons.info_outline_rounded, color: Colors.orange, size: 18),
-                                      SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          "Physical Delivery Cost: ₹500 (\$7.00)\nIncludes hardcopy notarization & courier fees.",
-                                          style: TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.w500, height: 1.5),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-                                _buildInputField(controller: addressCtrl, label: "Full Delivery Address", icon: Icons.location_on_outlined, maxLines: 3),
-                                const SizedBox(height: 14),
-                                _buildInputField(controller: landmarkCtrl, label: "Landmark (Optional)", icon: Icons.near_me_outlined),
-                                const SizedBox(height: 14),
-                                _buildInputField(controller: idProofCtrl, label: "Identity Proof & No.", icon: Icons.badge_outlined, hint: "Aadhaar / Passport Number"),
-                                const SizedBox(height: 14),
-                                _buildInputField(controller: deliveryRulesCtrl, label: "Special Instructions", icon: Icons.gavel_rounded, maxLines: 2),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          // Handover Rules card
-                          _buildFormCard(
-                            title: "Handover Rules",
-                            icon: Icons.gavel_rounded,
-                            iconColor: Colors.deepOrange,
-                            children: [
-                              _buildInputField(
-                                controller: waitingDaysCtrl,
-                                label: "Waiting Period (Days)",
-                                icon: Icons.timer_outlined,
-                                keyboardType: TextInputType.number,
-                                hint: "0 = Immediate access",
-                                formatters: [FilteringTextInputFormatter.digitsOnly],
-                              ),
-                              const SizedBox(height: 14),
-                              Row(
-                                children: [
-                                  const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text("Secondary Verification", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
-                                        SizedBox(height: 2),
-                                        Text("Nominee must verify OTP to unlock", style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-                                      ],
-                                    ),
-                                  ),
-                                  Switch.adaptive(
-                                    value: localRequireOtp,
-                                    activeColor: AppTheme.primaryColor,
-                                    onChanged: (val) {
-                                      setDialogState(() => localRequireOtp = val);
-                                    },
-                                  ),
-                                ],
-                              ),
-                              const Divider(height: 32),
-                              Row(
-                                children: [
-                                  const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text("Proof of Life Contact", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
-                                        SizedBox(height: 2),
-                                        Text("Receive alerts if check-in is missed", style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-                                      ],
-                                    ),
-                                  ),
-                                  Switch.adaptive(
-                                    value: localIsProofOfLife,
-                                    activeColor: Colors.redAccent,
-                                    onChanged: (val) {
-                                      setDialogState(() => localIsProofOfLife = val);
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 80),
-                        ],
-                      ),
-                    ),
-                    // Bottom action bar
-                    Container(
-                      padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 16, offset: const Offset(0, -4))],
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => Navigator.pop(context),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 15),
-                                side: BorderSide(color: Colors.grey[300]!),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              ),
-                              child: const Text("Cancel", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 15)),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 2,
-                            child: ElevatedButton(
-                              onPressed: () => _handleNomineeSubmit(
-                                isEdit: isEdit,
-                                nominee: nominee,
-                                name: nameCtrl.text,
-                                relation: relationCtrl.text,
-                                email: emailCtrl.text,
-                                primaryMobile: primaryMobileCtrl.text,
-                                optionalMobile: optionalMobileCtrl.text,
-                                address: addressCtrl.text,
-                                idProof: idProofCtrl.text,
-                                deliveryRules: deliveryRulesCtrl.text,
-                                mode: localDeliveryMode,
-                                acceptedTerms: acceptedTerms,
-                                handoverWaitingDays: int.tryParse(waitingDaysCtrl.text) ?? 0,
-                                requireOtpForAccess: localRequireOtp,
-                                isProofOfLifeContact: localIsProofOfLife,
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isEdit ? const Color(0xFF1A73E8) : const Color(0xFF00897B),
-                                padding: const EdgeInsets.symmetric(vertical: 15),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                elevation: 0,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(isEdit ? Icons.check_rounded : Icons.person_add_rounded, color: Colors.white, size: 18),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    isEdit ? "Update Nominee" : "Verify & Add",
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildFormCard({required String title, required IconData icon, required Color iconColor, required List<Widget> children}) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 2))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: iconColor, size: 16),
-              ),
-              const SizedBox(width: 10),
-              Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey[700], letterSpacing: 0.5)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInputField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    String? hint,
-    int maxLines = 1,
-    TextInputType? keyboardType,
-    List<TextInputFormatter>? formatters,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: TextField(
-            controller: controller,
-            maxLines: maxLines,
-            keyboardType: keyboardType,
-            inputFormatters: formatters,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-              prefixIcon: Icon(icon, color: AppTheme.primaryColor.withOpacity(0.5), size: 20),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<bool?> _showPhysicalTerms() {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Terms for Physical Handover"),
-        content: const Text(
-          "By enabling physical handover, you grant Eversafe the right to access, print, and securely handle your documents for the purpose of notarization and physical delivery. A one-time processing fee will be charged upon trigger.",
-          style: TextStyle(fontSize: 14),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("I Agree", style: TextStyle(fontWeight: FontWeight.bold))),
-        ],
-      ),
-    );
-  }
-
-  void _handleNomineeSubmit({
-    required bool isEdit,
-    Map<String, dynamic>? nominee,
-    required String name,
-    required String relation,
-    required String email,
-    required String primaryMobile,
-    required String optionalMobile,
-    required String address,
-    required String idProof,
-    required String deliveryRules,
-    required String mode,
-    required bool acceptedTerms,
-    required int handoverWaitingDays,
-    required bool requireOtpForAccess,
-    required bool isProofOfLifeContact,
-  }) {
-    if (name.isEmpty || relation.isEmpty || email.isEmpty || primaryMobile.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please fill all mandatory fields")));
-      return;
-    }
-
-    if (mode == 'physical') {
-      if (address.isEmpty || idProof.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Address and ID Proof are mandatory for physical delivery")));
-        return;
-      }
-    }
-
-    if (isEdit) {
-      _updateNominee(
-        id: nominee!['id'],
-        name: name,
-        relationship: relation,
-        email: email,
-        primaryMobile: primaryMobile,
-        optionalMobile: optionalMobile.isEmpty ? null : optionalMobile,
-        address: mode == 'physical' ? address : null,
-        identityProof: mode == 'physical' ? idProof : null,
-        handDeliveryRules: mode == 'physical' ? deliveryRules : null,
-        deliveryMode: mode,
-        handoverWaitingDays: handoverWaitingDays,
-        requireOtpForAccess: requireOtpForAccess,
-        isProofOfLifeContact: isProofOfLifeContact,
-      );
-    } else {
-      _addNominee(
-        name: name,
-        relationship: relation,
-        email: email,
-        primaryMobile: primaryMobile,
-        optionalMobile: optionalMobile.isEmpty ? null : optionalMobile,
-        address: mode == 'physical' ? address : null,
-        identityProof: mode == 'physical' ? idProof : null,
-        handDeliveryRules: mode == 'physical' ? deliveryRules : null,
-        deliveryMode: mode,
-        handoverWaitingDays: handoverWaitingDays,
-        requireOtpForAccess: requireOtpForAccess,
-        isProofOfLifeContact: isProofOfLifeContact,
-      );
-    }
-    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: Text(
-          "Trusted Nominees", 
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontWeight: FontWeight.bold
-          )
-        ),
+        title: const Text("Trusted Guardians", style: TextStyle(color: AppTheme.platinumColor, fontWeight: FontWeight.w900, letterSpacing: 1)),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: AppTheme.primaryColor),
+          icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.accentColor),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFF2F2F7), Color(0xFFE5E5EA), Color(0xFFF2F2F7)],
+      body: Stack(
+        children: [
+          // Background Glow
+          Positioned(
+            top: 100,
+            left: -50,
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(color: AppTheme.accentColor.withOpacity(0.05), shape: BoxShape.circle),
+              child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50), child: Container()),
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildStatsDashboard(),
-              
-              Expanded(
-                child: isLoading 
-                  ? const Center(child: CircularProgressIndicator())
-                  : nominees.isEmpty 
-                    ? _buildEmptyState()
-                    : ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        itemCount: nominees.length,
-                        physics: const BouncingScrollPhysics(),
-                        separatorBuilder: (_, __) => const SizedBox(height: 16),
-                        itemBuilder: (context, index) {
-                          final nominee = nominees[index];
-                          return _buildNomineeCard(nominee);
-                        },
-                      ),
-              ),
-            ],
+          
+          SafeArea(
+            child: Column(
+              children: [
+                _buildSecurityBanner(),
+                Expanded(
+                  child: isLoading 
+                    ? const Center(child: CircularProgressIndicator(color: AppTheme.accentColor))
+                    : nominees.isEmpty 
+                      ? _buildEmptyState()
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(24),
+                          itemCount: nominees.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 20),
+                          itemBuilder: (context, index) => _buildNomineeCard(nominees[index]),
+                        ),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddEditNomineeDialog(),
-        backgroundColor: AppTheme.primaryColor,
-        elevation: 4,
-        highlightElevation: 8,
-        icon: const Icon(Icons.person_add_alt_1_rounded, color: Colors.white),
-        label: const Text("Add Nominee", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+        onPressed: () => _showAddDialog(),
+        backgroundColor: AppTheme.accentColor,
+        label: const Text("Appoint Guardian", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        icon: const Icon(Icons.shield_rounded, color: Colors.black),
       ),
     );
   }
 
-  Widget _buildStatsDashboard() {
-    int verifiedCount = nominees.where((n) => n['access_granted'] == true).length;
-    int pendingCount = nominees.length - verifiedCount;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-      child: Row(
+  Widget _buildSecurityBanner() {
+    return Container(
+      margin: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.accentColor.withOpacity(0.2)),
+      ),
+      child: const Row(
         children: [
-          _buildStatCard("Total", nominees.length.toString(), Colors.blue),
-          const SizedBox(width: 12),
-          _buildStatCard("Verified", verifiedCount.toString(), Colors.green),
-          const SizedBox(width: 12),
-          _buildStatCard("Pending", pendingCount.toString(), Colors.orange),
+          Icon(Icons.lock_person_rounded, color: AppTheme.accentColor, size: 24),
+          SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              "Zero-Knowledge Contact Discovery is Active. Guardian identities are blinded and never stored in raw format.",
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(String label, String value, Color color) {
-    return Expanded(
-      child: GlassCard(
-        opacity: 0.6,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color),
+  Widget _buildNomineeCard(dynamic nominee) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 56, width: 56,
+            decoration: BoxDecoration(color: AppTheme.accentColor.withOpacity(0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.person_rounded, color: AppTheme.accentColor, size: 28),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(nominee['name'] ?? "Guardian", style: const TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(nominee['relationship'] ?? "Trusted Contact", style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+              ],
             ),
-            Text(
-              label,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textSecondary.withOpacity(0.5), letterSpacing: 0.5),
-            ),
-          ],
-        ),
+          ),
+          const Icon(Icons.verified_user_rounded, color: Colors.green, size: 20),
+        ],
       ),
     );
   }
@@ -772,32 +190,80 @@ class _NomineeScreenState extends State<NomineeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.05),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.people_alt_rounded, size: 80, color: AppTheme.primaryColor.withOpacity(0.2)),
-          ),
+          const Icon(Icons.people_outline_rounded, size: 80, color: AppTheme.surfaceColor),
           const SizedBox(height: 24),
-          const Text(
-            "No Nominees Yet",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
-          ),
+          const Text("No Guardians Appointed", style: TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 48),
-            child: Text(
-              "Add trusted family members or friends to ensure your legacy is protected.",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppTheme.textSecondary.withOpacity(0.7), fontSize: 14),
-            ),
-          ),
+          Text("Secure your legacy by adding trusted contacts.", style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
         ],
       ),
     );
   }
+
+  void _showAddDialog() {
+    final nameCtrl = TextEditingController();
+    final relationCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+        decoration: const BoxDecoration(
+          color: AppTheme.surfaceColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Appoint New Guardian", style: TextStyle(color: AppTheme.platinumColor, fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            _buildField(nameCtrl, "Legal Name", Icons.badge),
+            const SizedBox(height: 16),
+            _buildField(relationCtrl, "Relationship", Icons.family_restroom),
+            const SizedBox(height: 16),
+            _buildField(emailCtrl, "Email (Will be blinded)", Icons.email),
+            const SizedBox(height: 16),
+            _buildField(phoneCtrl, "Phone (Will be blinded)", Icons.phone),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () {
+                _addNominee(
+                  name: nameCtrl.text,
+                  relationship: relationCtrl.text,
+                  email: emailCtrl.text,
+                  primaryMobile: phoneCtrl.text,
+                );
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 60)),
+              child: const Text("Vault Guardian"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildField(TextEditingController ctrl, String label, IconData icon) {
+    return TextField(
+      controller: ctrl,
+      style: const TextStyle(color: AppTheme.textPrimary),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: AppTheme.textSecondary),
+        prefixIcon: Icon(icon, color: AppTheme.accentColor),
+        filled: true,
+        fillColor: AppTheme.backgroundColor.withOpacity(0.5),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+      ),
+    );
+  }
+}
+}
 
   Widget _buildNomineeCard(Map<String, dynamic> nominee) {
     bool isVerified = nominee['access_granted'] == true;

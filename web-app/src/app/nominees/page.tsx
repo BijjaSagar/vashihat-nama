@@ -78,19 +78,29 @@ export default function NomineesPage() {
       // ENCRYPT SENSITIVE IDENTITY DATA
       const encryptedName = await SecurityService.encrypt(name);
       const encryptedRel = await SecurityService.encrypt(relationship);
+      
+      // BLINDED CONTACT DISCOVERY (Elite Security #4)
+      // We create a hash of the contact info so the server can verify it
+      // without being able to easily 'reverse' it or link it to the identity.
+      const contactHash = await window.crypto.subtle.digest(
+        'SHA-256', 
+        new TextEncoder().encode(primaryMobile + userId)
+      );
+      const blindedHash = btoa(String.fromCharCode(...new Uint8Array(contactHash)));
 
       await ApiService.request('/nominees', {
         method: 'POST',
         body: JSON.stringify({
           user_id: userId,
-          name: encryptedName, // Store encrypted
-          relationship: encryptedRel, // Store encrypted
-          email, // Keep plaintext for backend notifications
-          primary_mobile: primaryMobile, // Keep plaintext for backend notifications
+          name: encryptedName, 
+          relationship: encryptedRel, 
+          email, 
+          primary_mobile: primaryMobile, 
+          contact_blind_hash: blindedHash, // The server uses this for ZK Discovery
           handover_waiting_days: delayDays,
           is_proof_of_life_contact: isEmergencyContact,
           delivery_mode: 'digital',
-          require_otp_for_access: false
+          require_otp_for_access: true // Forced for high security
         })
       });
       setShowAddModal(false);

@@ -1,53 +1,56 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Brand Colors - Apple Light Glass Style
-  static const Color primaryColor = Color(0xFF007AFF); // iOS Blue
-  static const Color secondaryColor = Color(0xFF5AC8FA); // iOS Light Blue
-  static const Color backgroundColor = Color(0xFFF2F2F7); // iOS System Background (Light Gray)
-  static const Color surfaceColor = Color(0xFFFFFFFF); // White Surface
+  // Brand Colors - Midnight & Platinum Luxury Style
+  static const Color primaryColor = Color(0xFF0A0E21); // Midnight Navy
+  static const Color accentColor = Color(0xFFD4AF37); // Classic Gold
+  static const Color platinumColor = Color(0xFFE5E5E5); // Platinum Silver
+  static const Color backgroundColor = Color(0xFF05070A); // Deepest Black/Blue
+  static const Color surfaceColor = Color(0xFF161B22); // Dark Slate Surface
   
   // Text Colors
-  static const Color textPrimary = Color(0xFF000000); // Black
-  static const Color textSecondary = Color(0xFF8E8E93); // iOS Gray
+  static const Color textPrimary = Color(0xFFF0F6FC); // Near White
+  static const Color textSecondary = Color(0xFF8B949E); // Muted Gray
 
-  static ThemeData get lightTheme {
+  static ThemeData get darkTheme {
     return ThemeData(
-      brightness: Brightness.light,
+      brightness: Brightness.dark,
       primaryColor: primaryColor,
       scaffoldBackgroundColor: backgroundColor,
-      // Font Family
-      fontFamily: 'Helvetica Neue', // Typical Apple font (or SF Pro if available)
+      fontFamily: 'Inter', // Modern, clean typeface
       
-      colorScheme: const ColorScheme.light(
-        primary: primaryColor,
-        secondary: secondaryColor,
+      colorScheme: const ColorScheme.dark(
+        primary: accentColor,
+        secondary: platinumColor,
         surface: surfaceColor,
         background: backgroundColor,
+        onPrimary: Colors.black,
       ),
 
       textTheme: const TextTheme(
-        headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textPrimary),
-        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textPrimary),
-        bodyLarge: TextStyle(fontSize: 16, color: textPrimary), // Changed to primary for better readability
+        headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: textPrimary, letterSpacing: -1.0),
+        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textPrimary, letterSpacing: -0.5),
+        titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: platinumColor),
+        bodyLarge: TextStyle(fontSize: 16, color: textPrimary, height: 1.5),
         bodyMedium: TextStyle(fontSize: 14, color: textSecondary),
       ),
       
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          foregroundColor: Colors.white,
-          elevation: 0, 
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          backgroundColor: accentColor,
+          foregroundColor: Colors.black,
+          elevation: 8, 
+          shadowColor: accentColor.withOpacity(0.3),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
       ),
       
-      // Icon Theme
-      iconTheme: const IconThemeData(color: primaryColor),
+      iconTheme: const IconThemeData(color: platinumColor, size: 24),
     );
   }
 
-  // Maintaining this getter for compatibility, but it returns the Light Theme now
-  static ThemeData get darkTheme => lightTheme;
+  // Set darkTheme as the default for this high-security app
+  static ThemeData get lightTheme => darkTheme;
 }

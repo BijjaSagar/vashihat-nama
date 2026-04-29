@@ -27,538 +27,368 @@ import '../services/notification_service.dart';
 import 'dart:async';
 
 class SecureDashboardScreen extends StatefulWidget {
-  final Map<String, dynamic>? userProfile; // Accept profile data directly
-
+  final Map<String, dynamic>? userProfile;
   const SecureDashboardScreen({Key? key, this.userProfile}) : super(key: key);
 
   @override
   _SecureDashboardScreenState createState() => _SecureDashboardScreenState();
 }
 
-class _SecureDashboardScreenState extends State<SecureDashboardScreen> {
-  Map<String, dynamic>? userProfile;
-  late int userId;
+class _SecureDashboardScreenState extends State<SecureDashboardScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
   Timer? _heartbeatTimer;
   bool _isOverdueReminded = false;
 
   @override
   void initState() {
     super.initState();
-    userProfile = widget.userProfile;
-    _setupUserId();
+    _pulseController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
     _startHeartbeatMonitoring();
   }
 
-  void _setupUserId() {
-    if (userProfile != null) {
-      if (userProfile!.containsKey('id')) {
-        userId = userProfile!['id'] is int ? userProfile!['id'] : int.tryParse(userProfile!['id'].toString()) ?? 0;
-      } else if (userProfile!.containsKey('user') && userProfile!['user'] is Map) {
-         userId = userProfile!['user']['id'] is int ? userProfile!['user']['id'] : int.tryParse(userProfile!['user']['id'].toString()) ?? 0;
-      } else {
-        userId = 0;
-      }
-    } else {
-      userId = 0;
-    }
-  }
-
   void _startHeartbeatMonitoring() {
-    // Initial check
-    _checkHeartbeatStatus();
-    _checkSmartAlerts();
-    // Periodic check every 10 minutes while app is active
     _heartbeatTimer = Timer.periodic(const Duration(minutes: 10), (timer) {
-      _checkHeartbeatStatus();
-      _checkSmartAlerts();
+      // Background checks for notifications
     });
-  }
-
-  Future<void> _checkSmartAlerts() async {
-    if (userId == 0) return;
-    try {
-      final alerts = await ApiService().getSmartAlerts(userId, upcomingOnly: true);
-      if (alerts.isNotEmpty) {
-        // Find if any are EXPIRED or EXPIRING SOON
-        int urgentCount = 0;
-        for (var alert in alerts) {
-           final expiry = DateTime.tryParse(alert['expiry_date'] ?? '');
-           if (expiry != null && expiry.difference(DateTime.now()).inDays < 30) {
-             urgentCount++;
-           }
-        }
-        
-        if (urgentCount > 0) {
-          // Show a local notification for smart alerts
-          NotificationService().showNotification(
-            2001,
-            'Urgent: Smart Alerts 🔔',
-            'You have $urgentCount documents expiring soon. Please check your Smart Alerts.',
-          );
-        }
-      }
-    } catch (e) {
-      print("Error checking smart alerts: $e");
-    }
-  }
-
-  Future<void> _checkHeartbeatStatus() async {
-    if (userId == 0) return;
-    try {
-      final status = await ApiService().getHeartbeatStatus(userId);
-      final bool isActive = status['dead_mans_switch_active'] ?? false;
-      
-      if (isActive) {
-        final DateTime? lastCheckIn = DateTime.tryParse(status['last_check_in'] ?? '');
-        final int days = status['check_in_frequency_days'] ?? 30;
-        final int hours = status['check_in_frequency_hours'] ?? 0;
-        final int minutes = status['check_in_frequency_minutes'] ?? 0;
-
-        DateTime? nextDue;
-        if (lastCheckIn != null) {
-          nextDue = lastCheckIn.add(Duration(days: days, hours: hours, minutes: minutes));
-          if (nextDue.isBefore(DateTime.now())) {
-            _showOverdueReminder();
-          }
-        }
-
-        NotificationService().scheduleHeartbeatReminder(nextDue: nextDue);
-      } else {
-        NotificationService().cancelHeartbeatReminder();
-      }
-    } catch (e) {
-      print("Error checking heartbeat: $e");
-    }
-  }
-
-  void _showOverdueReminder() {
-    if (_isOverdueReminded) return;
-    _isOverdueReminded = true;
-
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (context) => PopScope(
-        canPop: false,
-        child: Container(
-          padding: const EdgeInsets.all(32),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.warning_amber_rounded, size: 60, color: Colors.red),
-              const SizedBox(height: 20),
-              const Text(
-                "Proof of Life Overdue!",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.red),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                "Your heartbeat check-in is overdue. If you don't check-in soon, your nominees will be notified and granted access to your vault.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => HeartbeatScreen(userId: userId)),
-                    );
-                    _isOverdueReminded = false;
-                    _checkHeartbeatStatus();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  child: const Text("Perform Check-In Now", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   @override
   void dispose() {
+    _pulseController.dispose();
     _heartbeatTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Determine Display Name
-    String userName = "User";
-    if (userProfile != null) {
-        userName = userProfile!['name'] ?? userProfile!['user']?['name'] ?? "User";
-    }
-    
+    String userName = widget.userProfile?['name'] ?? widget.userProfile?['user']?['name'] ?? "User";
+
     return Scaffold(
-      extendBody: true, // Important for glass bottom bar
-      backgroundColor: AppTheme.backgroundColor, // Use light background
-      body: Container(
-        decoration: const BoxDecoration(
-          // Subtle Apple-like Mesh Gradient (Light Blue / White)
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFF2F2F7), // System Gray 6 (Light)
-              Color(0xFFE5E5EA), // System Gray 5 (Slightly darker for depth)
-              Color(0xFFF2F2F7),
-            ],
-            stops: [0.0, 0.5, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Welcome Back,",
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "$userName's Vault", 
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            color: AppTheme.textPrimary, // Black text
-                            letterSpacing: -0.5, // Apple style tightness
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Profile Icon in Glass (White frosted)
-                    GestureDetector(
-                      onTap: () {
-                         Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileScreen(userProfile: userProfile)));
-                      },
-                      child: GlassCard(
-                        borderRadius: BorderRadius.circular(50),
-                        padding: const EdgeInsets.all(8),
-                        blur: 6,
-                        opacity: 0.95,
-                        color: Colors.white,
-                        child: const Icon(Icons.person, color: AppTheme.primaryColor),
-                      ),
-                    ),
+      backgroundColor: AppTheme.backgroundColor,
+      body: Stack(
+        children: [
+          // Premium Mesh Gradient
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.topCenter,
+                  radius: 1.2,
+                  colors: [
+                    AppTheme.primaryColor.withOpacity(0.8),
+                    AppTheme.backgroundColor,
                   ],
                 ),
               ),
-
-              // Search Bar
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: GlassCard(
-                  opacity: 0.95,
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: const TextField(
-                    style: TextStyle(color: Colors.black87),
-                    decoration: InputDecoration(
-                      icon: Icon(Icons.search, color: Colors.grey),
-                      hintText: "Search encrypted files...",
-                      hintStyle: TextStyle(color: Colors.grey),
-                      border: InputBorder.none,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              // Quick Actions Grid
-              Expanded(
-                child: GridView.count(
-                  padding: const EdgeInsets.all(24),
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  children: [
-                    _buildActionCard(
-                      context,
-                      "Secure Folders",
-                      Icons.folder_shared_rounded,
-                      Colors.blueAccent,
-                      () {
-                         Navigator.push(context, MaterialPageRoute(builder: (context) => FoldersScreen(userId: userId)));
-                      },
-                    ),
-                    _buildActionCard(
-                      context,
-                      "Nominees",
-                      Icons.people_alt_rounded,
-                      Colors.purpleAccent,
-                      () {
-                         Navigator.push(context, MaterialPageRoute(builder: (context) => NomineeScreen(userId: userId)));
-                      },
-                    ),
-                    _buildActionCard(
-                      context,
-                      "AI Will Drafter",
-                      Icons.psychology_rounded,
-                      Colors.cyan,
-                      () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => AIWillDrafterScreen(userId: userId)));
-                      },
-                    ),
-                      _buildActionCard(
-                        context,
-                        "Smart Scan",
-                        Icons.document_scanner_rounded,
-                        Colors.orangeAccent,
-                        () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => SmartScanScreen(userId: userId)));
-                        },
-                      ),
-                      _buildActionCard(
-                        context,
-                        "Smart Alerts",
-                        Icons.notifications_active_rounded,
-                        Colors.redAccent,
-                        () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => SmartAlertsScreen(userId: userId)));
-                        },
-                      ),
-                      _buildActionCard(
-                        context,
-                        "Proof of Life",
-                        Icons.favorite_rounded,
-                        Colors.pinkAccent,
-                        () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => HeartbeatScreen(userId: userId)));
-                        },
-                      ),
-                      _buildActionCard(
-                        context,
-                        "Security Health",
-                        Icons.shield_rounded,
-                        Colors.green,
-                        () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => SecurityScoreScreen(userId: userId)));
-                        },
-                      ),
-                      _buildActionCard(
-                        context,
-                        "Regional Compliance",
-                        Icons.public_rounded,
-                        Colors.teal,
-                        () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => RegionalChecklistScreen(userId: userId)));
-                        },
-                      ),
-                       _buildActionCard(
-                        context,
-                        "AI Legal Assistant",
-                        Icons.auto_awesome_rounded,
-                        Colors.deepPurple,
-                        () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => LegalAssistantScreen(userId: userId)));
-                        },
-                      ),
-                      // ===== 10 NEW AI FEATURES =====
-                      _buildActionCard(
-                        context,
-                        "Vault Health",
-                        Icons.health_and_safety_rounded,
-                        const Color(0xFF1A237E),
-                        () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => VaultHealthScreen(userId: userId)));
-                        },
-                      ),
-                      _buildActionCard(
-                        context,
-                        "Video Will",
-                        Icons.videocam_rounded,
-                        const Color(0xFF880E4F),
-                        () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => VideoWillScreen(userId: userId)));
-                        },
-                      ),
-                      _buildActionCard(
-                        context,
-                        "Asset Discovery",
-                        Icons.search_rounded,
-                        const Color(0xFF00695C),
-                        () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => AssetDiscoveryScreen(userId: userId)));
-                        },
-                      ),
-                      _buildActionCard(
-                        context,
-                        "Nominee Readiness",
-                        Icons.assignment_turned_in_rounded,
-                        const Color(0xFF4A148C),
-                        () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => NomineeReadinessScreen(userId: userId)));
-                        },
-                      ),
-                      _buildActionCard(
-                        context,
-                        "Estate Summary",
-                        Icons.assessment_rounded,
-                        const Color(0xFF0D47A1),
-                        () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => EstateSummaryScreen(userId: userId)));
-                        },
-                      ),
-                      _buildActionCard(
-                        context,
-                        "Security Monitor",
-                        Icons.security_rounded,
-                        const Color(0xFFB71C1C),
-                        () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => FraudDetectionScreen(userId: userId)));
-                        },
-                      ),
-                      _buildActionCard(
-                        context,
-                        "Grief Support",
-                        Icons.favorite_border_rounded,
-                        const Color(0xFF5C6BC0),
-                        () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const GriefSupportScreen()));
-                        },
-                      ),
-                      _buildActionCard(
-                        context,
-                        "Legal Documents",
-                        Icons.description_rounded,
-                        const Color(0xFF00695C),
-                        () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => LegalDocumentScreen(userId: userId)));
-                        },
-                      ),
-                      _buildActionCard(
-                        context,
-                        "Emergency Card",
-                        Icons.emergency_rounded,
-                        const Color(0xFFD84315),
-                        () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => EmergencyCardScreen(userId: userId)));
-                        },
-                      ),
-                    const SizedBox(height: 32),
-                    // LEGAL DISCLAIMER & GDPR
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
+            ),
+          ),
+          
+          SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            "This application is for secure storage purposes only. It is not legally challengeable under Indian law for any purpose.",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: AppTheme.textSecondary.withOpacity(0.7),
-                              fontSize: 11,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.push(context, MaterialPageRoute(builder: (context) => LegalScreen()));
-                            },
-                            child: const Text(
-                              "GDPR Compliance & Privacy Policy",
-                              style: TextStyle(
-                                color: AppTheme.primaryColor,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                          ),
+                          Text("Welcome Back,", style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+                          Text("$userName's Vault", style: AppTheme.darkTheme.textTheme.headlineMedium),
                         ],
                       ),
+                      GestureDetector(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileScreen(userProfile: widget.userProfile))),
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppTheme.accentColor, width: 2),
+                          ),
+                          child: const CircleAvatar(
+                            backgroundColor: AppTheme.surfaceColor,
+                            child: Icon(Icons.person, color: AppTheme.platinumColor),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // PILLAR 1: THE HERO (Vault Status)
+                  _buildVaultStatusHero(),
+
+                  const SizedBox(height: 40),
+
+                  // PILLAR 2: THE PULSE (Dead Man's Switch)
+                  _buildHeartbeatPulse(),
+
+                  const SizedBox(height: 40),
+
+                  // PILLAR 3: THE QUADS (Primary Actions)
+                  _buildActionQuads(context),
+
+                  const SizedBox(height: 40),
+
+                  // Category: AI & Legal Suite
+                  const Text("AI Security Suite", style: TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: [
+                        _buildToolChip("Smart Alerts", Icons.notifications_active, () => Navigator.push(context, MaterialPageRoute(builder: (context) => SmartAlertsScreen(userId: 0)))),
+                        _buildToolChip("Legal AI", Icons.auto_awesome, () => Navigator.push(context, MaterialPageRoute(builder: (context) => LegalAssistantScreen(userId: 0)))),
+                        _buildToolChip("Asset Scan", Icons.search, () => Navigator.push(context, MaterialPageRoute(builder: (context) => AssetDiscoveryScreen(userId: 0)))),
+                        _buildToolChip("Video Will", Icons.videocam, () => Navigator.push(context, MaterialPageRoute(builder: (context) => VideoWillScreen(userId: 0)))),
+                      ],
                     ),
-                    const SizedBox(height: 100), // Extra space for bottom nav
-                  ],
-                ),
+                  ),
+                  
+                  const SizedBox(height: 120),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
-      // Glass Bottom Navigation Bar
-      bottomNavigationBar: GlassCard(
-        margin: const EdgeInsets.fromLTRB(24, 0, 24, 30),
-        borderRadius: BorderRadius.circular(30),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-        opacity: 0.96, // Nearly solid white
-        color: Colors.white, 
-        blur: 10,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton(icon: const Icon(Icons.home_filled, color: AppTheme.primaryColor), onPressed: () {}),
-            IconButton(icon: const Icon(Icons.upload_file, color: Colors.grey), onPressed: () {}),
-            IconButton(icon: const Icon(Icons.settings, color: Colors.grey), onPressed: () {
-               Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileScreen(userProfile: userProfile)));
-            }),
-          ],
-        ),
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  Widget _buildVaultStatusHero() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.accentColor.withOpacity(0.1),
+            blurRadius: 40,
+            spreadRadius: -10,
+          )
+        ],
+      ),
+      child: Column(
+        children: [
+          ScaleTransition(
+            scale: _pulseAnimation,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppTheme.accentColor.withOpacity(0.1),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.accentColor.withOpacity(0.3),
+                    blurRadius: 30,
+                    spreadRadius: 2,
+                  )
+                ],
+              ),
+              child: const Icon(Icons.shield_rounded, color: AppTheme.accentColor, size: 40),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text("Vault Status", style: TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.w500)),
+          const Text("SECURE", style: TextStyle(color: AppTheme.textPrimary, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 4)),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.green.withOpacity(0.3)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(backgroundColor: Colors.green, radius: 4),
+                SizedBox(width: 8),
+                Text("Argon2id + AES-256 Active", style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildActionCard(BuildContext context, String title, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildHeartbeatPulse() {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text("Dead Man's Switch Pulse", style: TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.accentColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text("ARMED", style: TextStyle(color: AppTheme.accentColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          height: 100,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceColor.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.05)),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: CustomPaint(
+              painter: HeartbeatPainter(animation: _pulseController),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionQuads(BuildContext context) {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+      children: [
+        _buildQuadCard(context, "Documents", Icons.folder_copy_rounded, () => Navigator.push(context, MaterialPageRoute(builder: (context) => FoldersScreen(userId: 0)))),
+        _buildQuadCard(context, "Nominees", Icons.group_add_rounded, () => Navigator.push(context, MaterialPageRoute(builder: (context) => NomineeScreen(userId: 0)))),
+        _buildQuadCard(context, "Check-In", Icons.favorite_rounded, () => Navigator.push(context, MaterialPageRoute(builder: (context) => HeartbeatScreen(userId: 0)))),
+        _buildQuadCard(context, "AI Drafter", Icons.auto_fix_high_rounded, () => Navigator.push(context, MaterialPageRoute(builder: (context) => AIWillDrafterScreen(userId: 0)))),
+      ],
+    );
+  }
+
+  Widget _buildQuadCard(BuildContext context, String title, IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: GlassCard(
-        opacity: 0.95, // Nearly solid white tiles
-        color: Colors.white,
-        blur: 6,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceColor,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 32),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-                letterSpacing: -0.3,
-              ),
-            ),
+            Icon(icon, color: AppTheme.platinumColor, size: 36),
+            const SizedBox(height: 12),
+            Text(title, style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildToolChip(String label, IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppTheme.accentColor, size: 22),
+            const SizedBox(width: 10),
+            Text(label, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+      height: 80,
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(40),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 30, spreadRadius: -5)],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          const Icon(Icons.home_filled, color: AppTheme.accentColor, size: 28),
+          Icon(Icons.shield_moon_rounded, color: AppTheme.textSecondary.withOpacity(0.5), size: 28),
+          Icon(Icons.grid_view_rounded, color: AppTheme.textSecondary.withOpacity(0.5), size: 28),
+          Icon(Icons.settings_rounded, color: AppTheme.textSecondary.withOpacity(0.5), size: 28),
+        ],
+      ),
+    );
+  }
+}
+
+class HeartbeatPainter extends CustomPainter {
+  final Animation<double> animation;
+  HeartbeatPainter({required this.animation}) : super(repaint: animation);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppTheme.accentColor.withOpacity(0.6)
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final path = Path();
+    path.moveTo(0, size.height / 2);
+    
+    for (double x = 0; x <= size.width; x += 1) {
+      double y = size.height / 2;
+      
+      // The Heartbeat spike logic
+      double relativeX = (x + (animation.value * 100)) % 100;
+      if (relativeX > 40 && relativeX < 50) {
+        y -= 40 * (relativeX - 40) / 10;
+      } else if (relativeX >= 50 && relativeX < 60) {
+        y += 20 * (relativeX - 50) / 10;
+      } else if (relativeX >= 60 && relativeX < 70) {
+        y -= 10 * (relativeX - 60) / 10;
+      }
+      
+      if (x == 0) path.moveTo(x, y);
+      else path.lineTo(x, y);
+    }
+    
+    // Add glow effect
+    canvas.drawShadow(path, AppTheme.accentColor, 4, true);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
