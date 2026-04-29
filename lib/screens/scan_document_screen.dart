@@ -193,7 +193,7 @@ class _ScanDocumentScreenState extends State<ScanDocumentScreen> {
                         icon: const Icon(Icons.upload_file),
                         label: const Text("Gallery"),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.secondaryColor,
+                          backgroundColor: AppTheme.platinumColor,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

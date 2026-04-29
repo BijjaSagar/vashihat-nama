@@ -51,10 +51,8 @@ class _NomineeScreenState extends State<NomineeScreen> {
     required String relationship,
     required String email,
     required String primaryMobile,
-    // ... other params
   }) async {
     try {
-      // Blind the contact info before it leaves the device
       final blindedEmail = _blindContact(email);
       final blindedPhone = _blindContact(primaryMobile);
 
@@ -62,8 +60,8 @@ class _NomineeScreenState extends State<NomineeScreen> {
         userId: widget.userId.toString(), 
         name: name, 
         relationship: relationship, 
-        email: blindedEmail, // ZK Blinded
-        primaryMobile: blindedPhone, // ZK Blinded
+        email: blindedEmail, 
+        primaryMobile: blindedPhone, 
         deliveryMode: 'digital',
       );
       _loadNominees();
@@ -71,6 +69,44 @@ class _NomineeScreenState extends State<NomineeScreen> {
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
+  }
+
+  Future<void> _confirmDelete(dynamic nomineeId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceColor,
+        title: const Text("Remove Guardian", style: TextStyle(color: AppTheme.textPrimary)),
+        content: const Text("Are you sure you want to revoke access for this guardian?", style: TextStyle(color: AppTheme.textSecondary)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Remove", style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await ApiService().deleteNominee(nomineeId is int ? nomineeId : int.parse(nomineeId.toString()));
+        _loadNominees();
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
+    }
+  }
+
+  void _showAssignedItems(dynamic nominee) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => _AssignedItemsSheet(
+        nomineeId: nominee['id'],
+        nomineeName: nominee['name'],
+        nomineeRelation: nominee['relationship'],
+        userId: widget.userId,
+      ),
+    );
   }
 
   @override
@@ -88,18 +124,14 @@ class _NomineeScreenState extends State<NomineeScreen> {
       ),
       body: Stack(
         children: [
-          // Background Glow
           Positioned(
-            top: 100,
-            left: -50,
+            top: 100, left: -50,
             child: Container(
-              width: 200,
-              height: 200,
+              width: 200, height: 200,
               decoration: BoxDecoration(color: AppTheme.accentColor.withOpacity(0.05), shape: BoxShape.circle),
               child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50), child: Container()),
             ),
           ),
-          
           SafeArea(
             child: Column(
               children: [
@@ -162,24 +194,43 @@ class _NomineeScreenState extends State<NomineeScreen> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            height: 56, width: 56,
-            decoration: BoxDecoration(color: AppTheme.accentColor.withOpacity(0.1), shape: BoxShape.circle),
-            child: const Icon(Icons.person_rounded, color: AppTheme.accentColor, size: 28),
+          Row(
+            children: [
+              Container(
+                height: 56, width: 56,
+                decoration: BoxDecoration(color: AppTheme.accentColor.withOpacity(0.1), shape: BoxShape.circle),
+                child: const Icon(Icons.person_rounded, color: AppTheme.accentColor, size: 28),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(nominee['name'] ?? "Guardian", style: const TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(nominee['relationship'] ?? "Trusted Contact", style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.verified_user_rounded, color: Colors.green, size: 20),
+            ],
           ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(nominee['name'] ?? "Guardian", style: const TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
-                Text(nominee['relationship'] ?? "Trusted Contact", style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
-              ],
-            ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton.icon(
+                onPressed: () => _showAssignedItems(nominee),
+                icon: const Icon(Icons.inventory_2_outlined, size: 18, color: AppTheme.accentColor),
+                label: const Text("Managed Items", style: TextStyle(color: AppTheme.accentColor, fontSize: 13, fontWeight: FontWeight.bold)),
+              ),
+              IconButton(
+                onPressed: () => _confirmDelete(nominee['id']),
+                icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 22),
+              ),
+            ],
           ),
-          const Icon(Icons.verified_user_rounded, color: Colors.green, size: 20),
         ],
       ),
     );
@@ -263,161 +314,7 @@ class _NomineeScreenState extends State<NomineeScreen> {
     );
   }
 }
-}
 
-  Widget _buildNomineeCard(Map<String, dynamic> nominee) {
-    bool isVerified = nominee['access_granted'] == true;
-    String name = nominee['name'] ?? "Unknown";
-    String initial = name.isNotEmpty ? name[0].toUpperCase() : "?";
-
-    return GlassCard(
-      opacity: 0.8,
-      blur: 20,
-      color: Colors.white,
-      padding: const EdgeInsets.all(16),
-      borderRadius: BorderRadius.circular(24),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppTheme.primaryColor.withOpacity(0.2), AppTheme.primaryColor.withOpacity(0.05)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  initial,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      nominee['relationship'] ?? "Nominee",
-                      style: TextStyle(fontSize: 13, color: AppTheme.textSecondary.withOpacity(0.8), fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: (isVerified ? Colors.green : Colors.orange).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: (isVerified ? Colors.green : Colors.orange).withOpacity(0.2)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isVerified ? Icons.verified_rounded : Icons.pending_rounded,
-                      size: 14,
-                      color: isVerified ? Colors.green : Colors.orange,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      isVerified ? "Verified" : "Pending",
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: isVerified ? Colors.green : Colors.orange,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Divider(height: 1),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(Icons.timer_outlined, size: 14, color: AppTheme.textSecondary.withOpacity(0.6)),
-              const SizedBox(width: 4),
-              Text(
-                "${nominee['handover_waiting_days'] ?? 0}d delay",
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary.withOpacity(0.8), fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(width: 16),
-              Icon(
-                nominee['require_otp_for_access'] == true ? Icons.security_rounded : Icons.lock_open_rounded,
-                size: 14,
-                color: nominee['require_otp_for_access'] == true ? Colors.blue[700] : AppTheme.textSecondary.withOpacity(0.6),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                nominee['require_otp_for_access'] == true ? "OTP Required" : "Auto Access",
-                style: TextStyle(fontSize: 12, color: nominee['require_otp_for_access'] == true ? Colors.blue[700] : AppTheme.textSecondary.withOpacity(0.8), fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  _buildQuickAction(
-                    icon: Icons.inventory_2_outlined,
-                    label: "Items",
-                    onTap: () => _showAssignedItems(nominee),
-                  ),
-                  const SizedBox(width: 16),
-                  _buildQuickAction(
-                    icon: Icons.edit_note_rounded,
-                    label: "Edit",
-                    onTap: () => _showAddEditNomineeDialog(nominee: nominee),
-                  ),
-                ],
-              ),
-              IconButton(
-                onPressed: () => _confirmDelete(nominee['id']),
-                icon: Icon(Icons.delete_outline_rounded, color: Colors.red.withOpacity(0.7), size: 22),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickAction({required IconData icon, required String label, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: AppTheme.primaryColor),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-
-// ─── Separate StatefulWidget so items refresh in-place after unassign ────────
 class _AssignedItemsSheet extends StatefulWidget {
   final int nomineeId;
   final String nomineeName;
@@ -436,7 +333,6 @@ class _AssignedItemsSheet extends StatefulWidget {
 class _AssignedItemsSheetState extends State<_AssignedItemsSheet> {
   List<dynamic> _items = [];
   bool _isLoading = true;
-  String? _error;
 
   @override
   void initState() {
@@ -445,31 +341,11 @@ class _AssignedItemsSheetState extends State<_AssignedItemsSheet> {
   }
 
   Future<void> _loadItems() async {
-    setState(() { _isLoading = true; _error = null; });
     try {
       final items = await ApiService().getNomineeAssignedItems(widget.nomineeId);
       if (mounted) setState(() { _items = items; _isLoading = false; });
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _isLoading = false; });
-    }
-  }
-
-  Future<void> _removeItem(Map<String, dynamic> item) async {
-    final int itemId = item['id'] is int ? item['id'] : int.tryParse(item['id'].toString()) ?? 0;
-    try {
-      await ApiService().unassignNomineeFromVaultItem(itemId: itemId, userId: widget.userId, nomineeId: widget.nomineeId);
-      if (mounted) {
-        setState(() => _items.removeWhere((i) => i['id'] == item['id']));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Nominee tag removed'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to remove tag'), backgroundColor: Colors.redAccent),
-        );
-      }
+      if (mounted) setState(() { _isLoading = false; });
     }
   }
 
@@ -477,7 +353,7 @@ class _AssignedItemsSheetState extends State<_AssignedItemsSheet> {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFFF8F9FE),
+        color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
@@ -486,131 +362,33 @@ class _AssignedItemsSheetState extends State<_AssignedItemsSheet> {
           Container(
             margin: const EdgeInsets.symmetric(vertical: 10),
             width: 40, height: 4,
-            decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+            decoration: BoxDecoration(color: Colors.grey[700], borderRadius: BorderRadius.circular(2)),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 8, 0),
+            padding: const EdgeInsets.all(20),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1A73E8), Color(0xFF0D47A1)],
-                      begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(Icons.inventory_2_outlined, color: Colors.white, size: 22),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Items for ${widget.nomineeName}",
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
-                      ),
-                      Text(
-                        widget.nomineeRelation.isNotEmpty ? widget.nomineeRelation : "Visible upon trigger",
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(color: Colors.grey[200], shape: BoxShape.circle),
-                    child: const Icon(Icons.close, size: 16, color: Colors.grey),
-                  ),
-                ),
+                Text("Managed Items: ${widget.nomineeName}", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+                const Spacer(),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
               ],
             ),
           ),
-          const Divider(height: 20),
+          const Divider(),
           SizedBox(
-            height: MediaQuery.of(context).size.height * 0.55,
+            height: 400,
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? Center(child: Text("Error: $_error", style: const TextStyle(color: Colors.redAccent)))
-                    : _items.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.folder_open_rounded, size: 60, color: Colors.grey.withOpacity(0.25)),
-                                const SizedBox(height: 14),
-                                const Text("No items assigned yet", style: TextStyle(color: AppTheme.textSecondary, fontSize: 15)),
-                                const SizedBox(height: 6),
-                                Text("Open a vault item to assign it to ${widget.nomineeName}", style: TextStyle(color: Colors.grey[400], fontSize: 12), textAlign: TextAlign.center),
-                              ],
-                            ),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                            itemCount: _items.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 10),
-                            itemBuilder: (context, index) => _buildItemTile(_items[index]),
-                          ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildItemTile(Map<String, dynamic> item) {
-    IconData icon;
-    Color color;
-    switch (item['item_type']) {
-      case 'password': icon = Icons.lock_rounded; color = const Color(0xFF9C27B0); break;
-      case 'credit_card': icon = Icons.credit_card_rounded; color = const Color(0xFFF57C00); break;
-      case 'file': icon = Icons.file_present_rounded; color = const Color(0xFF2E7D32); break;
-      default: icon = Icons.description_rounded; color = const Color(0xFF1A73E8);
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item['title'] ?? 'Untitled', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textPrimary)),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                  child: Text(item['item_type']?.toString().toUpperCase() ?? 'ITEM', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: color)),
-                ),
-              ],
-            ),
-          ),
-          Material(
-            color: Colors.red[50],
-            borderRadius: BorderRadius.circular(10),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(10),
-              onTap: () => _removeItem(item),
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Icon(Icons.person_remove_rounded, color: Colors.red[600], size: 20),
-              ),
-            ),
+                : _items.isEmpty
+                    ? const Center(child: Text("No items assigned", style: TextStyle(color: AppTheme.textSecondary)))
+                    : ListView.builder(
+                        itemCount: _items.length,
+                        itemBuilder: (context, index) => ListTile(
+                          leading: const Icon(Icons.lock_outline, color: AppTheme.accentColor),
+                          title: Text(_items[index]['title'] ?? "Untitled", style: const TextStyle(color: AppTheme.textPrimary)),
+                          subtitle: Text(_items[index]['item_type'] ?? "Vault Item", style: const TextStyle(color: AppTheme.textSecondary)),
+                        ),
+                      ),
           ),
         ],
       ),
