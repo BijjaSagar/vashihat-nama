@@ -123,6 +123,30 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      <div>
+        <h3 className="text-xl font-bold mb-6 text-slate-800 uppercase tracking-wider text-sm opacity-60">Operational Modules</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { name: "Legal AI", href: "/legal-assistant", icon: Bot, color: "bg-purple-500" },
+            { name: "Video Will", href: "/video-will", icon: FileText, color: "bg-blue-500" },
+            { name: "Smart Scan", href: "/smart-scan", icon: Shield, color: "bg-green-500" },
+            { name: "Will Draft", href: "/will-drafter", icon: FileText, color: "bg-orange-500" },
+          ].map((mod, i) => (
+            <Link href={mod.href} key={i}>
+              <motion.div 
+                whileHover={{ y: -5 }}
+                className="glass-panel p-4 rounded-2xl flex flex-col items-center text-center hover:bg-white/60 transition-all cursor-pointer group"
+              >
+                <div className={`${mod.color} p-3 rounded-xl mb-3 shadow-lg group-hover:scale-110 transition-transform`}>
+                  <mod.icon className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-sm font-bold text-slate-700">{mod.name}</span>
+              </motion.div>
+            </Link>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

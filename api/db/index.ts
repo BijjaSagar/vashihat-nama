@@ -77,6 +77,17 @@ CREATE TABLE IF NOT EXISTS vault_items (
 CREATE INDEX IF NOT EXISTS idx_vault_items_user_folder ON vault_items (user_id, folder_id);
 CREATE INDEX IF NOT EXISTS idx_vault_items_type ON vault_items (item_type);
 
+-- 4.1 Vault Item Nominees (Junction Table for many-to-many)
+CREATE TABLE IF NOT EXISTS vault_item_nominees (
+  id SERIAL PRIMARY KEY,
+  vault_item_id INTEGER REFERENCES vault_items(id) ON DELETE CASCADE,
+  nominee_id INTEGER REFERENCES nominees(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(vault_item_id, nominee_id)
+);
+CREATE INDEX IF NOT EXISTS idx_vault_item_nominees_item ON vault_item_nominees (vault_item_id);
+CREATE INDEX IF NOT EXISTS idx_vault_item_nominees_nominee ON vault_item_nominees (nominee_id);
+
 -- 5. Nominees Table
 CREATE TABLE IF NOT EXISTS nominees (
   id SERIAL PRIMARY KEY,
@@ -211,10 +222,45 @@ CREATE INDEX IF NOT EXISTS idx_smart_docs_user ON smart_docs (user_id);
 CREATE INDEX IF NOT EXISTS idx_smart_docs_expiry ON smart_docs (expiry_date);
 
 
--- Migration for payments table (ensuring columns exist)
-ALTER TABLE payments ADD COLUMN IF NOT EXISTS provider VARCHAR(50);
-ALTER TABLE payments ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(255);
-ALTER TABLE payments ADD COLUMN IF NOT EXISTS plan_id VARCHAR(50);
+-- 14. Video Wills
+CREATE TABLE IF NOT EXISTS video_wills (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    storage_path VARCHAR(512) NOT NULL,
+    file_size BIGINT,
+    duration_seconds INTEGER,
+    thumbnail_path VARCHAR(512),
+    is_verified BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 15. Asset Discovery Table
+CREATE TABLE IF NOT EXISTS asset_discovery (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    asset_name VARCHAR(255) NOT NULL,
+    asset_type VARCHAR(100) NOT NULL, -- 'real_estate', 'jewelry', 'cash', 'business'
+    location VARCHAR(255),
+    estimated_value DECIMAL(15, 2),
+    notes TEXT,
+    is_mapped BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 16. Activity Logs
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    action VARCHAR(100) NOT NULL, -- 'login', 'vault_access', 'folder_created'
+    details TEXT,
+    ip_address VARCHAR(45),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Ensure V3 columns exist in users
+ALTER TABLE users ADD COLUMN IF NOT EXISTS check_in_frequency_hours INTEGER DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS check_in_frequency_minutes INTEGER DEFAULT 0;
         `;
     await client.query(schema);
     console.log('Database initialized successfully');

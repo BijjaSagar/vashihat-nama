@@ -22,6 +22,15 @@ const navGroups = [
     ]
   },
   {
+    label: "Operations",
+    items: [
+      { name: "Legal Assistant", href: "/legal-assistant", icon: Scale },
+      { name: "Smart Scan", href: "/smart-scan", icon: Scan },
+      { name: "Video Will", href: "/video-will", icon: Video },
+      { name: "AI Will Drafter", href: "/will-drafter", icon: FileSignature },
+    ]
+  },
+  {
     label: "Protection",
     items: [
       { name: "Proof of Life", href: "/proof-of-life", icon: HeartPulse },
@@ -30,28 +39,20 @@ const navGroups = [
     ]
   },
   {
-    label: "AI Tools",
+    label: "AI Intelligence",
     items: [
-      { name: "Legal Assistant", href: "/legal-assistant", icon: Scale },
-      { name: "AI Will Drafter", href: "/will-drafter", icon: FileSignature },
       { name: "Legal Documents", href: "/legal-documents", icon: Cpu },
       { name: "Vault Health", href: "/vault-health", icon: Activity },
+      { name: "Nominee Readiness", href: "/nominee-readiness", icon: ClipboardCheck },
+      { name: "Estate Summary", href: "/estate-summary", icon: BarChart3 },
     ]
   },
   {
-    label: "Planning",
+    label: "Planning & Personal",
     items: [
       { name: "Smart Alerts", href: "/smart-alerts", icon: Bell },
       { name: "Asset Discovery", href: "/asset-discovery", icon: Search },
-      { name: "Estate Summary", href: "/estate-summary", icon: BarChart3 },
-      { name: "Nominee Readiness", href: "/nominee-readiness", icon: ClipboardCheck },
       { name: "Regional", href: "/regional", icon: Map },
-    ]
-  },
-  {
-    label: "Personal",
-    items: [
-      { name: "Video Will", href: "/video-will", icon: Video },
       { name: "Emergency Card", href: "/emergency-card", icon: CreditCard },
       { name: "Grief Support", href: "/grief-support", icon: HeartHandshake },
     ]

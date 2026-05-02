@@ -818,6 +818,58 @@ app.post('/api/users/register', async (req, res) => {
     }
 });
 
+});
+
+/**
+ * GET /api/users/profile?user_id=X
+ * Returns detailed user profile info.
+ */
+app.get('/api/users/profile', async (req, res) => {
+    const { user_id } = req.query;
+    if (!user_id) return res.status(400).json({ error: 'User ID is required' });
+
+    try {
+        const result = await db.query(
+            'SELECT id, name, email, mobile_number, subscription_plan, last_check_in, dead_mans_switch_active FROM users WHERE id = $1',
+            [user_id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({ success: true, user: result.rows[0] });
+    } catch (error) {
+        console.error('Profile fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch profile' });
+    }
+});
+
+/**
+ * PUT /api/users/profile
+ * Updates user profile (name, email).
+ */
+app.put('/api/users/profile', async (req, res) => {
+    const { user_id, name, email } = req.body;
+    if (!user_id) return res.status(400).json({ error: 'User ID is required' });
+
+    try {
+        const result = await db.query(
+            'UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING id, name, email, mobile_number',
+            [name, email, user_id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({ success: true, user: result.rows[0], message: 'Profile updated successfully' });
+    } catch (error) {
+        console.error('Profile update error:', error);
+        res.status(500).json({ error: 'Failed to update profile' });
+    }
+});
+
 // 1. Send OTP
 app.post('/api/send_otp', async (req, res) => {
     const { mobile, purpose = 'login' } = req.body;
