@@ -4,24 +4,30 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http_certificate_pinning/http_certificate_pinning.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiService {
-  static const String serverFingerprint = "f832dfb2653761e8b0001dbaf84eab20667c9bfb0520700547d3b3bf548143aa";
+  static String get serverFingerprint => dotenv.env['SENTINEL_SERVER_FINGERPRINT'] ?? "";
   
   static String get baseUrl {
-    return 'https://backend-sagar-bijjas-projects.vercel.app/api'; 
+    return dotenv.env['SENTINEL_API_BASE_URL'] ?? 'https://backend-two-eta-21.vercel.app/api'; 
   }
+
+  /// Clean URL for SSL Pinning (Strip /api)
+  static String get _pinningUrl => baseUrl.split('/api').first;
+
   final Dio _dio = Dio();
 
   /// Validates SSL Certificate Pinning (Elite Security)
   static Future<bool> validateConnection() async {
     try {
       final secure = await HttpCertificatePinning.check(
-        serverURL: baseUrl,
+        serverURL: _pinningUrl,
         headerHttp: {},
         sha: SHA.SHA256,
         allowedSHAFingerprints: [serverFingerprint],
-        timeout: 10,
+        timeout: 15,
       );
       return secure == "CONNECTION_SECURE";
     } catch (e) {
@@ -53,8 +59,9 @@ class ApiService {
 
   /// Builds headers with Content-Type and the Bearer auth token.
   Future<Map<String, String>> _authHeaders({bool requiresAuth = true}) async {
-    // VERIFY CONNECTION BEFORE ANY AUTH REQUEST
-    if (requiresAuth && !await validateConnection()) {
+    // VERIFY CONNECTION BEFORE ANY REQUEST (Elite Security)
+    if (!await validateConnection()) {
+      debugPrint("ApiService: Connection validation FAILED.");
       throw Exception("UNSECURE CONNECTION: Possible MITM Attack Detected!");
     }
 
@@ -66,6 +73,40 @@ class ApiService {
       }
     }
     return headers;
+  }
+
+  // ============================================
+  // PROFILE MANAGEMENT
+  // ============================================
+
+  Future<Map<String, dynamic>> getUserProfile({required int userId}) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/profile?user_id=$userId'),
+      headers: await _authHeaders(requiresAuth: false),
+    );
+    if (response.statusCode == 200) {
+      // Backend returns the user row directly (not wrapped in {user: ...})
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      throw Exception('Failed to load profile');
+    }
+  }
+
+  Future<void> updateUserProfile({required int userId, String? name, String? email}) async {
+    // Backend route: POST /api/users/profile/update with {userId, name, email}
+    final response = await http.post(
+      Uri.parse('$baseUrl/users/profile/update'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'userId': userId,
+        'name': name,
+        'email': email,
+      }),
+    );
+    if (response.statusCode != 200) {
+      debugPrint("Update Profile Error: ${response.body}");
+      throw Exception('Failed to update profile: ${response.body}');
+    }
   }
 
   // ... (Other methods)
@@ -138,7 +179,7 @@ class ApiService {
   Future<Map<String, dynamic>> registerUser(String mobileNumber, String publicKey, String encryptedPrivateKey, String name, String email) async {
     final response = await http.post(
       Uri.parse('$baseUrl/users/register'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _authHeaders(requiresAuth: false),
       body: jsonEncode({
         'mobile_number': mobileNumber,
         'public_key': publicKey,
@@ -164,7 +205,7 @@ class ApiService {
 
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: await _authHeaders(requiresAuth: false),
       body: jsonEncode({
         'mobile': mobile,
         'purpose': purpose,
@@ -184,7 +225,7 @@ class ApiService {
   Future<Map<String, dynamic>> verifyOtp(String mobile, String otp, String purpose) async {
     final response = await http.post(
       Uri.parse('$baseUrl/verify_otp'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _authHeaders(requiresAuth: false),
       body: jsonEncode({
         'mobile': mobile,
         'otp': otp,
@@ -195,33 +236,10 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  // --- 2. Get User Profile ---
-  Future<Map<String, dynamic>> getUserProfile(String firebaseUid) async {
-    final response = await http.get(Uri.parse('$baseUrl/users/$firebaseUid'));
-    
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Failed to load user profile');
-    }
-  }
-
-  // --- 3. Update User Profile ---
-  Future<void> updateUserProfile(String firebaseUid, Map<String, dynamic> data) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/users/$firebaseUid'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(data),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception('Failed to update profile: ${response.body}');
-    }
-  }
 
   // --- 4. Get Folders ---
-  Future<List<dynamic>> getFolders(String firebaseUid) async {
-    final response = await http.get(Uri.parse('$baseUrl/folders?user_id=$firebaseUid'));
+  Future<List<dynamic>> getFolders(int userId) async {
+    final response = await http.get(Uri.parse('$baseUrl/folders?user_id=$userId'));
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -231,12 +249,12 @@ class ApiService {
   }
 
   // --- 5. Create Folder ---
-  Future<void> createFolder(String firebaseUid, String name, String icon) async {
+  Future<void> createFolder(int userId, String name, String icon) async {
     final response = await http.post(
       Uri.parse('$baseUrl/folders'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'user_id': firebaseUid,
+        'user_id': userId,
         'name': name,
         'icon': icon,
       }),
@@ -248,9 +266,9 @@ class ApiService {
   }
 
   // --- 5.1 Delete Folder ---
-  Future<void> deleteFolder(int folderId, String firebaseUid) async {
+  Future<void> deleteFolder(int folderId, int userId) async {
     final response = await http.delete(
-      Uri.parse('$baseUrl/folders/$folderId?user_id=$firebaseUid'),
+      Uri.parse('$baseUrl/folders/$folderId?user_id=$userId'),
     );
 
     if (response.statusCode != 200) {
@@ -259,12 +277,12 @@ class ApiService {
   }
 
   // --- 5.2 Rename Folder ---
-  Future<void> renameFolder(int folderId, String newName, String firebaseUid) async {
+  Future<void> renameFolder(int folderId, String newName, int userId) async {
     final response = await http.put(
       Uri.parse('$baseUrl/folders/$folderId'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'user_id': firebaseUid,
+        'user_id': userId,
         'name': newName,
       }),
     );
@@ -354,15 +372,22 @@ class ApiService {
   }
 
   String? _getMimeType(String fileName) {
-    if (fileName.endsWith('.pdf')) return 'application/pdf';
-    if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) return 'image/jpeg';
-    if (fileName.endsWith('.png')) return 'image/png';
+    final name = fileName.toLowerCase();
+    if (name.endsWith('.pdf')) return 'application/pdf';
+    if (name.endsWith('.mp4')) return 'video/mp4';
+    if (name.endsWith('.m4a') || name.endsWith('.mp3')) return 'audio/mpeg';
+    if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
+    if (name.endsWith('.png')) return 'image/png';
+    if (name.endsWith('.txt')) return 'text/plain';
     return 'application/octet-stream';
   }
 
   // --- 8. Get Nominees ---
-  Future<List<dynamic>> getNominees(String firebaseUid) async {
-    final response = await http.get(Uri.parse('$baseUrl/nominees?user_id=$firebaseUid'));
+  Future<List<dynamic>> getNominees(int userId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/nominees?user_id=$userId'),
+      headers: await _authHeaders(),
+    );
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -373,7 +398,7 @@ class ApiService {
 
   // --- 9. Add Nominee (Updated) ---
   Future<void> addNominee({
-    required String userId,
+    required int userId,
     required String name,
     required String relationship,
     required String email,
@@ -389,7 +414,7 @@ class ApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/nominees'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _authHeaders(),
       body: jsonEncode({
         'user_id': userId,
         'name': name,
@@ -430,7 +455,7 @@ class ApiService {
   }) async {
     final response = await http.put(
       Uri.parse('$baseUrl/nominees/$nomineeId'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _authHeaders(),
       body: jsonEncode({
         'name': name,
         'relationship': relationship,
@@ -489,7 +514,7 @@ class ApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/vault_items'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _authHeaders(),
       body: jsonEncode({
         'user_id': userId,
         'folder_id': folderId,
@@ -560,7 +585,7 @@ class ApiService {
   }) async {
     final response = await http.put(
       Uri.parse('$baseUrl/vault_items/$itemId'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _authHeaders(),
       body: jsonEncode({
         'user_id': userId,
         'title': title,
@@ -799,11 +824,128 @@ class ApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  // 15. Update Heartbeat Settings
-  Future<void> updateHeartbeatSettings(int userId, bool active, int frequencyDays, {int frequencyHours = 0, int frequencyMinutes = 0}) async {
+
+  // ============================================
+  // ACTIVITY LOG & FRAUD DETECTION
+  // ============================================
+
+  Future<Map<String, dynamic>> getActivityLogs(int userId, {bool suspiciousOnly = false}) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/activity-log?user_id=$userId&suspicious_only=$suspiciousOnly'),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return {'logs': []};
+  }
+
+  Future<Map<String, dynamic>> logActivity({
+    required int userId,
+    required String action,
+    String? deviceInfo,
+    String? ipAddress,
+    Map<String, dynamic>? details,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/activity-log'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'user_id': userId,
+        'action': action,
+        'device_info': deviceInfo,
+        'ip_address': ipAddress,
+        'details': details,
+      }),
+    );
+    return jsonDecode(response.body);
+  }
+
+  // ============================================
+  // SMART ASSET DISCOVERY
+  // ============================================
+
+  Future<Map<String, dynamic>> getAssetDiscoveryItems(int userId) async {
+    final response = await http.get(Uri.parse('$baseUrl/asset-discovery?user_id=$userId'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return {'items': []};
+  }
+
+  Future<Map<String, dynamic>> generateAssetDiscoveryAI({
+    required int userId,
+    String? country,
+    String? ageGroup,
+    String? occupation,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/asset-discovery/generate'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'user_id': userId,
+        'country': country ?? 'India',
+        'age_group': ageGroup ?? '30-50',
+        'occupation': occupation ?? 'Professional',
+      }),
+    );
+    return jsonDecode(response.body);
+  }
+
+  Future<Map<String, dynamic>> toggleAssetDiscovery(int userId, int itemId) async {
+    final response = await http.put(Uri.parse('$baseUrl/asset-discovery/$itemId/toggle?user_id=$userId'));
+    return jsonDecode(response.body);
+  }
+
+  // ============================================
+  // EMERGENCY MEDICAL CARD
+  // ============================================
+
+  Future<Map<String, dynamic>> getEmergencyCard(int userId) async {
+    final response = await http.get(Uri.parse('$baseUrl/emergency-card?user_id=$userId'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return {'emergency_data': {}};
+  }
+
+  Future<Map<String, dynamic>> updateEmergencyCard(int userId, Map<String, dynamic> emergencyData) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/emergency-card'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'user_id': userId,
+        'emergency_data': emergencyData,
+      }),
+    );
+    return jsonDecode(response.body);
+  }
+
+  Future<Map<String, dynamic>> getEmergencyCardSuggestions(int userId, Map<String, dynamic> cardData) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/emergency-card/suggest'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'user_id': userId, 'card_data': cardData}),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return {'suggestions': {}};
+  }
+
+  // ============================================
+  // HEARTBEAT API SETTINGS
+  // ============================================
+
+  Future<void> syncSentinelHeartbeat({
+    required int userId, 
+    required bool active, 
+    required int frequencyDays, 
+    int frequencyHours = 0, 
+    int frequencyMinutes = 0
+  }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/heartbeat/settings'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _authHeaders(),
       body: jsonEncode({
         'user_id': userId,
         'active': active,
@@ -816,11 +958,11 @@ class ApiService {
       throw Exception('Failed to update settings');
     }
   }
+
   // ============================================
   // SECURITY SCORE API METHODS
   // ============================================
 
-  // 16. Get Security Score
   Future<Map<String, dynamic>> getSecurityScore(int userId) async {
     final response = await http.get(Uri.parse('$baseUrl/security/score?user_id=$userId'));
     if (response.statusCode == 200) {
@@ -830,9 +972,6 @@ class ApiService {
     }
   }
 
-  // ============================================
-  // FEATURE 1: VAULT HEALTH ANALYZER
-  // ============================================
   Future<Map<String, dynamic>> getVaultHealth(int userId) async {
     final response = await http.get(Uri.parse('$baseUrl/vault-health?user_id=$userId'));
     if (response.statusCode == 200) {
@@ -843,8 +982,9 @@ class ApiService {
   }
 
   // ============================================
-  // FEATURE 2: VIDEO WILL / VOICE MESSAGE
+  // VIDEO WILL / VOICE MESSAGE
   // ============================================
+
   Future<Map<String, dynamic>> createVideoWill({
     required int userId,
     int? nomineeId,
@@ -870,6 +1010,47 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
+  Future<Map<String, dynamic>> uploadFileToS3(File file) async {
+    String fileName = file.path.split('/').last;
+    String? mimeType = _getMimeType(fileName);
+
+    try {
+      // 1. Get Presigned URL
+      final presignedResponse = await http.post(
+        Uri.parse('$baseUrl/get-presigned-url'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'file_name': fileName,
+          'file_type': mimeType ?? 'application/octet-stream',
+        }),
+      );
+
+      if (presignedResponse.statusCode != 200) {
+        throw Exception('Failed to get upload URL: ${presignedResponse.body}');
+      }
+
+      final presignedData = jsonDecode(presignedResponse.body);
+      String uploadUrl = presignedData['uploadUrl'];
+      String key = presignedData['key'];
+
+      // 2. Upload to S3 directly
+      final uploadResponse = await http.put(
+        Uri.parse(uploadUrl),
+        headers: {'Content-Type': mimeType ?? 'application/octet-stream'},
+        body: await file.readAsBytes(),
+      );
+
+      if (uploadResponse.statusCode != 200 && uploadResponse.statusCode != 201) {
+        throw Exception('Storage upload failed: ${uploadResponse.statusCode}');
+      }
+
+      return {'success': true, 'key': key};
+    } catch (e) {
+      throw Exception('S3 Upload Error: $e');
+    }
+  }
+
+
   Future<Map<String, dynamic>> getVideoWills(int userId) async {
     final response = await http.get(Uri.parse('$baseUrl/video-wills?user_id=$userId'));
     return jsonDecode(response.body);
@@ -889,39 +1070,7 @@ class ApiService {
   }
 
   // ============================================
-  // FEATURE 3: SMART ASSET DISCOVERY
-  // ============================================
-  Future<Map<String, dynamic>> generateAssetDiscovery({
-    required int userId,
-    String? country,
-    String? ageGroup,
-    String? occupation,
-  }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/asset-discovery/generate'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'user_id': userId,
-        'country': country ?? 'India',
-        'age_group': ageGroup ?? '30-50',
-        'occupation': occupation ?? 'Professional',
-      }),
-    );
-    return jsonDecode(response.body);
-  }
-
-  Future<Map<String, dynamic>> getAssetDiscovery(int userId) async {
-    final response = await http.get(Uri.parse('$baseUrl/asset-discovery?user_id=$userId'));
-    return jsonDecode(response.body);
-  }
-
-  Future<Map<String, dynamic>> toggleAssetDiscovery(int id) async {
-    final response = await http.put(Uri.parse('$baseUrl/asset-discovery/$id/toggle'));
-    return jsonDecode(response.body);
-  }
-
-  // ============================================
-  // FEATURE 4: NOMINEE READINESS REPORT
+  // NOMINEE READINESS REPORT
   // ============================================
   Future<Map<String, dynamic>> getNomineeReadiness(int userId) async {
     final response = await http.get(Uri.parse('$baseUrl/nominee-readiness?user_id=$userId'));
@@ -929,7 +1078,7 @@ class ApiService {
   }
 
   // ============================================
-  // FEATURE 5: ESTATE SUMMARY
+  // ESTATE SUMMARY
   // ============================================
   Future<Map<String, dynamic>> getEstateSummary(int userId) async {
     final response = await http.get(Uri.parse('$baseUrl/estate-summary?user_id=$userId'));
@@ -937,38 +1086,7 @@ class ApiService {
   }
 
   // ============================================
-  // FEATURE 6: ACTIVITY LOG (FRAUD DETECTION)
-  // ============================================
-  Future<Map<String, dynamic>> logActivity({
-    required int userId,
-    required String action,
-    String? deviceInfo,
-    String? ipAddress,
-    Map<String, dynamic>? details,
-  }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/activity-log'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'user_id': userId,
-        'action': action,
-        'device_info': deviceInfo,
-        'ip_address': ipAddress,
-        'details': details,
-      }),
-    );
-    return jsonDecode(response.body);
-  }
-
-  Future<Map<String, dynamic>> getActivityLogs(int userId, {bool suspiciousOnly = false}) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/activity-log?user_id=$userId&suspicious_only=$suspiciousOnly'),
-    );
-    return jsonDecode(response.body);
-  }
-
-  // ============================================
-  // FEATURE 7: GRIEF SUPPORT CHATBOT
+  // GRIEF SUPPORT CHATBOT
   // ============================================
   Future<Map<String, dynamic>> griefSupportChat({
     required String message,
@@ -990,7 +1108,7 @@ class ApiService {
   }
 
   // ============================================
-  // FEATURE 8: LEGAL DOCUMENT GENERATOR
+  // LEGAL DOCUMENT GENERATOR
   // ============================================
   Future<Map<String, dynamic>> generateLegalDocument({
     required int userId,
@@ -1021,7 +1139,7 @@ class ApiService {
   }
 
   // ============================================
-  // FEATURE 9: MULTI-LANGUAGE TRANSLATE
+  // MULTI-LANGUAGE TRANSLATE
   // ============================================
   Future<Map<String, dynamic>> translateText(String text, String targetLanguage) async {
     final response = await http.post(
@@ -1031,35 +1149,6 @@ class ApiService {
         'text': text,
         'target_language': targetLanguage,
       }),
-    );
-    return jsonDecode(response.body);
-  }
-
-  // ============================================
-  // FEATURE 10: EMERGENCY CARD
-  // ============================================
-  Future<Map<String, dynamic>> updateEmergencyCard(int userId, Map<String, dynamic> emergencyData) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/emergency-card'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'user_id': userId,
-        'emergency_data': emergencyData,
-      }),
-    );
-    return jsonDecode(response.body);
-  }
-
-  Future<Map<String, dynamic>> getEmergencyCard(int userId) async {
-    final response = await http.get(Uri.parse('$baseUrl/emergency-card?user_id=$userId'));
-    return jsonDecode(response.body);
-  }
-
-  Future<Map<String, dynamic>> getEmergencyCardSuggestions({String? age, String? conditions}) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/emergency-card/suggest'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'age': age, 'conditions': conditions}),
     );
     return jsonDecode(response.body);
   }

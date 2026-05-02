@@ -23,6 +23,7 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const db_1 = require("./db");
 const db_2 = __importDefault(require("./db"));
 const openai_1 = __importDefault(require("openai"));
+const sdk_1 = __importDefault(require("@anthropic-ai/sdk"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3000;
 // ─── CORS (restrict to known origins) ──────────────────────────────────────
@@ -58,8 +59,41 @@ const HSP_SMS_SENDER_ID = process.env.HSP_SMS_SENDER_ID || 'DASSAM';
 const HSP_SMS_TYPE = process.env.HSP_SMS_TYPE || 'TRANS';
 const HSP_SMS_API_KEY = process.env.HSP_SMS_API_KEY || '';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_dev_secret_change_me';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+/**
+ * Helper to call the best available AI (Anthropic > OpenAI)
+ */
+function callAI(_a) {
+    return __awaiter(this, arguments, void 0, function* ({ system, user, json = false }) {
+        if (ANTHROPIC_API_KEY) {
+            const anthropic = new sdk_1.default({ apiKey: ANTHROPIC_API_KEY });
+            const msg = yield anthropic.messages.create({
+                model: "claude-3-5-sonnet-20240620",
+                max_tokens: 4096,
+                system: json ? `${system}\nReturn ONLY a valid JSON object.` : system,
+                messages: [{ role: "user", content: user }],
+            });
+            const content = msg.content[0].type === 'text' ? msg.content[0].text : '';
+            return json ? JSON.parse(content || '{}') : content;
+        }
+        else if (OPENAI_API_KEY) {
+            const openai = new openai_1.default({ apiKey: OPENAI_API_KEY });
+            const completion = yield openai.chat.completions.create({
+                messages: [
+                    { role: "system", content: system },
+                    { role: "user", content: user }
+                ],
+                model: "gpt-4-turbo-preview",
+                response_format: json ? { type: "json_object" } : undefined,
+            });
+            const content = completion.choices[0].message.content || (json ? '{}' : '');
+            return json ? JSON.parse(content) : content;
+        }
+        throw new Error("No AI API Keys found.");
+    });
+}
 // ─── JWT Auth Middleware ─────────────────────────────────────────────────────
 // Apply to any route that should require a logged-in user.
 const authMiddleware = (req, res, next) => {
@@ -651,6 +685,30 @@ app.post('/api/users/register', (req, res) => __awaiter(void 0, void 0, void 0, 
     catch (error) {
         console.error('Registration Error:', error);
         res.status(500).json({ error: 'Failed to register user' });
+    }
+}));
+// --- Get User Profile ---
+app.get('/api/users/profile', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { user_id } = req.query;
+    try {
+        const result = yield db_2.default.query('SELECT id, mobile_number, name, email, created_at FROM users WHERE id = $1', [user_id]);
+        if (result.rows.length === 0)
+            return res.status(404).json({ error: 'User not found' });
+        res.json(result.rows[0]);
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Failed to fetch profile' });
+    }
+}));
+// --- Update User Profile ---
+app.post('/api/users/profile/update', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { userId, name, email } = req.body;
+    try {
+        const result = yield db_2.default.query('UPDATE users SET name = $1, email = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *', [name, email, userId]);
+        res.json({ success: true, user: result.rows[0] });
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Failed to update profile' });
     }
 }));
 // 1. Send OTP
@@ -1581,16 +1639,7 @@ app.get('/api/users/:id/subscription', (req, res) => __awaiter(void 0, void 0, v
 // AI ASSISTANT API
 app.post('/api/ai/chat', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { message, history } = req.body;
-    const apiKey = OPENAI_API_KEY;
-    if (!apiKey) {
-        res.status(500).json({ error: 'AI API Key not configured' });
-        return;
-    }
     try {
-        const openai = new openai_1.default({ apiKey: apiKey });
-        // Convert history format 
-        // Flutter history: [{role: 'user', parts: [{text: '...'}]}, {role: 'model', parts: [{text: '...'}]}]
-        // OpenAI format: [{role: 'user', content: '...'}, {role: 'assistant', content: '...'}]
         const messages = [
             { role: "system", content: "You are the Vasihat Nama Legal Assistant. Your goal is to help users with inheritance, wills, succession laws, and estate planning. Be professional, empathetic, and clear. Always advise users that your guidance is for informational purposes and they should consult a real lawyer for final legal documents." }
         ];
@@ -1611,12 +1660,12 @@ app.post('/api/ai/chat', (req, res) => __awaiter(void 0, void 0, void 0, functio
         }
         // Add current message
         messages.push({ role: "user", content: message });
-        const completion = yield openai.chat.completions.create({
-            messages: messages,
-            model: "gpt-3.5-turbo",
+        // Use unified AI caller (prefers Claude 3.5 Sonnet)
+        const aiResponse = yield callAI({
+            system: messages[0].content,
+            user: messages.slice(1).map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n')
         });
-        const reply = completion.choices[0].message.content;
-        res.json({ success: true, reply: reply });
+        res.json({ success: true, message: aiResponse, reply: aiResponse });
     }
     catch (error) {
         console.error("Chat error:", error);
@@ -1632,16 +1681,11 @@ app.post('/api/ai/classify', (req, res) => __awaiter(void 0, void 0, void 0, fun
         return;
     }
     try {
-        const openai = new openai_1.default({ apiKey: apiKey });
-        const completion = yield openai.chat.completions.create({
-            messages: [
-                { role: "system", content: "You are a document classifier. Analyze the text and suggest a 'category' (e.g. Financial, Legal, ID, Personal) and a 'title'." },
-                { role: "user", content: `Classify this document text:\n${text.substring(0, 1000)}` }
-            ],
-            model: "gpt-3.5-turbo",
-            response_format: { type: "json_object" },
+        const result = yield callAI({
+            system: "You are a legal document classifier. Categorize the document text.",
+            user: `Classify this document text and return JSON with: 'doc_type' (WILL, PROPERTY_DEED, IDENTITY, FINANCIAL, OTHER), 'confidence' (0-1), 'summary' (brief string).\nText: ${text.substring(0, 5000)}`,
+            json: true
         });
-        const result = JSON.parse(completion.choices[0].message.content || '{}');
         res.json({ success: true, classification: result });
     }
     catch (error) {
@@ -2127,17 +2171,12 @@ app.get('/api/estate-summary', (req, res) => __awaiter(void 0, void 0, void 0, f
             files: files.rows,
             smart_docs: smartDocs.rows,
         };
-        // AI-generated summary
-        const openai = new openai_1.default({ apiKey });
-        const completion = yield openai.chat.completions.create({
-            messages: [
-                { role: "system", content: "You are an estate planning advisor. Generate a professional, empathetic estate summary report. Return JSON with: 'executive_summary' (2-3 paragraph overview), 'strengths' (array of strings), 'risks' (array of strings), 'recommendations' (array of strings), 'estate_value_assessment' (qualitative assessment string)." },
-                { role: "user", content: `Generate estate summary for: ${JSON.stringify(summary_data)}` }
-            ],
-            model: "gpt-3.5-turbo",
-            response_format: { type: "json_object" },
+        // AI-generated summary using unified helper
+        const aiSummary = yield callAI({
+            system: "You are an estate planning advisor. Generate a professional, empathetic estate summary report.",
+            user: `Generate estate summary for: ${JSON.stringify(summary_data)}`,
+            json: true
         });
-        const aiSummary = JSON.parse(completion.choices[0].message.content || '{}');
         res.json({
             success: true,
             data: summary_data,
@@ -2262,18 +2301,13 @@ app.post('/api/legal-documents/generate', (req, res) => __awaiter(void 0, void 0
         'bank_closure': 'Bank Account Closure Application',
     };
     try {
-        const openai = new openai_1.default({ apiKey });
         const docTitle = docTypes[doc_type] || doc_type;
         const lang = language || 'en';
         const langName = lang === 'hi' ? 'Hindi' : lang === 'ur' ? 'Urdu' : lang === 'ar' ? 'Arabic' : 'English';
-        const completion = yield openai.chat.completions.create({
-            messages: [
-                { role: "system", content: `You are a legal document drafter for estate planning. Generate a professional, legally-structured ${docTitle} document in ${langName}. Use proper legal formatting with sections, clauses, and signature blocks. Include placeholders in [BRACKETS] for information the user needs to fill in.` },
-                { role: "user", content: `Generate a ${docTitle} with these details:\n${JSON.stringify(user_details || {})}` }
-            ],
-            model: "gpt-3.5-turbo",
+        const content = yield callAI({
+            system: `You are a legal document drafter for estate planning. Generate a professional, legally-structured ${docTitle} document in ${langName}. Use proper legal formatting with sections, clauses, and signature blocks. Include placeholders in [BRACKETS] for information the user needs to fill in.`,
+            user: `Generate a ${docTitle} with these details:\n${JSON.stringify(user_details || {})}`
         });
-        const content = completion.choices[0].message.content || '';
         // Save to DB
         const result = yield db_2.default.query(`INSERT INTO legal_documents (user_id, doc_type, title, content, language) 
              VALUES ($1, $2, $3, $4, $5) RETURNING *`, [user_id, doc_type, docTitle, content, lang]);

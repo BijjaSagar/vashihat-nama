@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 
 class EstateSummaryScreen extends StatefulWidget {
   final int userId;
-  const EstateSummaryScreen({Key? key, required this.userId}) : super(key: key);
+  const EstateSummaryScreen({super.key, required this.userId});
 
   @override
   State<EstateSummaryScreen> createState() => _EstateSummaryScreenState();
@@ -21,113 +22,150 @@ class _EstateSummaryScreenState extends State<EstateSummaryScreen> {
   }
 
   Future<void> _loadData() async {
+    if (mounted) setState(() => _loading = true);
     try {
       final result = await _api.getEstateSummary(widget.userId);
-      setState(() { _data = result; _loading = false; });
+      if (mounted) {
+        setState(() { 
+          _data = result; 
+          _loading = false; 
+        });
+      }
     } catch (e) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F8),
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Estate Summary', style: TextStyle(fontWeight: FontWeight.w700)),
-        backgroundColor: const Color(0xFF0D47A1),
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.accentColor),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text("Estate Intel", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
       ),
       body: _loading
-          ? const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('AI is generating your estate summary...', style: TextStyle(color: Colors.grey)),
-            ]))
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.accentColor))
           : _data == null
-              ? const Center(child: Text('Failed to load'))
+              ? const Center(child: Text("SECURE DATA RETRIEVAL FAILURE", style: TextStyle(color: Colors.white24, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)))
               : ListView(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                   children: [
                     _buildHeader(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 40),
+                    _buildSectionHeader("QUANTUM METRICS"),
+                    const SizedBox(height: 16),
                     _buildStatsGrid(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 40),
+                    _buildSectionHeader("EXECUTIVE ANALYSIS"),
+                    const SizedBox(height: 16),
                     _buildAISummary(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 40),
+                    _buildSectionHeader("SECURITY POSTURE"),
+                    const SizedBox(height: 16),
                     _buildStrengthsRisks(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 40),
+                    _buildSectionHeader("STRATEGIC RECOMMENDATIONS"),
+                    const SizedBox(height: 16),
                     _buildRecommendations(),
+                    const SizedBox(height: 64),
                   ],
                 ),
     );
   }
 
+  Widget _buildSectionHeader(String title) {
+    return Text(title, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2));
+  }
+
   Widget _buildHeader() {
     final user = _data!['data']?['user'];
     return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1976D2)]),
-        borderRadius: BorderRadius.circular(24),
+      padding: const EdgeInsets.all(32),
+      decoration: AppTheme.slabDecoration.copyWith(
+        gradient: LinearGradient(
+          colors: [AppTheme.accentColor.withOpacity(0.05), Colors.transparent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const Icon(Icons.description, color: Colors.white, size: 36),
-          const SizedBox(width: 12),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Estate Report', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
-            Text(user?['name'] ?? 'User', style: const TextStyle(color: Colors.white70, fontSize: 16)),
-          ]),
-        ]),
-        const SizedBox(height: 12),
-        Text('Generated on ${DateTime.now().toString().substring(0, 16)}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, 
+        children: [
+          const Icon(Icons.insights_rounded, color: AppTheme.accentColor, size: 40),
+          const SizedBox(height: 24),
+          const Text("ESTATE AUDIT", style: TextStyle(color: AppTheme.accentColor, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 3)),
+          const SizedBox(height: 12),
+          Text(user?['name']?.toString().toUpperCase() ?? "SUBJECT ALPHA", 
+            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+          const SizedBox(height: 12),
+          Text("GENERATED: ${DateTime.now().toString().substring(0, 10)}  |  STATUS: VALIDATED", 
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w700)),
+        ],
+      ),
     );
   }
 
   Widget _buildStatsGrid() {
     final stats = _data!['stats'] ?? {};
-    return Row(children: [
-      _statTile('📦', '${stats['total_vault_items'] ?? 0}', 'Vault Items', const Color(0xFF2196F3)),
-      const SizedBox(width: 12),
-      _statTile('👥', '${stats['total_nominees'] ?? 0}', 'Nominees', const Color(0xFF9C27B0)),
-      const SizedBox(width: 12),
-      _statTile('📄', '${stats['total_files'] ?? 0}', 'Files', const Color(0xFF4CAF50)),
-      const SizedBox(width: 12),
-      _statTile('🔔', '${stats['total_alerts'] ?? 0}', 'Alerts', const Color(0xFFFF9800)),
-    ]);
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 16,
+      childAspectRatio: 1.4,
+      children: [
+        _statTile("VAULT ITEMS", stats['total_vault_items']?.toString() ?? "0", Icons.inventory_2_outlined),
+        _statTile("NOMINEES", stats['total_nominees']?.toString() ?? "0", Icons.people_outline_rounded),
+        _statTile("SECURE FILES", stats['total_files']?.toString() ?? "0", Icons.description_outlined),
+        _statTile("ACTIVE ALERTS", stats['total_alerts']?.toString() ?? "0", Icons.shield_outlined, color: Colors.orangeAccent),
+      ],
+    );
   }
 
-  Widget _statTile(String emoji, String count, String label, Color color) {
-    return Expanded(child: Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 10)]),
-      child: Column(children: [
-        Text(emoji, style: const TextStyle(fontSize: 20)),
-        Text(count, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color)),
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10)),
-      ]),
-    ));
+  Widget _statTile(String label, String value, IconData icon, {Color color = AppTheme.accentColor}) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: AppTheme.slabDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color.withOpacity(0.5), size: 16),
+          const SizedBox(height: 12),
+          Text(value, style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1)),
+        ],
+      ),
+    );
   }
 
   Widget _buildAISummary() {
-    final summary = _data!['ai_summary']?['executive_summary'] ?? 'No summary available';
+    final summary = _data!['ai_summary']?['executive_summary'] ?? "Analyzing vault metrics...";
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Row(children: [
-          Icon(Icons.auto_awesome, color: Color(0xFF0D47A1)),
-          SizedBox(width: 8),
-          Text('AI Executive Summary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-        ]),
-        const SizedBox(height: 12),
-        Text(summary, style: const TextStyle(fontSize: 14, height: 1.6, color: Colors.black87)),
-      ]),
+      padding: const EdgeInsets.all(32),
+      decoration: AppTheme.slabDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, 
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome_rounded, color: AppTheme.accentColor, size: 16),
+              const SizedBox(width: 12),
+              const Text("AI SYNTHESIS", style: TextStyle(color: AppTheme.accentColor, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Text(summary, style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.8, fontWeight: FontWeight.w500)),
+        ],
+      ),
     );
   }
 
@@ -135,50 +173,71 @@ class _EstateSummaryScreenState extends State<EstateSummaryScreen> {
     final strengths = (_data!['ai_summary']?['strengths'] as List?) ?? [];
     final risks = (_data!['ai_summary']?['risks'] as List?) ?? [];
 
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Expanded(child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: const Color(0xFF4CAF50).withOpacity(0.08), borderRadius: BorderRadius.circular(16)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('💪 Strengths', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Color(0xFF2E7D32))),
-          const SizedBox(height: 8),
-          ...strengths.map((s) => Padding(padding: const EdgeInsets.only(bottom: 6),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('✓ ', style: TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.w700)),
-              Expanded(child: Text(s.toString(), style: const TextStyle(fontSize: 13)))]))),
-        ]),
-      )),
-      const SizedBox(width: 12),
-      Expanded(child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: const Color(0xFFF44336).withOpacity(0.08), borderRadius: BorderRadius.circular(16)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('⚠️ Risks', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Color(0xFFC62828))),
-          const SizedBox(height: 8),
-          ...risks.map((r) => Padding(padding: const EdgeInsets.only(bottom: 6),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('• ', style: TextStyle(color: Color(0xFFF44336), fontWeight: FontWeight.w700)),
-              Expanded(child: Text(r.toString(), style: const TextStyle(fontSize: 13)))]))),
-        ]),
-      )),
-    ]);
+    return Column(
+      children: [
+        _buildListSlab("PROTECTION STRENGTHS", strengths, Colors.greenAccent),
+        const SizedBox(height: 24),
+        _buildListSlab("CRITICAL VULNERABILITIES", risks, Colors.redAccent),
+      ],
+    );
+  }
+
+  Widget _buildListSlab(String title, List<dynamic> items, Color color) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: AppTheme.slabDecoration.copyWith(
+        border: Border.all(color: color.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, 
+        children: [
+          Text(title, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+          const SizedBox(height: 24),
+          if (items.isEmpty)
+            const Text("NO DATA AVAILABLE", style: TextStyle(color: Colors.white12, fontSize: 11, fontWeight: FontWeight.w800))
+          else
+            ...items.map((i) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start, 
+                children: [
+                  Text("• ", style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 18)),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(i.toString(), style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.6, fontWeight: FontWeight.w500))),
+                ],
+              ),
+            )),
+        ],
+      ),
+    );
   }
 
   Widget _buildRecommendations() {
     final recs = (_data!['ai_summary']?['recommendations'] as List?) ?? [];
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('📋 Recommendations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 12),
-        ...recs.asMap().entries.map((e) => Padding(padding: const EdgeInsets.only(bottom: 10),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(width: 24, height: 24, decoration: BoxDecoration(color: const Color(0xFF0D47A1), borderRadius: BorderRadius.circular(8)),
-              child: Center(child: Text('${e.key + 1}', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)))),
-            const SizedBox(width: 10),
-            Expanded(child: Text(e.value.toString(), style: const TextStyle(fontSize: 14, height: 1.4))),
-          ]))),
-      ]),
+      padding: const EdgeInsets.all(32),
+      decoration: AppTheme.slabDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, 
+        children: [
+          ...recs.map((r) => Container(
+            margin: const EdgeInsets.only(bottom: 20),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.02), borderRadius: BorderRadius.circular(16)),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start, 
+              children: [
+                const Icon(Icons.bolt_rounded, color: AppTheme.accentColor, size: 20),
+                const SizedBox(width: 16),
+                Expanded(child: Text(r.toString(), style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.6, fontWeight: FontWeight.w600))),
+              ],
+            ),
+          )),
+          if (recs.isEmpty)
+            const Center(child: Text("NO RECOMMENDATIONS", style: TextStyle(color: Colors.white10, fontSize: 10, fontWeight: FontWeight.w900))),
+        ],
+      ),
     );
   }
 }

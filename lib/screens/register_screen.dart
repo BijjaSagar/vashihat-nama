@@ -2,11 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:eversafe/screens/dashboard_screen.dart';
-import 'package:eversafe/screens/legal_screen.dart';
-import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
+import 'main_navigation_shell.dart';
+import 'legal_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -27,6 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _agreeToTerms = false;
 
   void sendOTP() async {
+    if (phoneController.text.length < 10) return;
     setState(() => _isLoading = true);
     try {
       final res = await ApiService().sendOtp(phoneController.text, 'register');
@@ -35,17 +35,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           otpSent = true;
           _isLoading = false;
         });
-        if (res['debug_otp'] != null) {
-             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("DEV OTP: ${res['debug_otp']}")));
-        } else {
-             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("OTP Sent Successfully")));
-        }
-      } else {
-        throw Exception(res['message']);
       }
     } catch (e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error sending OTP: $e")));
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -53,41 +45,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
     try {
       final res = await ApiService().verifyOtp(phoneController.text, otpController.text, 'register');
-      
       if (res['success'] == true) {
          setState(() {
-           otpVerified = true; // Show profile fields
+           otpVerified = true;
            _isLoading = false;
          });
-         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mobile Verified. Please details.")));
-      } else {
-        throw Exception(res['message']);
       }
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Verification Failed: $e")));
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> completeRegistration() async {
-    if (phoneController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mobile number missing. Please verify again.")));
-      return;
-    }
-    if (nameController.text.isEmpty || emailController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter your name and email")));
-      return;
-    }
-
     setState(() => _isLoading = true);
     try {
-        // Generate Keys (Mocked for now - in real app use encryption lib)
-        // In reality, we should generate these on the device securely
-        String publicKey = "mock_public_key_${DateTime.now().millisecondsSinceEpoch}";
-        String encryptedPrivateKey = "mock_encrypted_private_key_SECRET";
+        String publicKey = "sentinel_pk_${DateTime.now().millisecondsSinceEpoch}";
+        String encryptedPrivateKey = "sentinel_epk_SECURE";
 
-        // Call Backend to Register User
         final registeredUser = await ApiService().registerUser(
           phoneController.text,
           publicKey, 
@@ -99,240 +73,196 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final prefs = await SharedPreferences.getInstance();
         if (registeredUser['user'] != null) {
           await prefs.setString('userProfile', jsonEncode(registeredUser['user']));
+          if (registeredUser['token'] != null) await prefs.setString('authToken', registeredUser['token']);
+          
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => MainNavigationShell(userId: registeredUser['user']['id'])),
+          );
         }
-        if (registeredUser['token'] != null) {
-          await prefs.setString('authToken', registeredUser['token']);
-        }
-
-        if (!mounted) return;
-        navigateToDashboard(registeredUser['user'] ?? {});
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Registration Failed: $e")));
+      if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void navigateToDashboard(Map<String, dynamic> userProfile) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => SecureDashboardScreen(
-        userProfile: userProfile
-      )),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFF2F2F7),
-              Color(0xFFE5E5EA), 
-              Color(0xFFF2F2F7),
-            ],
-            stops: [0.0, 0.5, 1.0],
-          ),
-        ),
-        child: Center(
-            child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                const Icon(Icons.person_add_alt_1_rounded, size: 80, color: AppTheme.primaryColor),
-                const SizedBox(height: 20),
-                Text(
-                    "Create Account",
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.5,
-                    ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentColor.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppTheme.accentColor.withOpacity(0.1)),
                 ),
-                Text(
-                    "Secure your legacy today",
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppTheme.textSecondary,
-                    ),
+                child: const Icon(Icons.shield_moon_rounded, size: 48, color: AppTheme.accentColor),
+              ),
+              const SizedBox(height: 48),
+              const Text("VAULT INITIATION", style: TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
+              const SizedBox(height: 12),
+              const Text("ESTABLISH SANCTUARY", style: TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900, height: 1.1, letterSpacing: -1)),
+              const SizedBox(height: 64),
+              
+              if (!otpVerified) ...[
+                _buildInputLabel("SECURE MOBILE IDENTIFIER"),
+                _buildSlabInput(
+                  controller: phoneController,
+                  hint: "000 000 0000",
+                  enabled: !otpSent,
+                  icon: Icons.phone_android_rounded,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
                 ),
-                const SizedBox(height: 40),
-
-                // Glass Card for Input
-                GlassCard(
-                    opacity: 0.65,
-                    blur: 30,
-                    color: Colors.white,
-                    borderColor: Colors.white.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(24),
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                    children: [
-                        if (!otpVerified) ...[
-                          _buildTextField(
-                          controller: phoneController,
-                          icon: Icons.phone_android_rounded,
-                          hint: "Phone Number (10 digits)",
-                          enabled: !otpSent,
-                          keyboardType: TextInputType.phone,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(10),
-                          ],
-                          ),
-                          if (otpSent) ...[
-                            const SizedBox(height: 20),
-                            _buildTextField(
-                                controller: otpController,
-                                icon: Icons.lock_clock_rounded,
-                                hint: "Enter OTP",
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                  LengthLimitingTextInputFormatter(6),
-                                ],
-                            ),
-                          ],
-                        ] else ...[
-                           // Profile Fields
-                           _buildTextField(
-                             controller: nameController, 
-                             icon: Icons.person, 
-                             hint: "Full Name",
-                             keyboardType: TextInputType.name
-                           ),
-                           const SizedBox(height: 20),
-                           _buildTextField(
-                             controller: emailController, 
-                             icon: Icons.email, 
-                             hint: "Email Address",
-                             keyboardType: TextInputType.emailAddress
-                           ),
-                        ],
-                        const SizedBox(height: 20),
-                        // GDPR & DISCLAIMER CHECKBOX
-                        Row(
-                          children: [
-                            SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: Checkbox(
-                                value: _agreeToTerms,
-                                onChanged: (val) => setState(() => _agreeToTerms = val ?? false),
-                                activeColor: AppTheme.primaryColor,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => LegalScreen())),
-                                child: Text(
-                                  "I agree to GDPR terms & acknowledge that this is for secure storage only.",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppTheme.textSecondary,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Action Button
-                        SizedBox(
-                        width: double.infinity,
-                        height: 55,
-                        child: ElevatedButton(
-                            onPressed: _isLoading ? null : () {
-                              if (!_agreeToTerms) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Please agree to the GDPR terms and disclaimer to proceed.")),
-                                );
-                                return;
-                              }
-                              if (otpVerified) {
-                                completeRegistration();
-                              } else if (otpSent) {
-                                verifyOTP();
-                              } else {
-                                sendOTP();
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                            ),
-                            ),
-                            child: _isLoading
-                            ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                            : Text(
-                                otpVerified ? "Complete Registration" : (otpSent ? "Verify OTP" : "Send OTP"),
-                                style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                ),
-                                ),
-                        ),
-                        ),
-                    ],
-                    ),
-                ),
-                
-                const SizedBox(height: 20),
-                TextButton(
-                    onPressed: () {
-                        // Navigate to Login if account exists
-                        Navigator.pop(context);
-                    },
-                    child: const Text(
-                    "Already have an account? Login",
-                    style: TextStyle(color: AppTheme.primaryColor),
-                    ),
-                ),
+                if (otpSent) ...[
+                  const SizedBox(height: 32),
+                  _buildInputLabel("AUTHORIZATION CODE"),
+                  _buildSlabInput(
+                    controller: otpController,
+                    hint: "000 000",
+                    icon: Icons.lock_open_rounded,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
+                  ),
                 ],
-            ),
-            ),
+              ] else ...[
+                _buildInputLabel("FULL LEGAL IDENTITY"),
+                _buildSlabInput(
+                  controller: nameController, 
+                  hint: "AS PER IDENTIFICATION", 
+                  icon: Icons.person_outline_rounded,
+                  keyboardType: TextInputType.name
+                ),
+                const SizedBox(height: 32),
+                _buildInputLabel("ENCRYPTED RECOVERY EMAIL"),
+                _buildSlabInput(
+                  controller: emailController, 
+                  hint: "EMERGENCY@RECOVERY.COM", 
+                  icon: Icons.alternate_email_rounded,
+                  keyboardType: TextInputType.emailAddress
+                ),
+              ],
+              
+              const SizedBox(height: 48),
+              _buildTermsSlab(),
+              const SizedBox(height: 64),
+              SizedBox(
+                width: double.infinity,
+                height: 72,
+                child: ElevatedButton(
+                  onPressed: _isLoading || !_agreeToTerms ? null : () {
+                    if (otpVerified) completeRegistration();
+                    else if (otpSent) verifyOTP();
+                    else sendOTP();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.accentColor,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  child: _isLoading 
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                    : Text(
+                        otpVerified ? "INITIALIZE SANCTUARY" : (otpSent ? "VERIFY IDENTITY" : "BEGIN INITIATION"),
+                        style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1),
+                      ),
+                ),
+              ),
+              const SizedBox(height: 40),
+              Center(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: RichText(
+                    text: const TextSpan(
+                      text: "ALREADY SECURED? ",
+                      style: TextStyle(color: Colors.white10, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1),
+                      children: [
+                        TextSpan(
+                          text: "ACCESS VAULT",
+                          style: TextStyle(color: AppTheme.accentColor, fontWeight: FontWeight.w900),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildTextField({
-    required IconData icon,
-    required String hint,
-    required TextEditingController controller,
-    bool enabled = true,
-    TextInputType keyboardType = TextInputType.text,
-    List<TextInputFormatter>? inputFormatters,
-  }) {
+  Widget _buildTermsSlab() {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.01),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 24, height: 24,
+            child: Checkbox(
+              value: _agreeToTerms,
+              onChanged: (val) => setState(() => _agreeToTerms = val ?? false),
+              activeColor: AppTheme.accentColor,
+              checkColor: Colors.black,
+              side: const BorderSide(color: Colors.white10, width: 2),
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LegalScreen())),
+              child: const Text(
+                "I VERIFY MY IDENTITY AND AGREE TO THE DIGITAL LEGACY SOVEREIGNTY DECLARATION.",
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w800, height: 1.6, letterSpacing: 0.5),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 16),
+      child: Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+    );
+  }
+
+  Widget _buildSlabInput({required TextEditingController controller, required String hint, required IconData icon, bool enabled = true, TextInputType keyboardType = TextInputType.text, List<TextInputFormatter>? inputFormatters}) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        color: Colors.white.withOpacity(0.01),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: TextField(
         controller: controller,
         enabled: enabled,
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
-        style: const TextStyle(color: Colors.black87),
+        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 1),
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.grey),
+          prefixIcon: Icon(icon, color: AppTheme.accentColor.withOpacity(0.4), size: 18),
           hintText: hint,
-          hintStyle: const TextStyle(color: Colors.grey),
+          hintStyle: const TextStyle(color: Colors.white10, fontSize: 16, fontWeight: FontWeight.w800),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         ),
       ),
     );

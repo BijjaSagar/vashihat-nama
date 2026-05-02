@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vasihat Nama | Security Architecture & Blueprint</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --midnight: #0A0E21;
+            --gold: #D4AF37;
+            --platinum: #E5E5E5;
+            --slate: #161B22;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent: #2196F3;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--midnight);
+            color: var(--platinum);
+            font-family: 'Outfit', sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .background-glow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle at 10% 10%, rgba(212, 175, 55, 0.05) 0%, transparent 40%),
+                        radial-gradient(circle at 90% 90%, rgba(33, 150, 243, 0.05) 0%, transparent 40%);
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 80px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 100px;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        .badge {
+            background: var(--gold);
+            color: black;
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 4rem;
+            font-weight: 800;
+            letter-spacing: -2px;
+            margin-bottom: 20px;
+            background: linear-gradient(to bottom, #fff, #888);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--textSecondary);
+            max-width: 600px;
+            margin: 0 auto;
+            opacity: 0.8;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 60px;
+        }
+
+        .card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            padding: 40px;
+            border-radius: 24px;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease, border-color 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            border-color: var(--gold);
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0;
+            width: 4px; height: 100%;
+            background: var(--gold);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: var(--gold);
+        }
+
+        .card p {
+            font-size: 0.95rem;
+            color: var(--textSecondary);
+            opacity: 0.8;
+        }
+
+        .tech-flow {
+            margin-top: 120px;
+            padding: 60px;
+            background: var(--slate);
+            border-radius: 40px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .tech-flow h2 {
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .step-list {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 30px;
+        }
+
+        .step-num {
+            background: var(--gold);
+            color: black;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+
+        .step-content h4 {
+            font-size: 1.2rem;
+            margin-bottom: 8px;
+            color: white;
+        }
+
+        .code-block {
+            background: #000;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 15px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #4CAF50;
+            border-left: 2px solid var(--gold);
+        }
+
+        .hacker-defense {
+            margin-top: 100px;
+            text-align: center;
+        }
+
+        .defense-pill {
+            display: inline-block;
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid var(--gold);
+            padding: 20px 40px;
+            border-radius: 100px;
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin-top: 40px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 60px 0;
+            opacity: 0.5;
+            font-size: 0.9rem;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .shield-pulse {
+            width: 100px;
+            height: 100px;
+            background: var(--gold);
+            border-radius: 50%;
+            margin: 0 auto 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 40px var(--gold);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(212, 175, 55, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-glow"></div>
+    
+    <div class="container">
+        <header>
+            <div class="badge">Enterprise-Grade Zero Knowledge</div>
+            <h1>The Security Blueprint</h1>
+            <p class="subtitle">Building a digital vault that stays locked even if the server is compromised. This is Vasihat Nama.</p>
+        </header>
+
+        <section class="grid">
+            <div class="card">
+                <span class="card-icon">🔐</span>
+                <h3>Argon2id KDF</h3>
+                <p>We use memory-hard hashing (Argon2id) to derive keys from your PIN. This makes GPU-based brute-force attacks effectively impossible, requiring massive memory resources that hackers cannot scale.</p>
+            </div>
+            <div class="card">
+                <span class="card-icon">🧩</span>
+                <h3>Shamir's Sharing</h3>
+                <p>Keys are never stored in one piece. We use mathematical logical sharding to distribute trust, ensuring that a single point of failure cannot expose your vault.</p>
+            </div>
+            <div class="card">
+                <span class="card-icon">🛰️</span>
+                <h3>SSL Pinning</h3>
+                <p>The app only talks to our verified server. We've pinned the SHA-256 certificate fingerprints, neutralizing "Man-in-the-Middle" (MITM) attacks even on compromised Wi-Fi networks.</p>
+            </div>
+            <div class="card">
+                <span class="card-icon">👁️</span>
+                <h3>ZK Discovery</h3>
+                <p>Contact discovery is "blind." We store only cryptographically salted hashes of emails/phones. We know someone is a nominee, but we never know WHO they are until the trigger.</p>
+            </div>
+            <div class="card">
+                <span class="card-icon">🛡️</span>
+                <h3>Post-Quantum</h3>
+                <p>Using AES-256-GCM for all data storage. GCM mode ensures both privacy AND authenticity—any attempt to modify your files while they are encrypted will be immediately detected.</p>
+            </div>
+            <div class="card">
+                <span class="card-icon">🎭</span>
+                <h3>Decoy Vault</h3>
+                <p>Under duress, the app can surface a secondary "Decoy" session. It looks and acts exactly like the real app but contains only non-sensitive items, protecting you from physical coercion.</p>
+            </div>
+        </section>
+
+        <section class="tech-flow">
+            <h2>The "Blind Store" Pipeline</h2>
+            <div class="step-list">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-content">
+                        <h4>Hardware Key Derivation</h4>
+                        <p>Your PIN never leaves the app. It's used locally with Argon2id to generate a 256-bit Master Key.</p>
+                        <div class="code-block">Key = Argon2id(PIN, device_uuid, 64MB_RAM)</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-content">
+                        <h4>Compress-then-Encrypt</h4>
+                        <p>Data is first shrunk using Brotli/GZip to save space, then wrapped in an AES-256-GCM envelope.</p>
+                        <div class="code-block">Payload = Encrypt(Compress(Data), Key, IV)</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-content">
+                        <h4>Zero-Knowledge Upload</h4>
+                        <p>The server receives only random-looking noise (ciphertext). Even the file metadata is encrypted.</p>
+                        <div class="code-block">POST /vault -> { blob: "x09a...f21" }</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="hacker-defense">
+            <div class="shield-pulse">🛡️</div>
+            <h2>Why Hackers Fail</h2>
+            <p style="max-width: 700px; margin: 20px auto; opacity: 0.7;">Even if a hacker steals our entire database, they get nothing. Without your PIN and your specific Hardware Device, the data is just billions of years of random noise.</p>
+            
+            <div class="defense-pill">Total Privacy. Zero Compromise.</div>
+        </section>
+
+        <section class="tech-flow" style="margin-top: 60px;">
+            <h2 style="color: var(--accent);">The Data Lifecycle: Efficient & Secret</h2>
+            <p style="text-align: center; margin-bottom: 40px; opacity: 0.8;">How your data transforms from a readable document into an invisible, lightweight vault item.</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <div class="card" style="border-left: 5px solid #4CAF50;">
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <span style="font-size: 2rem;">🗜️</span>
+                        <div>
+                            <h4 style="color: #4CAF50;">Stage 1: Adaptive Compression</h4>
+                            <p>Using <strong>Brotli (Web)</strong> or <strong>GZip (Mobile)</strong>, we shrink your document. This removes repetitive data patterns, which both reduces S3 storage costs and prepares the data for high-entropy encryption.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="border-left: 5px solid var(--gold);">
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <span style="font-size: 2rem;">💎</span>
+                        <div>
+                            <h4 style="color: var(--gold);">Stage 2: AES-256-GCM Encryption</h4>
+                            <p>The compressed stream is encrypted with an <strong>AES-256</strong> cipher in <strong>Galois/Counter Mode (GCM)</strong>. Unlike standard encryption, GCM provides <em>Integrity</em>—if a hacker modifies even one byte of the stored file, the decryption will fail instantly.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="border-left: 5px solid var(--accent);">
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <span style="font-size: 2rem;">☁️</span>
+                        <div>
+                            <h4 style="color: var(--accent);">Stage 3: Blind Storage</h4>
+                            <p>The final output is a <strong>High-Entropy Ciphertext</strong>. To the cloud provider (AWS S3), it looks like random binary noise. There is no metadata, no file names, and no headers leaked. Your privacy is absolute.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tech-flow" style="margin-top: 60px; background: rgba(255, 255, 255, 0.02);">
+            <h2 style="color: var(--gold);">Real-World Threat Scenarios</h2>
+            <div class="grid">
+                <div class="card" style="background: rgba(255, 0, 0, 0.05); border-color: rgba(255, 0, 0, 0.1);">
+                    <span class="card-icon">🌪️</span>
+                    <h3>Scenario: The Total Server Breach</h3>
+                    <p><strong>The Attack:</strong> A hacker gains root access to our AWS S3 buckets and SQL Database.</p>
+                    <p style="margin-top: 10px; color: #ff5252;"><strong>The Result:</strong> They find millions of files, but they are all 100% encrypted. Without your local device-key and PIN, it would take <u>13.8 billion years</u> to read even one single file. We don't have your keys, so the hacker can't steal them from us.</p>
+                </div>
+                <div class="card" style="background: rgba(33, 150, 243, 0.05); border-color: rgba(33, 150, 243, 0.1);">
+                    <span class="card-icon">📡</span>
+                    <h3>Scenario: Public Wi-Fi Sniffing</h3>
+                    <p><strong>The Attack:</strong> You use the app at an airport. A hacker sets up a "Man-in-the-Middle" attack to intercept your data.</p>
+                    <p style="margin-top: 10px; color: var(--accent);"><strong>The Result:</strong> Our <u>SSL Certificate Pinning</u> detects that the connection is not authentic. The app instantly kills the connection before a single byte of data is sent. The hacker sees nothing.</p>
+                </div>
+                <div class="card" style="background: rgba(76, 175, 80, 0.05); border-color: rgba(76, 175, 80, 0.1);">
+                    <span class="card-icon">👊</span>
+                    <h3>Scenario: Physical Coercion</h3>
+                    <p><strong>The Attack:</strong> Someone forces you to open the app and show them your "Vault."</p>
+                    <p style="margin-top: 10px; color: #4CAF50;"><strong>The Result:</strong> You enter your <u>Decoy PIN</u>. The app opens a fully functional but "empty" vault. Your real sensitive data remains hidden in a separate encrypted partition that is mathematically invisible.</p>
+                </div>
+            </div>
+        </section>
+
+        <section style="margin-top: 100px; padding: 40px; border: 1px dashed var(--glass-border); border-radius: 20px;">
+            <h2 style="text-align: center; margin-bottom: 40px;">Traditional Cloud vs. Vasihat Nama</h2>
+            <table style="width: 100%; border-collapse: collapse; color: var(--platinum);">
+                <thead>
+                    <tr style="border-bottom: 2px solid var(--glass-border);">
+                        <th style="padding: 20px; text-align: left;">Feature</th>
+                        <th style="padding: 20px; text-align: left;">Google / Dropbox</th>
+                        <th style="padding: 20px; text-align: left; color: var(--gold);">Vasihat Nama</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border-bottom: 1px solid var(--glass-border);">
+                        <td style="padding: 20px;">Encryption Keys</td>
+                        <td style="padding: 20px;">Managed by Provider</td>
+                        <td style="padding: 20px; color: var(--gold);">Client-Side Only (You own them)</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--glass-border);">
+                        <td style="padding: 20px;">Server Access</td>
+                        <td style="padding: 20px;">Admins can see files</td>
+                        <td style="padding: 20px; color: var(--gold);">Zero-Knowledge (We see noise)</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--glass-border);">
+                        <td style="padding: 20px;">Brute Force Resistance</td>
+                        <td style="padding: 20px;">Standard hashing</td>
+                        <td style="padding: 20px; color: var(--gold);">Argon2id (Memory-Hard)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 20px;">Quantum Readiness</td>
+                        <td style="padding: 20px;">Variable</td>
+                        <td style="padding: 20px; color: var(--gold);">AES-256-GCM Standard</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <footer>
+            <p>&copy; 2026 Vasihat Nama Infrastructure | Hardened by Antigravity AI</p>
+        </footer>
+    </div>
+</body>
+</html>

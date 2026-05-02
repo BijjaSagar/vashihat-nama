@@ -7,8 +7,11 @@ import 'screens/login_screen.dart';
 import 'services/notification_service.dart';
 import 'services/background_alarm_service.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   
   // Firebase init with error handling - don't let it block app startup
   try {
@@ -43,7 +46,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Eversafe',
+      title: 'Ever Keep',
       theme: AppTheme.darkTheme, // Apply the new Dark Theme
       home: const SecureLoginScreen(), // Start with the new Secure Login Screen
     );

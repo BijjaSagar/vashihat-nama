@@ -77,6 +77,15 @@ CREATE TABLE IF NOT EXISTS vault_items (
 CREATE INDEX IF NOT EXISTS idx_vault_items_user_folder ON vault_items (user_id, folder_id);
 CREATE INDEX IF NOT EXISTS idx_vault_items_type ON vault_items (item_type);
 
+-- 4b. Vault Item Nominees Junction Table
+CREATE TABLE IF NOT EXISTS vault_item_nominees (
+  id SERIAL PRIMARY KEY,
+  vault_item_id INTEGER REFERENCES vault_items(id) ON DELETE CASCADE,
+  nominee_id INTEGER REFERENCES nominees(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(vault_item_id, nominee_id)
+);
+
 -- 5. Nominees Table
 CREATE TABLE IF NOT EXISTS nominees (
   id SERIAL PRIMARY KEY,

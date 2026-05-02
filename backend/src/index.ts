@@ -9,9 +9,15 @@ import jwt from 'jsonwebtoken';
 import { initDb } from './db';
 import db from './db';
 import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// --- SENTINEL LOCKDOWN STATE ---
+let isSystemLocked = false;
+let suspiciousActivityCount = 0;
+const LOCKDOWN_THRESHOLD = 50; // Auto-lock after 50 suspicious events
 
 // ─── CORS (restrict to known origins) ──────────────────────────────────────
 const allowedOrigins = [
@@ -41,14 +47,61 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 // Use absolute path for static files — required for Vercel serverless
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+// ─── SENTINEL LOCKDOWN MIDDLEWARE ──────────────────────────────────────────
+const lockdownMiddleware = (req: any, res: any, next: any) => {
+    // Exempt admin routes so we can unlock the system
+    if (isSystemLocked && !req.path.includes('/admin')) {
+        return res.status(503).json({ 
+            success: false, 
+            error: 'SENTINEL LOCKDOWN ACTIVE: System is in a security freeze. Access denied.' 
+        });
+    }
+    next();
+};
+app.use(lockdownMiddleware);
+
 // ─── Credentials from environment variables (never hardcode secrets) ────────
 const HSP_SMS_USERNAME  = process.env.HSP_SMS_USERNAME  || '';
 const HSP_SMS_SENDER_ID = process.env.HSP_SMS_SENDER_ID || 'DASSAM';
 const HSP_SMS_TYPE      = process.env.HSP_SMS_TYPE      || 'TRANS';
 const HSP_SMS_API_KEY   = process.env.HSP_SMS_API_KEY   || '';
 const OPENAI_API_KEY    = process.env.OPENAI_API_KEY    || '';
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const JWT_SECRET        = process.env.JWT_SECRET        || 'fallback_dev_secret_change_me';
 const JWT_EXPIRES_IN    = process.env.JWT_EXPIRES_IN    || '7d';
+
+/**
+ * Helper to call the best available AI (Anthropic > OpenAI)
+ */
+async function callAI({ system, user, json = false }: { system: string, user: string, json?: boolean }) {
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    const openaiKey = process.env.OPENAI_API_KEY;
+
+    if (anthropicKey) {
+        const anthropic = new Anthropic({ apiKey: anthropicKey });
+        const msg = await anthropic.messages.create({
+            model: "claude-3-5-sonnet-20240620",
+            max_tokens: 4096,
+            system: json ? `${system}\nReturn ONLY a valid JSON object.` : system,
+            messages: [{ role: "user", content: user }],
+        });
+        const content = msg.content[0].type === 'text' ? msg.content[0].text : '';
+        return json ? JSON.parse(content || '{}') : content;
+    } else if (openaiKey) {
+        const openai = new OpenAI({ apiKey: openaiKey });
+        const completion = await openai.chat.completions.create({
+            messages: [
+                { role: "system", content: system },
+                { role: "user", content: user }
+            ],
+            model: "gpt-4-turbo-preview",
+            response_format: json ? { type: "json_object" } : undefined,
+        });
+        const content = completion.choices[0].message.content || (json ? '{}' : '');
+        return json ? JSON.parse(content) : content;
+    }
+    throw new Error("No AI API Keys found.");
+}
 
 // ─── JWT Auth Middleware ─────────────────────────────────────────────────────
 // Apply to any route that should require a logged-in user.
@@ -817,6 +870,35 @@ app.post('/api/users/register', async (req, res) => {
     }
 });
 
+// --- Get User Profile ---
+app.get('/api/users/profile', async (req, res) => {
+    const { user_id } = req.query;
+    try {
+        const result = await db.query(
+            'SELECT id, mobile_number, name, email, created_at FROM users WHERE id = $1',
+            [user_id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch profile' });
+    }
+});
+
+// --- Update User Profile ---
+app.post('/api/users/profile/update', async (req, res) => {
+    const { userId, name, email } = req.body;
+    try {
+        const result = await db.query(
+            'UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING *',
+            [name, email, userId]
+        );
+        res.json({ success: true, user: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update profile' });
+    }
+});
+
 // 1. Send OTP
 app.post('/api/send_otp', async (req, res) => {
     const { mobile, purpose = 'login' } = req.body;
@@ -1517,6 +1599,7 @@ const checkAdmin = async (req: any, res: any, next: any) => {
     const secret = req.headers['x-admin-secret'] || req.query?.admin_secret || req.body?.admin_secret;
     const userId = req.query?.admin_id || req.body?.admin_id;
     const cronSecret = req.headers.authorization?.replace('Bearer ', '');
+
     const isVercelCron = process.env.CRON_SECRET && cronSecret === process.env.CRON_SECRET;
 
     if ((secret && secret.toString().trim() === ADMIN_SECRET.trim()) || isVercelCron) {
@@ -1780,59 +1863,19 @@ app.get('/api/migrate', checkAdmin, async (req, res) => {
 // AI Generation Endpoint
 app.post('/api/regional/generate-ai', async (req, res) => {
     const { country_code, country_name } = req.body;
-    const apiKey = OPENAI_API_KEY;
-
-    if (!apiKey) {
-        res.status(500).json({ error: 'AI API Key not configured on server' });
-        return;
-    }
 
     if (!country_name) {
-        res.status(400).json({ error: 'Country name is required' });
-        return;
+        return res.status(400).json({ error: 'Country name is required' });
     }
 
     try {
-        const openai = new OpenAI({ apiKey: apiKey });
-
-        const prompt = `Generate a comprehensive legal document checklist for inheritance, succession, and estate planning specifically for a resident of ${country_name}. 
+        const system = "You are a legal advisor specializing in global estate planning.";
+        const user = `Generate a comprehensive legal document checklist for inheritance, succession, and estate planning specifically for a resident of ${country_name}. 
         Focus on local laws (e.g., Hindu Succession Act in India, Probate laws in US/UK). 
-        Return ONLY a JSON object with a key "documents" containing an array. 
-        Each object must have: 
-        1. "document_name": Title of the document.
-        2. "description": A short explanation of why it is needed under local law.
-        3. "is_mandatory": boolean (true if legally required for most citizens).
-        4. "category": one of (Identity, Financial, Real Estate, Personal).
-        
-        Ensure the output is strictly valid JSON.`;
+        Format as a JSON array of objects with: 'document_name', 'description', 'is_mandatory' (bool).`;
 
-        const completion = await openai.chat.completions.create({
-            messages: [{ role: "system", content: "You are a helpful legal assistant." }, { role: "user", content: prompt }],
-            model: "gpt-3.5-turbo",
-            response_format: { type: "json_object" },
-        });
-
-        const text = completion.choices[0].message.content || "[]";
-
-        let checklistWithWrapper;
-        let checklist;
-        try {
-            checklistWithWrapper = JSON.parse(text);
-            // OpenAI in json_object mode usually returns { "some_key": [...] } if not strictly prompted for just array, or sometimes just array if strict schema. 
-            // It's safer to handle both.
-            if (Array.isArray(checklistWithWrapper)) {
-                checklist = checklistWithWrapper;
-            } else if (checklistWithWrapper.documents) {
-                checklist = checklistWithWrapper.documents;
-            } else {
-                // Try to find any array in values
-                const val = Object.values(checklistWithWrapper).find(v => Array.isArray(v));
-                checklist = val || [];
-            }
-        } catch (e) {
-            console.error("JSON Parse Error on AI Output:", text);
-            throw new Error("AI returned invalid JSON structure");
-        }
+        const result = await callAI({ system, user, json: true });
+        const checklist = Array.isArray(result) ? result : (result.checklist || result.documents || []);
 
         // Save to DB so we don't have to generate again
         for (const item of checklist) {
@@ -1847,7 +1890,7 @@ app.post('/api/regional/generate-ai', async (req, res) => {
         res.json({ success: true, checklist });
     } catch (error) {
         console.error("AI Generation error:", error);
-        res.status(500).json({ error: 'AI failed to generate checklist', details: String(error) });
+        res.status(500).json({ error: 'AI generation failed', details: String(error) });
     }
 });
 
@@ -1956,19 +1999,8 @@ app.get('/api/users/:id/subscription', async (req, res) => {
 // AI ASSISTANT API
 app.post('/api/ai/chat', async (req, res) => {
     const { message, history } = req.body;
-    const apiKey = OPENAI_API_KEY;
-
-    if (!apiKey) {
-        res.status(500).json({ error: 'AI API Key not configured' });
-        return;
-    }
 
     try {
-        const openai = new OpenAI({ apiKey: apiKey });
-
-        // Convert history format 
-        // Flutter history: [{role: 'user', parts: [{text: '...'}]}, {role: 'model', parts: [{text: '...'}]}]
-        // OpenAI format: [{role: 'user', content: '...'}, {role: 'assistant', content: '...'}]
         const messages: any[] = [
             { role: "system", content: "You are the Vasihat Nama Legal Assistant. Your goal is to help users with inheritance, wills, succession laws, and estate planning. Be professional, empathetic, and clear. Always advise users that your guidance is for informational purposes and they should consult a real lawyer for final legal documents." }
         ];
@@ -1992,13 +2024,13 @@ app.post('/api/ai/chat', async (req, res) => {
         // Add current message
         messages.push({ role: "user", content: message });
 
-        const completion = await openai.chat.completions.create({
-            messages: messages,
-            model: "gpt-3.5-turbo",
+        // Use unified AI caller (prefers Claude 3.5 Sonnet)
+        const aiResponse = await callAI({
+            system: messages[0].content,
+            user: messages.slice(1).map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n')
         });
 
-        const reply = completion.choices[0].message.content;
-        res.json({ success: true, reply: reply });
+        res.json({ success: true, message: aiResponse, reply: aiResponse });
     } catch (error) {
         console.error("Chat error:", error);
         res.status(500).json({ error: 'Failed to get AI response' });
@@ -2008,7 +2040,6 @@ app.post('/api/ai/chat', async (req, res) => {
 // AI 1: Classify Document (from OCR)
 app.post('/api/ai/classify', async (req, res) => {
     const { text } = req.body;
-    const apiKey = OPENAI_API_KEY;
 
     if (!text) {
         res.status(400).json({ error: 'Text required' });
@@ -2016,17 +2047,11 @@ app.post('/api/ai/classify', async (req, res) => {
     }
 
     try {
-        const openai = new OpenAI({ apiKey: apiKey });
-        const completion = await openai.chat.completions.create({
-            messages: [
-                { role: "system", content: "You are a document classifier. Analyze the text and suggest a 'category' (e.g. Financial, Legal, ID, Personal) and a 'title'." },
-                { role: "user", content: `Classify this document text:\n${text.substring(0, 1000)}` }
-            ],
-            model: "gpt-3.5-turbo",
-            response_format: { type: "json_object" },
+        const result = await callAI({
+            system: "You are a legal document classifier. Categorize the document text.",
+            user: `Classify this document text and return JSON with: 'doc_type' (WILL, PROPERTY_DEED, IDENTITY, FINANCIAL, OTHER), 'confidence' (0-1), 'summary' (brief string).\nText: ${text.substring(0, 5000)}`,
+            json: true
         });
-
-        const result = JSON.parse(completion.choices[0].message.content || '{}');
         res.json({ success: true, classification: result });
     } catch (error) {
         res.status(500).json({ error: 'Classification failed' });
@@ -2036,20 +2061,14 @@ app.post('/api/ai/classify', async (req, res) => {
 // AI 2: Conflict Check (User's Will Draft)
 app.post('/api/ai/conflict-check', async (req, res) => {
     const { will_text } = req.body;
-    const apiKey = OPENAI_API_KEY;
 
     try {
-        const openai = new OpenAI({ apiKey: apiKey });
-        const completion = await openai.chat.completions.create({
-            messages: [
-                { role: "system", content: "You are a legal conflict detector. Check the user's will for contradictions (e.g. giving same item to two people). Return JSON with 'has_conflict' (boolean) and 'issues' (array of strings)." },
-                { role: "user", content: `Check this will for conflicts:\n${will_text}` }
-            ],
-            model: "gpt-3.5-turbo",
-            response_format: { type: "json_object" },
+        const result = await callAI({
+            system: "You are a legal conflict detector. Check the user's will for contradictions (e.g. giving same item to two people). Return JSON with 'has_conflict' (boolean) and 'issues' (array of strings).",
+            user: `Check this will for conflicts:\n${will_text}`,
+            json: true
         });
 
-        const result = JSON.parse(completion.choices[0].message.content || '{}');
         res.json({ success: true, conflict_check: result });
     } catch (error) {
         res.status(500).json({ error: 'Conflict check failed' });
@@ -2059,20 +2078,14 @@ app.post('/api/ai/conflict-check', async (req, res) => {
 // AI 3: Tone Analysis (For Personal Messages)
 app.post('/api/ai/analyze-tone', async (req, res) => {
     const { message } = req.body;
-    const apiKey = OPENAI_API_KEY;
 
     try {
-        const openai = new OpenAI({ apiKey: apiKey });
-        const completion = await openai.chat.completions.create({
-            messages: [
-                { role: "system", content: "Analyze the emotional tone of this message. If it sounds angry, confusing, or too harsh for a final message, suggest a softer version. Return JSON with 'tone' (string), 'is_harsh' (boolean), and 'suggestion' (string if harsh, else null)." },
-                { role: "user", content: `Analyze the tone:\n${message}` }
-            ],
-            model: "gpt-3.5-turbo",
-            response_format: { type: "json_object" },
+        const result = await callAI({
+            system: "Analyze the emotional tone of this message. If it sounds angry, confusing, or too harsh for a final message, suggest a softer version. Return JSON with 'tone' (string), 'is_harsh' (boolean), and 'suggestion' (string if harsh, else null).",
+            user: `Analyze the tone:\n${message}`,
+            json: true
         });
 
-        const result = JSON.parse(completion.choices[0].message.content || '{}');
         res.json({ success: true, analysis: result });
     } catch (error) {
         res.status(500).json({ error: 'Tone analysis failed' });
@@ -2192,7 +2205,6 @@ app.get('/api/migrate-v3', checkAdmin, async (req, res) => {
 // ============================================
 app.get('/api/vault-health', async (req, res) => {
     const { user_id } = req.query;
-    const apiKey = OPENAI_API_KEY;
 
     try {
         // Gather user data
@@ -2311,21 +2323,14 @@ app.delete('/api/video-wills/:id', async (req, res) => {
     }
 });
 
-// AI Summarize Video Transcript
 app.post('/api/video-wills/summarize', async (req, res) => {
     const { transcript } = req.body;
-    const apiKey = OPENAI_API_KEY;
     try {
-        const openai = new OpenAI({ apiKey });
-        const completion = await openai.chat.completions.create({
-            messages: [
-                { role: "system", content: "Summarize this personal video will transcript into key points. Be respectful and empathetic. Return JSON with 'summary' (string) and 'key_points' (array of strings)." },
-                { role: "user", content: transcript }
-            ],
-            model: "gpt-3.5-turbo",
-            response_format: { type: "json_object" },
+        const result = await callAI({
+            system: "Summarize this personal video will transcript into key points. Be respectful and empathetic. Return JSON with 'summary' (string) and 'key_points' (array of strings).",
+            user: transcript,
+            json: true
         });
-        const result = JSON.parse(completion.choices[0].message.content || '{}');
         res.json({ success: true, ...result });
     } catch (error) {
         res.status(500).json({ error: 'Summarization failed' });
@@ -2337,34 +2342,19 @@ app.post('/api/video-wills/summarize', async (req, res) => {
 // ============================================
 app.post('/api/asset-discovery/generate', async (req, res) => {
     const { user_id, country, age_group, occupation } = req.body;
-    const apiKey = OPENAI_API_KEY;
 
     try {
-        // Get existing vault items to avoid duplication
         const existing = await db.query('SELECT item_type, title FROM vault_items WHERE user_id = $1', [user_id]);
         const existingTitles = existing.rows.map((r: any) => r.title).join(', ');
 
-        const openai = new OpenAI({ apiKey });
-        const completion = await openai.chat.completions.create({
-            messages: [
-                { role: "system", content: "You are a financial asset discovery assistant. Generate a personalized checklist of assets and documents a person should store in their digital vault for estate planning." },
-                {
-                    role: "user", content: `Generate asset discovery checklist for:
-Country: ${country || 'India'}
-Age Group: ${age_group || '30-50'}
-Occupation: ${occupation || 'Professional'}
-Already stored: ${existingTitles || 'None'}
-
-Return JSON with 'assets' array. Each item: { "category": string (Financial/Property/Insurance/Digital/Personal/Legal), "asset_name": string, "priority": "high"|"medium"|"low", "suggestion": string (why they should add this) }. Generate 15-20 items.` }
-            ],
-            model: "gpt-3.5-turbo",
-            response_format: { type: "json_object" },
+        const result = await callAI({
+            system: "You are a financial asset discovery assistant. Generate a personalized checklist of assets and documents for estate planning. Return JSON with 'assets' array. Each item: { 'category': string, 'asset_name': string, 'priority': string, 'suggestion': string }.",
+            user: `Generate asset discovery checklist for:\nCountry: ${country || 'India'}\nAge: ${age_group || '30-50'}\nOccupation: ${occupation || 'Professional'}\nAlready stored: ${existingTitles || 'None'}`,
+            json: true
         });
 
-        const parsed = JSON.parse(completion.choices[0].message.content || '{}');
-        const assets = parsed.assets || [];
+        const assets = result.assets || [];
 
-        // Save to DB
         for (const asset of assets) {
             await db.query(
                 `INSERT INTO asset_discovery (user_id, category, asset_name, priority, ai_suggestion) 
@@ -2469,7 +2459,6 @@ app.get('/api/nominee-readiness', async (req, res) => {
 // ============================================
 app.get('/api/estate-summary', async (req, res) => {
     const { user_id } = req.query;
-    const apiKey = OPENAI_API_KEY;
 
     try {
         // Gather all user data
@@ -2489,18 +2478,12 @@ app.get('/api/estate-summary', async (req, res) => {
             smart_docs: smartDocs.rows,
         };
 
-        // AI-generated summary
-        const openai = new OpenAI({ apiKey });
-        const completion = await openai.chat.completions.create({
-            messages: [
-                { role: "system", content: "You are an estate planning advisor. Generate a professional, empathetic estate summary report. Return JSON with: 'executive_summary' (2-3 paragraph overview), 'strengths' (array of strings), 'risks' (array of strings), 'recommendations' (array of strings), 'estate_value_assessment' (qualitative assessment string)." },
-                { role: "user", content: `Generate estate summary for: ${JSON.stringify(summary_data)}` }
-            ],
-            model: "gpt-3.5-turbo",
-            response_format: { type: "json_object" },
+        // AI-generated summary using unified helper
+        const aiSummary = await callAI({
+            system: "You are an estate planning advisor. Generate a professional, empathetic estate summary report.",
+            user: `Generate estate summary for: ${JSON.stringify(summary_data)}`,
+            json: true
         });
-
-        const aiSummary = JSON.parse(completion.choices[0].message.content || '{}');
 
         res.json({
             success: true,
@@ -2525,6 +2508,16 @@ app.get('/api/estate-summary', async (req, res) => {
 // ============================================
 app.post('/api/activity-log', async (req, res) => {
     const { user_id, action, device_info, ip_address, details } = req.body;
+    
+    // --- SENTINEL AUTO-LOCK TRIGGER ---
+    if (action === 'TAMPER_DETECTED' || action === 'INTEGRITY_BREACH' || action === 'SUSPICIOUS_LOGIN') {
+        suspiciousActivityCount++;
+        if (suspiciousActivityCount >= LOCKDOWN_THRESHOLD) {
+            isSystemLocked = true;
+            console.log("!!! SENTINEL AUTO-LOCK TRIGGERED !!!");
+        }
+    }
+
     try {
         // Check for anomalies
         let is_suspicious = false;
@@ -2568,6 +2561,22 @@ app.get('/api/activity-log', async (req, res) => {
         if (suspicious_only === 'true') query += ' AND is_suspicious = TRUE';
         query += ' ORDER BY created_at DESC LIMIT 50';
         const result = await db.query(query, [user_id]);
+        const logs = result.rows.map((log: any) => {
+            let description = 'Interaction recorded';
+            const details = log.details || {};
+            
+            switch(log.action) {
+                case 'VAULT_ACCESS': description = `Vault accessed via ${details.method || 'login'}`; break;
+                case 'BIOMETRIC_ACCESS': description = 'Vault unlocked using biometrics'; break;
+                case 'FILE_UPLOAD': description = `Uploaded file: ${details.fileName || 'document'}`; break;
+                case 'NOMINEE_ADDED': description = `Added nominee: ${details.nomineeName || 'New Nominee'}`; break;
+                case 'ARTIFACT_VIEWED': description = `Viewed item in folder: ${details.folderName || 'General'}`; break;
+                case 'FOLDER_CREATED': description = `Created folder: ${details.folderName || 'New Folder'}`; break;
+                case 'EMERGENCY_SYNC': description = 'Emergency contact metrics synchronized'; break;
+            }
+
+            return { ...log, description };
+        });
 
         const suspiciousCount = await db.query(
             'SELECT COUNT(*) as count FROM activity_logs WHERE user_id = $1 AND is_suspicious = TRUE',
@@ -2576,7 +2585,7 @@ app.get('/api/activity-log', async (req, res) => {
 
         res.json({
             success: true,
-            logs: result.rows,
+            logs,
             suspicious_count: parseInt(suspiciousCount.rows[0].count)
         });
     } catch (error) {
@@ -2589,38 +2598,18 @@ app.get('/api/activity-log', async (req, res) => {
 // ============================================
 app.post('/api/ai/grief-support', async (req, res) => {
     const { message, history, nominee_name, deceased_name } = req.body;
-    const apiKey = OPENAI_API_KEY;
 
     try {
-        const openai = new OpenAI({ apiKey });
-        const messages: any[] = [
-            {
-                role: "system", content: `You are a compassionate grief support assistant for Vasihat Nama, a digital legacy app. A person named ${nominee_name || 'the nominee'} has just received access to the digital vault of ${deceased_name || 'their loved one'} who is no longer able to manage their assets. 
+        const system = `You are a compassionate grief support assistant for Vasihat Nama, a digital legacy app. A person named ${nominee_name || 'the nominee'} has just received access to the digital vault of ${deceased_name || 'their loved one'}.
+        Be extremely gentle, empathetic, and supportive. Guide them through understanding what they've received. Acknowledge their emotions before giving practical advice.`;
 
-Your role is to:
-1. Be extremely gentle, empathetic, and supportive
-2. Guide them through understanding what they've received
-3. Help them with next legal steps (claiming accounts, filing succession certificates)
-4. Never be clinical or cold — use warm, human language
-5. Acknowledge their emotions before giving practical advice
-6. If they seem distressed, recommend professional grief counseling resources
-
-Always start with empathy before any practical guidance.` }
-        ];
-
-        if (history && Array.isArray(history)) {
-            history.forEach((h: any) => {
-                messages.push({ role: h.role === 'model' ? 'assistant' : h.role, content: h.content || h.parts?.[0]?.text || '' });
-            });
-        }
-        messages.push({ role: "user", content: message });
-
-        const completion = await openai.chat.completions.create({
-            messages,
-            model: "gpt-3.5-turbo",
+        const reply = await callAI({
+            system,
+            user: message,
+            json: false
         });
 
-        res.json({ success: true, reply: completion.choices[0].message.content });
+        res.json({ success: true, reply });
     } catch (error) {
         console.error('Grief support error:', error);
         res.status(500).json({ error: 'Failed to get response' });
@@ -2646,20 +2635,14 @@ app.post('/api/legal-documents/generate', async (req, res) => {
     };
 
     try {
-        const openai = new OpenAI({ apiKey });
         const docTitle = docTypes[doc_type] || doc_type;
         const lang = language || 'en';
         const langName = lang === 'hi' ? 'Hindi' : lang === 'ur' ? 'Urdu' : lang === 'ar' ? 'Arabic' : 'English';
 
-        const completion = await openai.chat.completions.create({
-            messages: [
-                { role: "system", content: `You are a legal document drafter for estate planning. Generate a professional, legally-structured ${docTitle} document in ${langName}. Use proper legal formatting with sections, clauses, and signature blocks. Include placeholders in [BRACKETS] for information the user needs to fill in.` },
-                { role: "user", content: `Generate a ${docTitle} with these details:\n${JSON.stringify(user_details || {})}` }
-            ],
-            model: "gpt-3.5-turbo",
+        const content = await callAI({
+            system: `You are a legal document drafter for estate planning. Generate a professional, legally-structured ${docTitle} document in ${langName}. Use proper legal formatting with sections, clauses, and signature blocks. Include placeholders in [BRACKETS] for information the user needs to fill in.`,
+            user: `Generate a ${docTitle} with these details:\n${JSON.stringify(user_details || {})}`
         });
-
-        const content = completion.choices[0].message.content || '';
 
         // Save to DB
         const result = await db.query(
@@ -2701,21 +2684,15 @@ app.delete('/api/legal-documents/:id', async (req, res) => {
 // ============================================
 app.post('/api/ai/translate', async (req, res) => {
     const { text, target_language } = req.body;
-    const apiKey = OPENAI_API_KEY;
-
     const langMap: any = { 'hi': 'Hindi', 'ur': 'Urdu', 'ar': 'Arabic', 'en': 'English', 'bn': 'Bengali', 'te': 'Telugu', 'mr': 'Marathi', 'ta': 'Tamil', 'gu': 'Gujarati' };
 
     try {
-        const openai = new OpenAI({ apiKey });
-        const completion = await openai.chat.completions.create({
-            messages: [
-                { role: "system", content: `Translate the following text to ${langMap[target_language] || target_language}. Maintain the original meaning and tone. If it's a legal document, use appropriate legal terminology in the target language.` },
-                { role: "user", content: text }
-            ],
-            model: "gpt-3.5-turbo",
+        const result = await callAI({
+            system: `Translate the following text to ${langMap[target_language] || target_language}. Maintain original meaning and tone.`,
+            user: text,
+            json: false
         });
-
-        res.json({ success: true, translated_text: completion.choices[0].message.content });
+        res.json({ success: true, translated_text: result });
     } catch (error) {
         res.status(500).json({ error: 'Translation failed' });
     }
@@ -2761,6 +2738,42 @@ app.get('/api/emergency-card', async (req, res) => {
 
 // Middleware to check admin access (using unified checkAdmin)
 const isAdmin = checkAdmin;
+
+/**
+ * POST /api/admin/system/lockdown
+ * Manual kill-switch to freeze the entire system.
+ */
+app.post('/api/admin/system/lockdown', async (req, res) => {
+    const { secret, status } = req.body;
+    const ADMIN_SECRET = process.env.ADMIN_SECRET || 'secure_admin_123';
+
+    if (secret !== ADMIN_SECRET) {
+        return res.status(403).json({ success: false, error: 'Unauthorized security clearance required.' });
+    }
+
+    isSystemLocked = status ?? !isSystemLocked;
+    res.json({ 
+        success: true, 
+        isSystemLocked, 
+        message: isSystemLocked ? 'SENTINEL PROTOCOL: System Frozen.' : 'SENTINEL PROTOCOL: System Resumed.' 
+    });
+});
+
+/**
+ * GET /api/admin/system/ai-health
+ * Check if AI keys are correctly initialized in the environment.
+ */
+app.get('/api/admin/system/ai-health', async (req, res) => {
+    res.json({
+        success: true,
+        sentinel_intelligence: {
+            anthropic_active: !!process.env.ANTHROPIC_API_KEY,
+            openai_active: !!process.env.OPENAI_API_KEY,
+            sms_gateway_active: !!process.env.HSP_SMS_API_KEY,
+        },
+        notice: "If keys show as false, ensure you have 'Redeployed' the project on Vercel after adding the environment variables."
+    });
+});
 
 // 1. Get Global Stats
 app.get('/api/admin/stats', isAdmin, async (req, res) => {

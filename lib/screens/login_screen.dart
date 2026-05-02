@@ -2,14 +2,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
-import 'dashboard_screen.dart';
+import 'main_navigation_shell.dart';
 import 'register_screen.dart';
 import '../services/api_service.dart';
 import 'package:local_auth/local_auth.dart';
+
 class SecureLoginScreen extends StatefulWidget {
-  const SecureLoginScreen({Key? key}) : super(key: key);
+  const SecureLoginScreen({super.key});
 
   @override
   _SecureLoginScreenState createState() => _SecureLoginScreenState();
@@ -21,8 +21,6 @@ class _SecureLoginScreenState extends State<SecureLoginScreen> {
   
   bool _otpSent = false;
   bool _isLoading = false;
-
-  // Biometric Auth Instance
   final LocalAuthentication _auth = LocalAuthentication();
 
   @override
@@ -38,45 +36,44 @@ class _SecureLoginScreenState extends State<SecureLoginScreen> {
     if (userProfileStr != null) {
       bool authenticated = false;
       try {
-        final bool canAuthenticateWithBiometrics = await _auth.canCheckBiometrics;
-        final bool canAuthenticate = canAuthenticateWithBiometrics || await _auth.isDeviceSupported();
-
+        final bool canAuthenticate = await _auth.canCheckBiometrics || await _auth.isDeviceSupported();
         if (canAuthenticate) {
           authenticated = await _auth.authenticate(
-            localizedReason: 'Scan Fingerprint/Face to unlock your Vault',
-            sensitiveTransaction: true,
-            persistAcrossBackgrounding: true,
-            biometricOnly: false,
+            localizedReason: 'SCAN BIOMETRICS TO UNLOCK SENTINEL VAULT',
           );
         } else {
-          // If no bio on device, skip or force OTP? 
-          // Skipping is fine since they verified OTP previously.
           authenticated = true; 
         }
       } catch (e) {
-        debugPrint("Biometric error: $e");
         authenticated = false; 
       }
 
       if (authenticated && mounted) {
         final userProfile = jsonDecode(userProfileStr);
+        
+        // Log biometric login
+        try {
+          ApiService().logActivity(
+            userId: userProfile['id'],
+            action: 'BIOMETRIC_ACCESS',
+            details: {'method': 'biometric_unlock', 'timestamp': DateTime.now().toIso8601String()}
+          );
+        } catch (e) {
+          debugPrint("Logging failed: $e");
+        }
+
         Navigator.pushReplacement(
           context, 
-          MaterialPageRoute(builder: (context) => SecureDashboardScreen(
-            userProfile: userProfile
+          MaterialPageRoute(builder: (context) => MainNavigationShell(
+            userId: userProfile['id']
           ))
         );
       }
-      // If biometric fails, they remain on the login screen to fall back to OTP
     }
   }
 
   void _sendOTP() async {
-     if (_phoneController.text.length < 10) {
-       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Enter valid mobile number")));
-       return;
-     }
-
+    if (_phoneController.text.length < 10) return;
     setState(() => _isLoading = true);
     try {
       final res = await ApiService().sendOtp(_phoneController.text, 'login');
@@ -85,54 +82,41 @@ class _SecureLoginScreenState extends State<SecureLoginScreen> {
           _otpSent = true;
           _isLoading = false;
         });
-        if (res['debug_otp'] != null) {
-             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("DEV OTP: ${res['debug_otp']}")));
-        } else {
-             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("OTP Sent Successfully")));
-        }
-      } else {
-        throw Exception(res['message']);
       }
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      if (mounted) setState(() => _isLoading = false);
     }
   }
-
 
   void _verifyOTP() async {
     setState(() => _isLoading = true);
     try {
       final res = await ApiService().verifyOtp(_phoneController.text, _otpController.text, 'login');
-      
-      if (res['success'] == true) {
-         if (res['user'] != null) {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('userProfile', jsonEncode(res['user']));
-            // ✅ SECURITY FIX: Save the real JWT token for authenticated API calls
-            if (res['token'] != null) {
-              await prefs.setString('authToken', res['token']);
-            }
+      if (res['success'] == true && res['user'] != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userProfile', jsonEncode(res['user']));
+        if (res['token'] != null) await prefs.setString('authToken', res['token']);
 
-            if (!mounted) return;
-            Navigator.pushReplacement(
-              context, 
-              MaterialPageRoute(builder: (context) => SecureDashboardScreen(
-                userProfile: res['user']
-              ))
-            );
-         } else if (res['next_step'] == 'register') {
-            setState(() => _isLoading = false);
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Account not found. Please create simple vault first.")));
-         }
-      } else {
-        throw Exception(res['message']);
+        // Log successful login
+        try {
+          await ApiService().logActivity(
+            userId: res['user']['id'],
+            action: 'VAULT_ACCESS',
+            details: {'method': 'otp_verification', 'timestamp': DateTime.now().toIso8601String()}
+          );
+        } catch (e) {
+          debugPrint("Logging failed: $e");
+        }
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context, 
+            MaterialPageRoute(builder: (context) => MainNavigationShell(userId: res['user']['id']))
+          );
+        }
       }
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Login Failed: $e")));
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -140,122 +124,81 @@ class _SecureLoginScreenState extends State<SecureLoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: Container(
-        decoration: const BoxDecoration(
-          // Subtle Apple-like Mesh Gradient
-          gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFF2F2F7), 
-                Color(0xFFE5E5EA),
-                Color(0xFFF2F2F7),
-              ],
-              stops: [0.0, 0.5, 1.0],
-            ),
-        ),
+      body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 40.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Logo
-                const Icon(Icons.shield_rounded, size: 80, color: AppTheme.primaryColor),
-                const SizedBox(height: 20),
-                Text(
-                  "Eversafe",
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.5,
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentColor.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: AppTheme.accentColor.withOpacity(0.1)),
+                  ),
+                  child: const Icon(Icons.shield_rounded, size: 48, color: AppTheme.accentColor),
+                ),
+                const SizedBox(height: 48),
+                const Text("ACCESS GATEWAY", style: TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                const SizedBox(height: 12),
+                const Text("SENTINEL", style: TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.w900, letterSpacing: -1)),
+                const SizedBox(height: 64),
+                _buildInputLabel("SECURE MOBILE IDENTIFIER"),
+                _buildSlabTextField(
+                  controller: _phoneController,
+                  hint: "000 000 0000",
+                  enabled: !_otpSent,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
+                  icon: Icons.phone_android_rounded,
+                ),
+                if (_otpSent) ...[
+                  const SizedBox(height: 32),
+                  _buildInputLabel("AUTHORIZATION CODE"),
+                  _buildSlabTextField(
+                    controller: _otpController,
+                    hint: "000 000",
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
+                    icon: Icons.lock_open_rounded,
+                  ),
+                ],
+                const SizedBox(height: 64),
+                SizedBox(
+                  width: double.infinity,
+                  height: 64,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : (_otpSent ? _verifyOTP : _sendOTP),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accentColor,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    ),
+                    child: _isLoading 
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                      : Text(_otpSent ? "UNLOCK VAULT" : "REQUEST ACCESS CODE", style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1)),
                   ),
                 ),
-                Text(
-                  "Zero-Knowledge Secure Vault",
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 50),
-
-                // Glassmorphism Login Card
-                GlassCard(
-                  opacity: 0.96,
-                  blur: 8,
-                  color: Colors.white,
-                  borderColor: Colors.grey.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(24),
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    children: [
-                      _buildTextField(
-                        controller: _phoneController,
-                        icon: Icons.phone_android_rounded,
-                        hint: "Mobile Number",
-                        enabled: !_otpSent,
-                        keyboardType: TextInputType.phone,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(10),
+                const SizedBox(height: 40),
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen())),
+                    child: RichText(
+                      text: const TextSpan(
+                        text: "NEW USER? ",
+                        style: TextStyle(color: Colors.white10, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1),
+                        children: [
+                          TextSpan(
+                            text: "INITIALIZE SANCTUARY",
+                            style: TextStyle(color: AppTheme.accentColor, fontWeight: FontWeight.w900),
+                          ),
                         ],
                       ),
-                      if (_otpSent) ...[
-                        const SizedBox(height: 20),
-                        _buildTextField(
-                          controller: _otpController,
-                          icon: Icons.lock_outline,
-                          hint: "Enter OTP",
-                          obscure: false,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(6),
-                          ],
-                        ),
-                      ],
-                      const SizedBox(height: 30),
-                      
-                      // Login Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 55,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : (_otpSent ? _verifyOTP : _sendOTP),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: _isLoading 
-                            ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                            : Text(
-                                _otpSent ? "Verify & Unlock" : "Get OTP",
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(height: 30),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context, 
-                      MaterialPageRoute(builder: (context) => const RegisterScreen())
-                    );
-                  },
-                  child: const Text(
-                    "Create New Secure Vault",
-                    style: TextStyle(color: AppTheme.primaryColor),
+                    ),
                   ),
                 ),
               ],
@@ -266,34 +209,39 @@ class _SecureLoginScreenState extends State<SecureLoginScreen> {
     );
   }
 
-  Widget _buildTextField({
-    required IconData icon, 
+  Widget _buildInputLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 16),
+      child: Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+    );
+  }
+
+  Widget _buildSlabTextField({
+    required TextEditingController controller, 
     required String hint, 
-    bool obscure = false,
-    bool enabled = true,
-    TextEditingController? controller,
-    TextInputType keyboardType = TextInputType.text,
+    bool enabled = true, 
+    TextInputType keyboardType = TextInputType.text, 
     List<TextInputFormatter>? inputFormatters,
+    required IconData icon,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.1), // Light gray background for inputs
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        color: Colors.white.withOpacity(0.01),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: TextField(
         controller: controller,
-        obscureText: obscure,
         enabled: enabled,
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
-        style: const TextStyle(color: Colors.black87),
+        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 1),
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.grey),
+          prefixIcon: Icon(icon, color: AppTheme.accentColor.withOpacity(0.4), size: 18),
           hintText: hint,
-          hintStyle: const TextStyle(color: Colors.grey),
+          hintStyle: const TextStyle(color: Colors.white10, fontSize: 16, fontWeight: FontWeight.w800),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         ),
       ),
     );

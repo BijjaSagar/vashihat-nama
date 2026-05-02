@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import '../theme/glassmorphism.dart';
+import '../theme/app_theme.dart';
 import 'dart:math' as math;
 
 class VaultHealthScreen extends StatefulWidget {
   final int userId;
-  const VaultHealthScreen({Key? key, required this.userId}) : super(key: key);
+  const VaultHealthScreen({super.key, required this.userId});
 
   @override
   State<VaultHealthScreen> createState() => _VaultHealthScreenState();
@@ -33,132 +33,132 @@ class _VaultHealthScreenState extends State<VaultHealthScreen> with SingleTicker
   }
 
   Future<void> _loadData() async {
+    if (mounted) setState(() => _loading = true);
     try {
       final result = await _api.getVaultHealth(widget.userId);
-      setState(() {
-        _data = result;
-        _loading = false;
-        _scoreAnim = Tween<double>(begin: 0, end: (result['score'] ?? 0).toDouble()).animate(
-          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
-        );
-      });
-      _animController.forward();
+      if (mounted) {
+        setState(() {
+          _data = result;
+          _loading = false;
+          _scoreAnim = Tween<double>(begin: 0, end: (result['score'] ?? 0).toDouble()).animate(
+            CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+          );
+        });
+        _animController.forward(from: 0);
+      }
     } catch (e) {
-      setState(() => _loading = false);
-    }
-  }
-
-  Color _getScoreColor(double score) {
-    if (score >= 80) return const Color(0xFF4CAF50);
-    if (score >= 50) return const Color(0xFFFF9800);
-    return const Color(0xFFF44336);
-  }
-
-  Color _getPriorityColor(String priority) {
-    switch (priority) {
-      case 'high': return const Color(0xFFF44336);
-      case 'medium': return const Color(0xFFFF9800);
-      default: return const Color(0xFF2196F3);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F8),
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Vault Health', style: TextStyle(fontWeight: FontWeight.w700)),
-        backgroundColor: const Color(0xFF1A237E),
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.accentColor),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text("Vault Integrity", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.accentColor))
           : _data == null
-              ? const Center(child: Text('Failed to load'))
+              ? const Center(child: Text('INTEGRITY SYNC FAILED', style: TextStyle(color: Colors.white24)))
               : RefreshIndicator(
                   onRefresh: _loadData,
+                  color: AppTheme.accentColor,
+                  backgroundColor: AppTheme.backgroundColor,
                   child: ListView(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(24),
                     children: [
-                      _buildScoreCard(),
-                      const SizedBox(height: 20),
-                      _buildStatsRow(),
-                      const SizedBox(height: 24),
-                      const Text('🎯 Recommendations', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 12),
+                      _buildScoreSlab(),
+                      const SizedBox(height: 32),
+                      const Text("NODE STATISTICS", style: TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                      const SizedBox(height: 16),
+                      _buildStatsGrid(),
+                      const SizedBox(height: 48),
+                      const Text("PROTOCOL RECOMMENDATIONS", style: TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                      const SizedBox(height: 16),
                       ..._buildRecommendations(),
+                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
     );
   }
 
-  Widget _buildScoreCard() {
+  Widget _buildScoreSlab() {
     return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF1A237E), Color(0xFF3949AB)]),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: const Color(0xFF1A237E).withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))],
-      ),
+      padding: const EdgeInsets.all(40),
+      decoration: AppTheme.slabDecoration,
       child: Column(
         children: [
           AnimatedBuilder(
             animation: _scoreAnim,
             builder: (ctx, child) {
-              return SizedBox(
-                width: 160, height: 160,
-                child: CustomPaint(
-                  painter: _ScorePainter(_scoreAnim.value / 100, _getScoreColor(_scoreAnim.value)),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('${_scoreAnim.value.toInt()}%', style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w800)),
-                        const Text('Complete', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                      ],
+              final score = _scoreAnim.value;
+              final color = score >= 80 ? Colors.greenAccent : (score >= 50 ? Colors.orangeAccent : Colors.redAccent);
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 160, height: 160,
+                    child: CircularProgressIndicator(
+                      value: score / 100,
+                      strokeWidth: 4,
+                      color: color,
+                      backgroundColor: Colors.white.withOpacity(0.02),
                     ),
                   ),
-                ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('${score.toInt()}%', style: TextStyle(color: color, fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: -1)),
+                      Text('INTEGRITY', style: TextStyle(color: color.withOpacity(0.5), fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                    ],
+                  ),
+                ],
               );
             },
           ),
-          const SizedBox(height: 16),
-          Text('Your vault has ${_data!['total_items'] ?? 0} items', style: const TextStyle(color: Colors.white70, fontSize: 16)),
+          const SizedBox(height: 32),
+          Text(
+            "VAULT CONTAINS ${_data!['total_items'] ?? 0} SECURED ARTIFACTS",
+            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatsRow() {
+  Widget _buildStatsGrid() {
     final stats = _data!['stats'] ?? {};
     return Row(
       children: [
-        _statCard('📁', 'Folders', '${stats['folders'] ?? 0}', const Color(0xFF2196F3)),
+        _statSlab(Icons.folder_rounded, 'FOLDERS', '${stats['folders'] ?? 0}'),
         const SizedBox(width: 12),
-        _statCard('👥', 'Nominees', '${stats['nominees'] ?? 0}', const Color(0xFF9C27B0)),
+        _statSlab(Icons.group_rounded, 'NODES', '${stats['nominees'] ?? 0}'),
         const SizedBox(width: 12),
-        _statCard('📄', 'Files', '${stats['files'] ?? 0}', const Color(0xFF4CAF50)),
+        _statSlab(Icons.file_present_rounded, 'ARTIFACTS', '${stats['files'] ?? 0}'),
       ],
     );
   }
 
-  Widget _statCard(String emoji, String label, String count, Color color) {
+  Widget _statSlab(IconData icon, String label, String count) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 10)],
-        ),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: AppTheme.slabDecoration,
         child: Column(
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 24)),
-            const SizedBox(height: 8),
-            Text(count, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: color)),
-            Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            Icon(icon, size: 20, color: AppTheme.accentColor),
+            const SizedBox(height: 12),
+            Text(count, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white)),
+            Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1)),
           ],
         ),
       ),
@@ -168,58 +168,58 @@ class _VaultHealthScreenState extends State<VaultHealthScreen> with SingleTicker
   List<Widget> _buildRecommendations() {
     final recs = (_data!['recommendations'] as List?) ?? [];
     if (recs.isEmpty) {
-      return [Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(color: const Color(0xFF4CAF50).withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
-        child: const Row(children: [Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 32), SizedBox(width: 12), Expanded(child: Text('🎉 Your vault is perfectly healthy!', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)))]),
-      )];
+      return [
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: AppTheme.slabDecoration,
+          child: const Row(
+            children: [
+              Icon(Icons.verified_user_rounded, color: Colors.greenAccent, size: 24),
+              SizedBox(width: 16),
+              Expanded(
+                child: Text('VAULT INTEGRITY OPTIMIZED. NO ANOMALIES DETECTED.', 
+                  style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)
+                ),
+              ),
+            ],
+          ),
+        )
+      ];
     }
     return recs.map<Widget>((rec) {
-      final color = _getPriorityColor(rec['priority'] ?? 'low');
+      final priority = rec['priority'] ?? 'low';
+      final color = priority == 'high' ? Colors.redAccent : (priority == 'medium' ? Colors.orangeAccent : AppTheme.accentColor);
+      
       return Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border(left: BorderSide(color: color, width: 4)),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
-        ),
+        padding: const EdgeInsets.all(20),
+        decoration: AppTheme.slabDecoration,
         child: Row(
           children: [
-            Text(rec['icon'] ?? '📌', style: const TextStyle(fontSize: 28)),
-            const SizedBox(width: 14),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Expanded(child: Text(rec['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15))),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-                  child: Text((rec['priority'] ?? '').toString().toUpperCase(), style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700))),
-              ]),
-              const SizedBox(height: 4),
-              Text(rec['description'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 13)),
-            ])),
+            Text(rec['icon'] ?? '⚡', style: const TextStyle(fontSize: 24)),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: Text(rec['title'].toString().toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12))),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                        child: Text(priority.toString().toUpperCase(), style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.w900)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(rec['description'] ?? '', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11, height: 1.4)),
+                ],
+              ),
+            ),
           ],
         ),
       );
     }).toList();
   }
-}
-
-class _ScorePainter extends CustomPainter {
-  final double progress;
-  final Color color;
-  _ScorePainter(this.progress, this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 8;
-    final bg = Paint()..color = Colors.white24..style = PaintingStyle.stroke..strokeWidth = 12..strokeCap = StrokeCap.round;
-    canvas.drawCircle(center, radius, bg);
-    final fg = Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 12..strokeCap = StrokeCap.round;
-    canvas.drawArc(Rect.fromCircle(center: center, radius: radius), -math.pi / 2, 2 * math.pi * progress, false, fg);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class AIWillDrafterScreen extends StatefulWidget {
   final int userId;
-  const AIWillDrafterScreen({Key? key, required this.userId}) : super(key: key);
+  const AIWillDrafterScreen({super.key, required this.userId});
 
   @override
   _AIWillDrafterScreenState createState() => _AIWillDrafterScreenState();
@@ -16,11 +15,8 @@ class _AIWillDrafterScreenState extends State<AIWillDrafterScreen> {
   final TextEditingController _promptController = TextEditingController();
   String _generatedWill = "";
   bool _isGenerating = false;
-
-  // Speech to Text
   late stt.SpeechToText _speech;
   bool _isListening = false;
-  double _confidence = 1.0;
 
   @override
   void initState() {
@@ -30,20 +26,10 @@ class _AIWillDrafterScreenState extends State<AIWillDrafterScreen> {
 
   void _listen() async {
     if (!_isListening) {
-      bool available = await _speech.initialize(
-        onStatus: (val) => print('onStatus: $val'),
-        onError: (val) => print('onError: $val'),
-      );
+      bool available = await _speech.initialize();
       if (available) {
         setState(() => _isListening = true);
-        _speech.listen(
-          onResult: (val) => setState(() {
-            _promptController.text = val.recognizedWords;
-            if (val.hasConfidenceRating && val.confidence > 0) {
-              _confidence = val.confidence;
-            }
-          }),
-        );
+        _speech.listen(onResult: (val) => setState(() => _promptController.text = val.recognizedWords));
       }
     } else {
       setState(() => _isListening = false);
@@ -53,246 +39,254 @@ class _AIWillDrafterScreenState extends State<AIWillDrafterScreen> {
 
   void _generateWill() async {
     if (_promptController.text.isEmpty) return;
-
     setState(() => _isGenerating = true);
-
     try {
-      String prompt = "Generate a formal and legally-structured Last Will and Testament based on the following wishes: ${_promptController.text}. Ensure it includes standard legal clauses for revocation of prior wills, appointment of executors, and clear distribution of assets.";
-      final response = await ApiService().getAIChatResponse(prompt, []); // Use Chat API for generation
-      
-      setState(() {
-        _generatedWill = response;
-        _isGenerating = false;
-      });
-    } catch (e) {
-      setState(() => _isGenerating = false);
+      String prompt = "Generate a formal and legally-structured Last Will and Testament based on: ${_promptController.text}. Ensure it includes standard legal clauses for revocation of prior wills, appointment of executors, and clear distribution of assets.";
+      final response = await ApiService().getAIChatResponse(prompt, []);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("AI Error: $e")));
+        setState(() {
+          _generatedWill = response;
+          _isGenerating = false;
+        });
       }
+    } catch (e) {
+      if (mounted) setState(() => _isGenerating = false);
     }
   }
 
-  Future<void> _checkConflicts() async {
-    if (_generatedWill.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Generate a will draft first to check for conflicts.")));
-      return;
-    }
+  void _checkTone() async {
+    if (_promptController.text.isEmpty) return;
     setState(() => _isGenerating = true);
     try {
-      final result = await ApiService().checkWillConflicts(_generatedWill);
-      setState(() => _isGenerating = false);
-
-      bool hasConflict = result['has_conflict'] ?? false;
-      List issues = result['issues'] ?? [];
-
+      final res = await ApiService().analyzeTone(_promptController.text);
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(hasConflict ? "⚠️ Conflicts Detected" : "✅ No Conflicts Found"),
-            content: SingleChildScrollView(
-              child: hasConflict
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: issues.map<Widget>((e) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Text("• $e", style: const TextStyle(color: Colors.redAccent)),
-                      )).toList(),
-                    )
-                  : const Text("The legal clauses appear consistent. No obvious contradictions found."),
-            ),
-            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("OK"))],
-          ),
-        );
+        _showResultDialog("TONE EQUILIBRIUM", "ANALYSIS: ${res['tone']?.toString().toUpperCase()}\n\n${res['suggestion']?.toString().toUpperCase() ?? ''}");
       }
     } catch (e) {
-      setState(() => _isGenerating = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      debugPrint("TONE CHECK FAILED: $e");
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
     }
   }
 
-  Future<void> _analyzeTone() async {
-    if (_promptController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter your personal wishes/message first.")));
-      return;
-    }
+  void _checkConflicts() async {
+    if (_generatedWill.isEmpty) return;
     setState(() => _isGenerating = true);
     try {
-      final result = await ApiService().analyzeTone(_promptController.text);
-      setState(() => _isGenerating = false);
-
-      String tone = result['tone'] ?? "Neutral";
-      bool isHarsh = result['is_harsh'] ?? false;
-      String? suggestion = result['suggestion'];
-
+      final res = await ApiService().checkWillConflicts(_generatedWill);
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text("❤️ Emotional Tone Check"),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text("Detected Tone: $tone", style: const TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  if (isHarsh) ...[
-                    const Text("⚠️ Warning: The tone seems harsh or potentially confusing.", style: TextStyle(color: Colors.orange)),
-                    const SizedBox(height: 10),
-                    const Text("Suggestion:", style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text(suggestion ?? "Consider rewriting to be more clear and calm."),
-                  ] else
-                    const Text("The tone is appropriate for a legal/personal sentiment.", style: TextStyle(color: Colors.green)),
-                ],
-              ),
-            ),
-            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("OK"))],
-          ),
-        );
+        String issues = (res['issues'] as List?)?.map((i) => i.toString().toUpperCase()).join("\n• ") ?? "NO ISSUES FOUND.";
+        _showResultDialog("CLAUSE VERIFICATION", res['has_conflict'] == true ? "POTENTIAL CONFLICTS:\n\n• $issues" : "NO CONFLICTS DETECTED. PROTOCOL APPEARS COHERENT.");
       }
     } catch (e) {
-      setState(() => _isGenerating = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      debugPrint("CONFLICT CHECK FAILED: $e");
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
     }
+  }
+
+  void _showResultDialog(String title, String content) {
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: AppTheme.backgroundColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(32), 
+          side: const BorderSide(color: Colors.white10)
+        ),
+        title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1)),
+        content: Text(content, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12, height: 1.8, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text("DISMISS", style: TextStyle(color: AppTheme.accentColor, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.5))),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text("AI Will Drafter", style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.primaryColor),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.accentColor),
           onPressed: () => Navigator.pop(context),
         ),
+        title: const Text("PROTOCOL SYNTHESIS", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1, fontSize: 16)),
+        centerTitle: true,
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFF2F2F7), Color(0xFFE5E5EA), Color(0xFFF2F2F7)],
-          ),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildInputSlab(),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              height: 72,
+              child: ElevatedButton(
+                onPressed: _isGenerating ? null : _generateWill,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accentColor,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+                child: _isGenerating 
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                  : const Text("SYNTHESIZE LEGAL PROTOCOL", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1)),
+              ),
+            ),
+            if (_generatedWill.isNotEmpty) ...[
+              const SizedBox(height: 48),
+              _buildOutputSlab(),
+            ],
+            const SizedBox(height: 80),
+          ],
         ),
-        child: SafeArea(
-          child: Column(
+      ),
+    );
+  }
+
+  Widget _buildInputSlab() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: AppTheme.slabDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      GlassCard(
-                        opacity: 0.7,
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text("Describe your wishes:", style: TextStyle(fontWeight: FontWeight.bold)),
-                                IconButton(
-                                  icon: Icon(
-                                    _isListening ? Icons.mic : Icons.mic_none,
-                                    color: _isListening ? Colors.red : AppTheme.primaryColor,
-                                  ),
-                                  onPressed: _listen,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _promptController,
-                              maxLines: 4,
-                              decoration: const InputDecoration(
-                                hintText: "E.g., I want to leave my house to my wife and my savings to my two children equally...",
-                                border: InputBorder.none,
-                              ),
-                            ),
-                            if (_isListening)
-                              const Padding(
-                                padding: EdgeInsets.only(top: 8.0),
-                                child: Text("Listening...", style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
-                              ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _isGenerating ? null : _generateWill,
-                          icon: _isGenerating 
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
-                              : const Icon(Icons.psychology),
-                          label: Text(_isGenerating ? "Drafting..." : "Generate Will"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _isGenerating ? null : _analyzeTone,
-                              icon: const Icon(Icons.favorite_outline, color: Colors.pinkAccent),
-                              label: const Text("Tone Check", style: TextStyle(color: Colors.black)),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                side: const BorderSide(color: Colors.pinkAccent),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _isGenerating ? null : _checkConflicts,
-                              icon: const Icon(Icons.gavel, color: Colors.orange),
-                              label: const Text("Conflict Check", style: TextStyle(color: Colors.black)),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                side: const BorderSide(color: Colors.orange),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      if (_generatedWill.isNotEmpty)
-                        Expanded(
-                          child: GlassCard(
-                            opacity: 0.8,
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            padding: const EdgeInsets.all(16),
-                            child: SingleChildScrollView(
-                              child: Text(_generatedWill, style: const TextStyle(fontSize: 14, height: 1.5)),
-                            ),
-                          ),
-                        ),
-                    ],
+              const Text("INTENT DECLARATION", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+              GestureDetector(
+                onTap: _listen,
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _isListening ? Colors.redAccent.withOpacity(0.05) : Colors.white.withOpacity(0.01),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _isListening ? Colors.redAccent.withOpacity(0.1) : Colors.white.withOpacity(0.05)),
                   ),
+                  child: Icon(_isListening ? Icons.mic_rounded : Icons.mic_none_rounded, 
+                    color: _isListening ? Colors.redAccent : AppTheme.accentColor, size: 18),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 32),
+          TextField(
+            controller: _promptController,
+            maxLines: 10,
+            style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.8, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+            decoration: InputDecoration(
+              hintText: "DESCRIBE YOUR WISHES IN NATURAL LANGUAGE...",
+              hintStyle: TextStyle(color: Colors.white.withOpacity(0.05), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1),
+              border: InputBorder.none,
+            ),
+          ),
+          const SizedBox(height: 40),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMiniAction(
+                  "TONE CHECK", 
+                  Icons.psychology_outlined, 
+                  Colors.purpleAccent, 
+                  _checkTone
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildMiniAction(
+                  "LEGAL AUDIT", 
+                  Icons.gavel_rounded, 
+                  Colors.orangeAccent, 
+                  _checkConflicts,
+                  disabled: _generatedWill.isEmpty
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniAction(String label, IconData icon, Color color, VoidCallback onTap, {bool disabled = false}) {
+    return InkWell(
+      onTap: (disabled || _isGenerating) ? null : onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: color.withOpacity(disabled ? 0.01 : 0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(disabled ? 0.05 : 0.2)),
         ),
+        child: Column(
+          children: [
+            Icon(icon, color: color.withOpacity(disabled ? 0.1 : 1), size: 18),
+            const SizedBox(height: 12),
+            Text(label, style: TextStyle(color: color.withOpacity(disabled ? 0.1 : 1), fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOutputSlab() {
+    return Container(
+      width: double.infinity,
+      decoration: AppTheme.slabDecoration.copyWith(
+        color: Colors.white.withOpacity(0.01),
+        border: Border.all(color: AppTheme.accentColor.withOpacity(0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            decoration: BoxDecoration(
+              color: AppTheme.accentColor.withOpacity(0.05),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border(bottom: BorderSide(color: AppTheme.accentColor.withOpacity(0.1))),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.description_outlined, color: AppTheme.accentColor, size: 16),
+                const SizedBox(width: 16),
+                const Text("GENETIC PROTOCOL DRAFT", style: TextStyle(color: AppTheme.accentColor, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(40),
+            child: Text(
+              _generatedWill.toUpperCase(),
+              style: const TextStyle(color: Colors.white70, fontSize: 13, height: 2.0, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(40, 0, 40, 40),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: OutlinedButton.icon(
+                onPressed: () {}, 
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: Colors.white.withOpacity(0.05)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                icon: const Icon(Icons.download_rounded, size: 16, color: Colors.white24),
+                label: const Text("DOWNLOAD PDF", style: TextStyle(color: Colors.white24, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.5)),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

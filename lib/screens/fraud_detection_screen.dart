@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 
 class FraudDetectionScreen extends StatefulWidget {
   final int userId;
-  const FraudDetectionScreen({Key? key, required this.userId}) : super(key: key);
+  const FraudDetectionScreen({super.key, required this.userId});
 
   @override
   State<FraudDetectionScreen> createState() => _FraudDetectionScreenState();
@@ -23,118 +24,175 @@ class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
   }
 
   Future<void> _loadData() async {
+    if (mounted) setState(() => _loading = true);
     try {
       final result = await _api.getActivityLogs(widget.userId, suspiciousOnly: _showSuspiciousOnly);
-      setState(() {
-        _logs = result['logs'] ?? [];
-        _suspiciousCount = result['suspicious_count'] ?? 0;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _logs = result['logs'] ?? [];
+          _suspiciousCount = result['suspicious_count'] ?? 0;
+          _loading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
-  }
-
-  IconData _getActionIcon(String action) {
-    if (action.contains('login')) return Icons.login;
-    if (action.contains('upload')) return Icons.upload;
-    if (action.contains('delete')) return Icons.delete;
-    if (action.contains('view')) return Icons.visibility;
-    if (action.contains('share')) return Icons.share;
-    return Icons.touch_app;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F8),
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Security Monitor', style: TextStyle(fontWeight: FontWeight.w700)),
-        backgroundColor: const Color(0xFFB71C1C),
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.accentColor),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text("Security Monitor", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
         actions: [
-          IconButton(icon: Icon(_showSuspiciousOnly ? Icons.filter_alt : Icons.filter_alt_outlined),
-            onPressed: () { setState(() { _showSuspiciousOnly = !_showSuspiciousOnly; _loading = true; }); _loadData(); }),
+          IconButton(
+            icon: Icon(_showSuspiciousOnly ? Icons.notifications_active_rounded : Icons.notifications_none_rounded, color: AppTheme.accentColor),
+            onPressed: () { 
+              setState(() { _showSuspiciousOnly = !_showSuspiciousOnly; }); 
+              _loadData(); 
+            },
+          ),
+          const SizedBox(width: 16),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                _buildStatusCard(),
-                const SizedBox(height: 20),
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Text(_showSuspiciousOnly ? '🚨 Suspicious Activity' : '📋 Recent Activity',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                  Text('${_logs.length} events', style: const TextStyle(color: Colors.grey)),
-                ]),
-                const SizedBox(height: 12),
-                if (_logs.isEmpty) 
-                  Container(padding: const EdgeInsets.all(40), child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.check_circle_outline, size: 60, color: Colors.green[300]),
-                    const SizedBox(height: 12),
-                    Text(_showSuspiciousOnly ? 'No suspicious activity detected!' : 'No activity logs yet',
-                      style: const TextStyle(color: Colors.grey, fontSize: 16)),
-                  ]))
-                else
-                  ..._logs.map((log) => _buildLogItem(log)).toList(),
-              ],
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.accentColor))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildStatusSlab(),
+                  const SizedBox(height: 40),
+                  _buildSectionHeader(_showSuspiciousOnly ? "PRIORITY THREATS" : "RECENT SECURITY EVENTS"),
+                  const SizedBox(height: 16),
+                  if (_logs.isEmpty) 
+                    _buildEmptyState()
+                  else
+                    ..._logs.map((log) => _buildSecurityItem(log)).toList(),
+                ],
+              ),
             ),
     );
   }
 
-  Widget _buildStatusCard() {
+  Widget _buildSectionHeader(String title) {
+    return Text(title, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2));
+  }
+
+  Widget _buildStatusSlab() {
     final isClean = _suspiciousCount == 0;
     return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: isClean ? [const Color(0xFF2E7D32), const Color(0xFF43A047)] : [const Color(0xFFB71C1C), const Color(0xFFE53935)]),
-        borderRadius: BorderRadius.circular(20),
+      padding: const EdgeInsets.all(32),
+      decoration: AppTheme.slabDecoration.copyWith(
+        border: Border.all(color: isClean ? AppTheme.accentColor.withOpacity(0.2) : Colors.redAccent.withOpacity(0.3)),
       ),
-      child: Row(children: [
-        Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(16)),
-          child: Icon(isClean ? Icons.shield : Icons.warning, color: Colors.white, size: 36)),
-        const SizedBox(width: 16),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(isClean ? 'All Clear' : 'Attention Required', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          Text(isClean ? 'No suspicious activity on your account' : '$_suspiciousCount suspicious event(s) detected',
-            style: const TextStyle(color: Colors.white70, fontSize: 14)),
-        ])),
-      ]),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isClean ? AppTheme.accentColor.withOpacity(0.1) : Colors.redAccent.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(isClean ? Icons.gpp_good_rounded : Icons.gpp_maybe_rounded, 
+              color: isClean ? AppTheme.accentColor : Colors.redAccent, size: 40),
+          ),
+          const SizedBox(width: 24),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(isClean ? "SCAN COMPLETE" : "THREAT DETECTED", 
+                  style: TextStyle(color: isClean ? AppTheme.accentColor : Colors.redAccent, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                const SizedBox(height: 8),
+                Text(isClean ? "System integrity is optimal." : "$_suspiciousCount anomalous interactions found.",
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildLogItem(dynamic log) {
+  Widget _buildEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 80),
+      child: Column(
+        children: [
+          Icon(Icons.verified_user_outlined, size: 64, color: Colors.white.withOpacity(0.05)),
+          const SizedBox(height: 24),
+          Text(
+            _showSuspiciousOnly ? "NO ACTIVE THREATS" : "NO LOGGED EVENTS", 
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecurityItem(dynamic log) {
     final isSus = log['is_suspicious'] == true;
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isSus ? Colors.red.withOpacity(0.05) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: isSus ? Border.all(color: Colors.red.withOpacity(0.3)) : null,
-        boxShadow: [if (!isSus) BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(24),
+      decoration: AppTheme.slabDecoration.copyWith(
+        border: Border.all(color: isSus ? Colors.redAccent.withOpacity(0.2) : Colors.white.withOpacity(0.05)),
       ),
-      child: Row(children: [
-        Container(padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: (isSus ? Colors.red : const Color(0xFF2196F3)).withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-          child: Icon(_getActionIcon(log['action'] ?? ''), color: isSus ? Colors.red : const Color(0xFF2196F3), size: 22)),
-        const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(child: Text(log['action'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14))),
-            if (isSus) Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(color: Colors.red.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
-              child: const Text('⚠️ SUSPICIOUS', style: TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.w700))),
-          ]),
-          const SizedBox(height: 4),
-          if (log['device_info'] != null) Text(log['device_info'], style: const TextStyle(color: Colors.grey, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-          Text(_formatDate(log['created_at']), style: const TextStyle(color: Colors.grey, fontSize: 11)),
-        ])),
-      ]),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _getLogIcon(log['action'] ?? ''),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(log['action']?.toString().toUpperCase() ?? 'EVENT', 
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5)),
+                    if (isSus) 
+                      const Text("HIGH RISK", style: TextStyle(color: Colors.redAccent, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (log['device_info'] != null) 
+                  Text(log['device_info'], style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 8),
+                Text(_formatDate(log['created_at']), 
+                  style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w800)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _getLogIcon(String action) {
+    IconData icon = Icons.security_rounded;
+    Color color = AppTheme.accentColor;
+    
+    if (action.contains('login')) icon = Icons.key_rounded;
+    if (action.contains('upload')) icon = Icons.cloud_upload_rounded;
+    if (action.contains('delete')) { icon = Icons.delete_forever_rounded; color = Colors.redAccent; }
+    if (action.contains('view')) icon = Icons.visibility_rounded;
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+      child: Icon(icon, color: color, size: 20),
     );
   }
 
@@ -142,7 +200,7 @@ class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
     if (date == null) return '';
     try {
       final d = DateTime.parse(date);
-      return '${d.day}/${d.month}/${d.year} ${d.hour}:${d.minute.toString().padLeft(2, '0')}';
+      return "${d.day}/${d.month}/${d.year}  ${d.hour}:${d.minute.toString().padLeft(2, '0')}";
     } catch (e) { return date; }
   }
 }

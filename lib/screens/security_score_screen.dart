@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
-import '../theme/glassmorphism.dart';
 import 'heartbeat_screen.dart';
 import 'nominee_screen.dart';
 import 'smart_scan_screen.dart';
-import 'vault_items_screen.dart';
 
 class SecurityScoreScreen extends StatefulWidget {
   final int userId;
-  const SecurityScoreScreen({Key? key, required this.userId}) : super(key: key);
+  const SecurityScoreScreen({super.key, required this.userId});
 
   @override
   _SecurityScoreScreenState createState() => _SecurityScoreScreenState();
@@ -27,6 +25,7 @@ class _SecurityScoreScreenState extends State<SecurityScoreScreen> {
   }
 
   Future<void> _loadScore() async {
+    if (mounted) setState(() => isLoading = true);
     try {
       final data = await ApiService().getSecurityScore(widget.userId);
       if (mounted) {
@@ -46,9 +45,6 @@ class _SecurityScoreScreenState extends State<SecurityScoreScreen> {
       Navigator.push(context, MaterialPageRoute(builder: (c) => HeartbeatScreen(userId: widget.userId))).then((_) => _loadScore());
     } else if (label.contains("Nominee")) {
       Navigator.push(context, MaterialPageRoute(builder: (c) => NomineeScreen(userId: widget.userId))).then((_) => _loadScore());
-    } else if (label.contains("Vault")) {
-      // Need folder id, just go back for now or show snackbar
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Go to Safe Folders to add items.")));
     } else if (label.contains("Document")) {
       Navigator.push(context, MaterialPageRoute(builder: (c) => SmartScanScreen(userId: widget.userId))).then((_) => _loadScore());
     }
@@ -56,104 +52,134 @@ class _SecurityScoreScreenState extends State<SecurityScoreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Color scoreColor = score >= 80 ? Colors.green : (score >= 50 ? Colors.orange : Colors.red);
+    Color scoreColor = score >= 80 ? Colors.greenAccent : (score >= 50 ? Colors.orangeAccent : Colors.redAccent);
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text("Security Health 🛡️", style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.primaryColor),
+          icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.accentColor),
           onPressed: () => Navigator.pop(context),
         ),
+        title: const Text("Security Intelligence", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFF2F2F7), Color(0xFFE5E5EA)],
+      body: isLoading 
+        ? const Center(child: CircularProgressIndicator(color: AppTheme.accentColor))
+        : SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildScoreSlab(scoreColor),
+                const SizedBox(height: 48),
+                const Text("VULNERABILITY ASSESSMENT", style: TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                const SizedBox(height: 16),
+                ...checks.map((check) => _buildCheckSlab(check)).toList(),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: isLoading 
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    // SCORE CARD
-                    GlassCard(
-                      padding: const EdgeInsets.all(32),
-                      child: Column(
-                        children: [
-                          Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              SizedBox(
-                                width: 120, 
-                                height: 120,
-                                child: CircularProgressIndicator(
-                                  value: score / 100,
-                                  strokeWidth: 10,
-                                  color: scoreColor,
-                                  backgroundColor: Colors.grey[300],
-                                ),
-                              ),
-                              Text(
-                                "$score%",
-                                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: scoreColor),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            score >= 80 ? "Your Vault is Secure" : "Action Required",
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 32),
-                    const Align(alignment: Alignment.centerLeft, child: Text("Security Checklist", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
-                    const SizedBox(height: 16),
+    );
+  }
 
-                    // CHECKS LIST
-                    ...checks.map((check) {
-                      final bool passed = check['passed'];
-                      return GlassCard(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          leading: Icon(
-                            passed ? Icons.check_circle : Icons.warning_amber_rounded,
-                            color: passed ? Colors.green : Colors.orange,
-                          ),
-                          title: Text(check['label'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: passed 
-                            ? Text("+${check['points']} pts")
-                            : Text(check['fix'] ?? "Tap to fix"),
-                          trailing: passed 
-                            ? null 
-                            : ElevatedButton(
-                                onPressed: () => _handleFix(check['label']),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.primaryColor,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                                ),
-                                child: const Text("Fix", style: TextStyle(fontSize: 12, color: Colors.white)),
-                              ),
-                        ),
-                      );
-                    }).toList(),
-                  ],
+  Widget _buildScoreSlab(Color color) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: AppTheme.slabDecoration.copyWith(
+        border: Border.all(color: color.withOpacity(0.1)),
+      ),
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 140, 
+                height: 140,
+                child: CircularProgressIndicator(
+                  value: score / 100,
+                  strokeWidth: 4,
+                  color: color,
+                  backgroundColor: Colors.white.withOpacity(0.02),
                 ),
               ),
-        ),
+              Column(
+                children: [
+                  Text(
+                    "$score%",
+                    style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: color, letterSpacing: -1),
+                  ),
+                  Text("RATING", style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: color.withOpacity(0.5), letterSpacing: 2)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+          Text(
+            score >= 80 ? "INTEGRITY SECURED" : "VULNERABILITIES DETECTED",
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            score >= 80 
+              ? "All core security protocols are operational and verified."
+              : "Manual intervention required to stabilize vault integrity.",
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11, height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCheckSlab(dynamic check) {
+    final bool passed = check['passed'];
+    final color = passed ? Colors.greenAccent : Colors.orangeAccent;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(24),
+      decoration: AppTheme.slabDecoration,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: color.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
+            child: Icon(
+              passed ? Icons.verified_user_rounded : Icons.gpp_maybe_rounded,
+              color: color,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(check['label'].toString().toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 4),
+                Text(
+                  passed ? "+${check['points']} PROTOCOL POINTS" : (check['fix'] ?? "NEEDS RESOLUTION"), 
+                  style: TextStyle(color: color.withOpacity(0.5), fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5)
+                ),
+              ],
+            ),
+          ),
+          if (!passed)
+            SizedBox(
+              height: 40,
+              child: ElevatedButton(
+                onPressed: () => _handleFix(check['label']),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accentColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+                child: const Text("RESOLVE", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900)),
+              ),
+            ),
+        ],
       ),
     );
   }

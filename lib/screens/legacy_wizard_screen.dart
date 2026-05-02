@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import 'dart:ui';
 
 class LegacyWizardScreen extends StatefulWidget {
-  const LegacyWizardScreen({Key? key}) : super(key: key);
+  const LegacyWizardScreen({super.key});
 
   @override
   _LegacyWizardScreenState createState() => _LegacyWizardScreenState();
@@ -15,27 +14,27 @@ class _LegacyWizardScreenState extends State<LegacyWizardScreen> {
 
   final List<Map<String, String>> _steps = [
     {
-      "title": "Welcome to Your Sanctuary",
-      "desc": "Vasihat Nama is more than a vault. It is a bridge between today and your loved ones' tomorrow.",
-      "action": "Begin Your Legacy",
+      "title": "WELCOME TO YOUR SANCTUARY",
+      "desc": "SENTINEL IS MORE THAN A VAULT. IT IS A BRIDGE BETWEEN TODAY AND YOUR LOVED ONES' TOMORROW.",
+      "action": "BEGIN YOUR LEGACY",
       "icon": "🛡️",
     },
     {
-      "title": "Secure Your First Truth",
-      "desc": "Upload a vital document. It will be shredded into 256-bit fragments, encrypted locally, and stored in your private cloud.",
-      "action": "Choose a Document",
+      "title": "SECURE YOUR FIRST TRUTH",
+      "desc": "UPLOAD A VITAL DOCUMENT. IT WILL BE SHREDDED INTO 256-BIT FRAGMENTS, ENCRYPTED LOCALLY, AND STORED IN YOUR PRIVATE CLOUD.",
+      "action": "CHOOSE A DOCUMENT",
       "icon": "📄",
     },
     {
-      "title": "Appoint Your Guardians",
-      "desc": "Select the people you trust. They will only receive access if your heartbeat stops pulsing.",
-      "action": "Add a Nominee",
+      "title": "APPOINT YOUR GUARDIANS",
+      "desc": "SELECT THE PEOPLE YOU TRUST. THEY WILL ONLY RECEIVE ACCESS IF YOUR HEARTBEAT STOPS PULSING.",
+      "action": "ADD A NOMINEE",
       "icon": "👥",
     },
     {
-      "title": "The Dead Man's Switch",
-      "desc": "Set your check-in frequency. If you don't check in, we'll reach out. If there's no response, your legacy is released.",
-      "action": "Set Heartbeat",
+      "title": "THE DEAD MAN'S SWITCH",
+      "desc": "SET YOUR CHECK-IN FREQUENCY. IF YOU DON'T CHECK IN, WE'LL REACH OUT. IF THERE'S NO RESPONSE, YOUR LEGACY IS RELEASED.",
+      "action": "SET HEARTBEAT",
       "icon": "💓",
     },
   ];
@@ -46,25 +45,10 @@ class _LegacyWizardScreenState extends State<LegacyWizardScreen> {
       backgroundColor: AppTheme.backgroundColor,
       body: Stack(
         children: [
-          // Ambient Glow
-          Positioned(
-            top: -100,
-            right: -100,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppTheme.accentColor.withOpacity(0.05),
-              ),
-              child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50), child: Container()),
-            ),
-          ),
-          
           SafeArea(
             child: Column(
               children: [
-                const SizedBox(height: 40),
+                const SizedBox(height: 64),
                 // Progress Indicator
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -82,18 +66,26 @@ class _LegacyWizardScreenState extends State<LegacyWizardScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(_steps[index]['icon']!, style: const TextStyle(fontSize: 80)),
-                            const SizedBox(height: 40),
+                            Container(
+                              padding: const EdgeInsets.all(32),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.01),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withOpacity(0.05)),
+                              ),
+                              child: Text(_steps[index]['icon']!, style: const TextStyle(fontSize: 48)),
+                            ),
+                            const SizedBox(height: 56),
                             Text(
                               _steps[index]['title']!,
                               textAlign: TextAlign.center,
-                              style: AppTheme.darkTheme.textTheme.headlineLarge,
+                              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 24),
                             Text(
                               _steps[index]['desc']!,
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: AppTheme.textSecondary, fontSize: 18, height: 1.6),
+                              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w700, height: 1.8, letterSpacing: 0.5),
                             ),
                           ],
                         ),
@@ -103,31 +95,35 @@ class _LegacyWizardScreenState extends State<LegacyWizardScreen> {
                 ),
                 
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+                  padding: const EdgeInsets.fromLTRB(32, 0, 32, 64),
                   child: Column(
                     children: [
-                      ElevatedButton(
-                        onPressed: () {
-                          if (_currentStep < _steps.length - 1) {
-                            _pageController.nextPage(duration: const Duration(milliseconds: 500), curve: Curves.easeOutCubic);
-                          } else {
-                            Navigator.pop(context);
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 64),
-                          backgroundColor: AppTheme.accentColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        ),
-                        child: Text(
-                          _steps[_currentStep]['action']!,
-                          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 18),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 64,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (_currentStep < _steps.length - 1) {
+                              _pageController.nextPage(duration: const Duration(milliseconds: 600), curve: Curves.easeOutQuart);
+                            } else {
+                              Navigator.pop(context);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.accentColor,
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          ),
+                          child: Text(
+                            _steps[_currentStep]['action']!,
+                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 1),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: Text("Skip for now", style: TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.w500)),
+                        child: const Text("SKIP PROTOCOL FOR NOW", style: TextStyle(color: Colors.white10, fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 1)),
                       ),
                     ],
                   ),
@@ -141,14 +137,15 @@ class _LegacyWizardScreenState extends State<LegacyWizardScreen> {
   }
 
   Widget _buildProgressDot(int index) {
+    final isActive = _currentStep == index;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      height: 6,
-      width: _currentStep == index ? 24 : 6,
+      duration: const Duration(milliseconds: 400),
+      margin: const EdgeInsets.symmetric(horizontal: 6),
+      height: 4,
+      width: isActive ? 32 : 8,
       decoration: BoxDecoration(
-        color: _currentStep == index ? AppTheme.accentColor : AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(3),
+        color: isActive ? AppTheme.accentColor : Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(2),
       ),
     );
   }

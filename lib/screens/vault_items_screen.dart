@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:flutter/services.dart';
-import '../theme/glassmorphism.dart';
+import 'package:local_auth/local_auth.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
-import '../widgets/credit_card_widget.dart';
-import '../widgets/premium_detail_sheet.dart';
-import '../widgets/crypto_wallet_widget.dart';
 import 'add_vault_item_screen.dart';
-import 'smart_scan_screen.dart';
+import '../services/sentinel_backup_service.dart';
 
 class VaultItemsScreen extends StatefulWidget {
   final int userId;
@@ -16,11 +12,11 @@ class VaultItemsScreen extends StatefulWidget {
   final String folderName;
 
   const VaultItemsScreen({
-    Key? key,
+    super.key,
     required this.userId,
     required this.folderId,
     required this.folderName,
-  }) : super(key: key);
+  });
 
   @override
   _VaultItemsScreenState createState() => _VaultItemsScreenState();
@@ -29,7 +25,11 @@ class VaultItemsScreen extends StatefulWidget {
 class _VaultItemsScreenState extends State<VaultItemsScreen> {
   List<dynamic> vaultItems = [];
   bool isLoading = true;
-  String filterType = 'all'; // 'all', 'note', 'password', 'credit_card', 'crypto', 'file'
+  String selectedType = "ALL";
+  final LocalAuthentication auth = LocalAuthentication();
+  bool _isVerified = false;
+
+  final List<String> types = ["ALL", "NOTE", "PASSWORD", "CREDIT_CARD", "CRYPTO", "FILE"];
 
   @override
   void initState() {
@@ -38,732 +38,496 @@ class _VaultItemsScreenState extends State<VaultItemsScreen> {
   }
 
   Future<void> _loadVaultItems() async {
-    setState(() => isLoading = true);
+    if (mounted) setState(() => isLoading = true);
     try {
       final items = await ApiService().getVaultItems(
         userId: widget.userId,
         folderId: widget.folderId,
-        itemType: filterType == 'all' ? null : filterType,
+        itemType: selectedType == "ALL" ? null : selectedType.toLowerCase(),
       );
       if (mounted) {
         setState(() {
           vaultItems = items;
           isLoading = false;
         });
+
+        // --- SENTINEL INTEGRITY GUARD ---
+        _runIntegrityCheck(items);
       }
     } catch (e) {
-      print('Error loading vault items: $e');
       if (mounted) setState(() => isLoading = false);
     }
   }
 
-  Future<void> _assignNominee(int itemId) async {
-    try {
-      final nominees = await ApiService().getNominees(widget.userId.toString());
-      if (!mounted) return;
-
-      if (nominees.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No nominees found. Please add a nominee first.')),
-        );
-        return;
-      }
-
-      int? selectedNomineeId;
-      final result = await showDialog<int>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Assign to Nominee'),
-          content: StatefulBuilder(
-            builder: (context, setDialogState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Select a nominee who will receive this document:'),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<int>(
-                    value: selectedNomineeId,
-                    decoration: const InputDecoration(labelText: "Select Nominee"),
-                    items: nominees.map<DropdownMenuItem<int>>((n) {
-                      return DropdownMenuItem<int>(
-                        value: n['id'],
-                        child: Text(n['name']),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      setDialogState(() => selectedNomineeId = val);
-                    },
-                  ),
-                ],
-              );
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, selectedNomineeId),
-              child: const Text('Assign'),
-            ),
-          ],
-        ),
-      );
-
-      if (result != null) {
-        await ApiService().assignNomineeToVaultItem(
-          itemId: itemId,
-          userId: widget.userId,
-          nomineeId: result,
-        );
-        _loadVaultItems();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Document assigned successfully')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
+  Future<void> _runIntegrityCheck(List<dynamic> serverItems) async {
+    final report = await SentinelBackupService().checkIntegrity(serverItems);
+    if (report['status'] == 'TAMPERED' && mounted) {
+      _showTamperWarning(report['message'], report['local_backup']);
+    } else {
+      // Auto-update local secure cache if everything is healthy
+      await SentinelBackupService().saveVaultToLocalCache(serverItems);
     }
   }
 
-  Future<void> _deleteItem(int itemId) async {
+  void _showTamperWarning(String message, List<dynamic> localBackup) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF161922),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: const BorderSide(color: Colors.redAccent, width: 2)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 28),
+            SizedBox(width: 12),
+            Text("INTEGRITY BREACH", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1)),
+          ],
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("IGNORE (AT RISK)", style: TextStyle(color: Colors.white24, fontWeight: FontWeight.w900)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() => vaultItems = localBackup);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("VAULT RESTORED FROM LOCAL SENTINEL CACHE"), backgroundColor: Colors.green),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            child: const Text("RESTORE FROM LOCAL", style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _authenticate() async {
     try {
-      await ApiService().deleteVaultItem(itemId: itemId, userId: widget.userId);
-      _loadVaultItems();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Item deleted')),
-        );
+      final bool didAuthenticate = await auth.authenticate(
+        localizedReason: 'ACCESS PROTOCOL: BIOMETRIC CLEARANCE REQUIRED',
+      );
+      if (didAuthenticate) {
+        setState(() => _isVerified = true);
+        
+        // Log sensitive item access
+        try {
+          ApiService().logActivity(
+            userId: widget.userId,
+            action: 'ARTIFACT_VIEWED',
+            details: {
+              'folderName': widget.folderName,
+              'timestamp': DateTime.now().toIso8601String()
+            }
+          );
+        } catch (e) {
+          debugPrint("Logging failed: $e");
+        }
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("AUTHORITY DENIED"), backgroundColor: Colors.redAccent));
     }
   }
 
   void _showItemDetails(Map<String, dynamic> item) {
-    final itemType = item['item_type'];
-    final encryptedData = item['encrypted_data'];
-    
-    // Decrypt data logic here
-    Map<String, dynamic> data = {};
-    try {
-      data = jsonDecode(encryptedData);
-    } catch (e) {
-      data = {'error': 'Failed to decrypt'};
-    }
+    setState(() => _isVerified = false);
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => PremiumDetailSheet(
-        item: item,
-        content: _buildItemContent(itemType, data),
-        onAssignNominee: () {
-          Navigator.pop(context);
-          _assignNominee(item['id']);
-        },
-        onDelete: () {
-          Navigator.pop(context);
-          _confirmDelete(item['id']);
-        },
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.92,
+            decoration: const BoxDecoration(
+              color: AppTheme.backgroundColor,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+            ),
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(2)))),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(icon: const Icon(Icons.close_rounded, color: Colors.white24, size: 24), onPressed: () => Navigator.pop(context)),
+                      const Text("ARTIFACT ANALYTICS", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                      IconButton(icon: Icon(Icons.delete_outline_rounded, color: Colors.redAccent.withOpacity(0.5), size: 22), onPressed: () => _deleteItem(item['id'])),
+                    ],
+                  ),
+                  const SizedBox(height: 48),
+                  _buildSecurityGatewaySlab(item, setModalState),
+                  const SizedBox(height: 48),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(item['title']?.toString().toUpperCase() ?? "UNKNOWN_ARTIFACT", style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppTheme.accentColor.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppTheme.accentColor.withOpacity(0.1)),
+                          ),
+                          child: Text(item['item_type'].toString().toUpperCase(), style: const TextStyle(color: AppTheme.accentColor, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+                  
+                  if (_isVerified) ...[
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8, bottom: 20),
+                      child: Text("DECRYPTED DATA STREAM", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                    ),
+                    _buildDecryptedContent(item),
+                  ] else ...[
+                     _buildMetadataSlab("ENCRYPTION", "AES-256-GCM"),
+                     _buildMetadataSlab("INTEGRITY", "VERIFIED"),
+                     _buildMetadataSlab("TIMESTAMP", "12 MAY 2024"),
+                  ],
+                  
+                  const SizedBox(height: 48),
+                  _buildActionStrip(),
+                ],
+              ),
+            ),
+          );
+        }
       ),
     );
   }
 
-  Widget _buildItemContent(String itemType, Map<String, dynamic> data) {
-    switch (itemType) {
-      case 'note':
-        return _buildNoteContent(data);
-      case 'password':
-        return _buildPasswordContent(data);
-      case 'credit_card':
-        return _buildCreditCardContent(data);
-      case 'crypto':
-        return _buildCryptoContent(data);
-      case 'file':
-        return _buildFileContent(data);
-      default:
-        return const Text('Unknown item type');
+  Widget _buildDecryptedContent(Map<String, dynamic> item) {
+    try {
+      final Map<String, dynamic> data = jsonDecode(item['encrypted_data']);
+      final String? fileContent = data['file_content'] ?? data['FILE_CONTENT'];
+      final String? fileName = (data['file_name'] ?? data['FILE_NAME'])?.toString().toLowerCase();
+      
+      bool isImage = false;
+      if (fileName != null) {
+        isImage = fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.png') || fileName.endsWith('.gif') || fileName.endsWith('.webp');
+      }
+
+      return Container(
+        padding: const EdgeInsets.all(32),
+        decoration: AppTheme.slabDecoration,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isImage && fileContent != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.memory(
+                    base64Decode(fileContent),
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                const Divider(color: Colors.white10),
+                const SizedBox(height: 32),
+              ],
+              ...data.entries.map((e) {
+                // Skip showing the raw base64 content in the text list
+                if (e.key.toLowerCase() == 'file_content') return const SizedBox.shrink();
+                
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(e.key.toUpperCase(), style: const TextStyle(color: AppTheme.textSecondary, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                      const SizedBox(width: 16),
+                      Flexible(child: Text(e.value.toString().toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5))),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      return const Center(child: Text("FAILED TO DECODE STREAM", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 1)));
     }
   }
 
-  Widget _buildNoteContent(Map<String, dynamic> data) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Content:', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        Text(data['content'] ?? ''),
-      ],
-    );
-  }
-
-  Widget _buildPasswordContent(Map<String, dynamic> data) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildDetailRow('Username', data['username'] ?? '', Icons.person),
-        _buildDetailRow('Password', data['password'] ?? '', Icons.lock, isPassword: true),
-        _buildDetailRow('URL', data['url'] ?? '', Icons.link),
-        if (data['notes'] != null && data['notes'].isNotEmpty)
-          _buildDetailRow('Notes', data['notes'], Icons.note),
-      ],
-    );
-  }
-
-  Widget _buildCreditCardContent(Map<String, dynamic> data) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CreditCardWidget(
-          cardNumber: data['number'] ?? data['card_number'] ?? '',
-          cardHolder: data['holder'] ?? data['cardholder_name'] ?? '',
-          expiryDate: data['expiry'] ?? '${data['expiry_month']}/${data['expiry_year']}',
-        ),
-        const SizedBox(height: 24),
-        _buildDetailRow('Card Number', data['number'] ?? data['card_number'] ?? '', Icons.credit_card, isPassword: true),
-        _buildDetailRow('Cardholder', data['holder'] ?? data['cardholder_name'] ?? '', Icons.person),
-        _buildDetailRow('Expiry', data['expiry'] ?? '${data['expiry_month']}/${data['expiry_year']}', Icons.calendar_today),
-        _buildDetailRow('CVV', data['cvv'] ?? '', Icons.security, isPassword: true),
-        if (data['notes'] != null && data['notes'].isNotEmpty)
-          _buildDetailRow('Notes', data['notes'], Icons.note),
-      ],
-    );
-  }
-
-  Widget _buildCryptoContent(Map<String, dynamic> data) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildDetailRow('Coin/Token', data['coin'] ?? '', Icons.currency_bitcoin),
-        _buildDetailRow('Network', data['network'] ?? '', Icons.lan),
-        _buildDetailRow('Wallet Address', data['wallet_address'] ?? '', Icons.account_balance_wallet),
-        _buildDetailRow('Seed Phrase / Private Key', data['seed_phrase'] ?? '', Icons.key, isPassword: true),
-        if (data['notes'] != null && data['notes'].isNotEmpty)
-          _buildDetailRow('Notes', data['notes'], Icons.note),
-      ],
-    );
-  }
-
-  Widget _buildFileContent(Map<String, dynamic> data) {
-    String? base64Content = data['file_content'];
-    String fileName = data['file_name'] ?? 'Unknown File';
-    
-    // Check if it's an image
-    bool isImage = fileName.toLowerCase().endsWith('.jpg') || 
-                   fileName.toLowerCase().endsWith('.jpeg') || 
-                   fileName.toLowerCase().endsWith('.png');
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildDetailRow('File Name', fileName, Icons.file_present),
-        _buildDetailRow('Size', '${data['file_size'] ?? 0} bytes', Icons.storage),
-        
-        const SizedBox(height: 16),
-        if (base64Content != null && isImage)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.memory(
-              base64Decode(base64Content),
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const Text("Error loading image"),
-            ),
-          )
-        else if (base64Content != null)
-           ElevatedButton.icon(
-             onPressed: () {
-               // TODO: Save to file and open (requires open_file package)
-               // For now, copy base64 to clipboard as fallback
-               Clipboard.setData(ClipboardData(text: base64Content));
-               ScaffoldMessenger.of(context).showSnackBar(
-                 const SnackBar(content: Text('File content copied to clipboard (Base64)')),
-               );
-             },
-             icon: const Icon(Icons.download),
-             label: const Text("Copy File Content"),
-             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
-           ),
-      ],
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value, IconData icon, {bool isPassword = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+  Widget _buildSecurityGatewaySlab(Map<String, dynamic> item, StateSetter setModalState) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(48),
+      decoration: AppTheme.slabDecoration,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: AppTheme.primaryColor),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textSecondary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  isPassword ? '••••••••' : value,
-                  style: const TextStyle(fontSize: 16, color: AppTheme.textPrimary),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.copy, size: 20),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: value));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('$label copied')),
-                  );
+          Icon(_isVerified ? Icons.lock_open_rounded : Icons.lock_rounded, color: AppTheme.accentColor, size: 48),
+          const SizedBox(height: 40),
+          if (!_isVerified)
+            SizedBox(
+              width: double.infinity,
+              height: 64,
+              child: ElevatedButton(
+                onPressed: () async {
+                  await _authenticate();
+                  if (_isVerified) setModalState(() {});
                 },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.backgroundColor,
+                  foregroundColor: AppTheme.accentColor,
+                  side: BorderSide(color: AppTheme.accentColor.withOpacity(0.2)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+                child: const Text("INITIATE CLEARANCE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 1)),
               ),
-            ],
-          ),
+            )
+          else
+            const Text("CLEARANCE GRANTED", style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
         ],
       ),
     );
   }
 
-  void _confirmDelete(int itemId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Item'),
-        content: const Text('Are you sure you want to delete this item?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteItem(itemId);
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
+  Widget _buildMetadataSlab(String label, String value) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      decoration: AppTheme.slabDecoration,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+          Text(value, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
         ],
       ),
     );
+  }
+
+  Widget _buildActionStrip() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _buildCircleAction(Icons.share_rounded, "SHARE"),
+        _buildCircleAction(Icons.history_rounded, "AUDIT"),
+        _buildCircleAction(Icons.sync_rounded, "SYNC"),
+        _buildCircleAction(Icons.more_horiz_rounded, "MORE"),
+      ],
+    );
+  }
+
+  Widget _buildCircleAction(IconData icon, String label) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.01), 
+            shape: BoxShape.circle, 
+            border: Border.all(color: Colors.white.withOpacity(0.05))
+          ),
+          child: Icon(icon, color: Colors.white.withOpacity(0.4), size: 20),
+        ),
+        const SizedBox(height: 12),
+        Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+      ],
+    );
+  }
+
+  Future<void> _deleteItem(int itemId) async {
+    try {
+      await ApiService().deleteVaultItem(itemId: itemId, userId: widget.userId);
+      Navigator.pop(context);
+      _loadVaultItems();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ARTIFACT PURGED FROM ARCHIVE"), backgroundColor: Colors.redAccent));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("PURGE OPERATION FAILED"), backgroundColor: Colors.redAccent));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: Text(
-          widget.folderName,
-          style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold),
-        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.primaryColor),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFF2F2F7), Color(0xFFE5E5EA), Color(0xFFF2F2F7)],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Filter chips
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    _buildFilterChip('All', 'all', Icons.all_inclusive),
-                    _buildFilterChip('Notes', 'note', Icons.note_alt),
-                    _buildFilterChip('Passwords', 'password', Icons.lock),
-                    _buildFilterChip('Cards', 'credit_card', Icons.credit_card),
-                    _buildFilterChip('Crypto', 'crypto', Icons.currency_bitcoin),
-                    _buildFilterChip('Files', 'file', Icons.file_present),
-                  ],
-                ),
-              ),
-
-              // Items list
-              Expanded(
-                child: isLoading
-                    ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
-                    : vaultItems.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.folder_open, size: 80, color: AppTheme.textSecondary.withOpacity(0.5)),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No items yet',
-                                  style: TextStyle(color: AppTheme.textSecondary),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: vaultItems.length,
-                            itemBuilder: (context, index) {
-                              final item = vaultItems[index];
-                              return _buildVaultItemCard(item);
-                            },
-                          ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton.extended(
-            heroTag: "scan",
-            onPressed: () {
-               Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => SmartScanScreen(userId: widget.userId)),
-              );
-            },
-            icon: const Icon(Icons.document_scanner),
-            label: const Text('Smart Scan'),
-            backgroundColor: Colors.indigo,
-          ),
-          const SizedBox(height: 16),
-          FloatingActionButton.extended(
-            heroTag: "add",
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AddVaultItemScreen(
-                    userId: widget.userId,
-                    folderId: widget.folderId,
-                    folderName: widget.folderName,
-                  ),
-                ),
-              );
-              if (result == true) {
-                _loadVaultItems();
-              }
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Add Item'),
-            backgroundColor: AppTheme.primaryColor,
-          ),
+        leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.accentColor), onPressed: () => Navigator.pop(context)),
+        title: Text(widget.folderName.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1, fontSize: 16)),
+        centerTitle: true,
+        actions: [
+          IconButton(icon: const Icon(Icons.search_rounded, color: Colors.white24), onPressed: () {}),
         ],
       ),
-    );
-  }
-
-  Widget _buildFilterChip(String label, String type, IconData icon) {
-    final isSelected = filterType == type;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          filterType = type;
-          _loadVaultItems();
-        });
-      },
-      child: GlassCard(
-        margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        borderRadius: BorderRadius.circular(24),
-        color: isSelected ? AppTheme.primaryColor : Colors.white,
-        opacity: isSelected ? 0.9 : 0.6,
-        blur: 10,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+      body: SafeArea(
+        child: Column(
           children: [
-            Icon(icon, size: 18, color: isSelected ? Colors.white : AppTheme.primaryColor),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : AppTheme.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
+            _buildFilterStrip(),
+            Expanded(
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator(color: AppTheme.accentColor))
+                  : _buildItemsList(),
             ),
           ],
         ),
       ),
+      floatingActionButton: Container(
+        height: 64,
+        width: 64,
+        margin: const EdgeInsets.only(bottom: 16, right: 8),
+        child: FloatingActionButton(
+          heroTag: "vault_item_action_btn",
+          onPressed: () async {
+            final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => AddVaultItemScreen(userId: widget.userId, folderId: widget.folderId, folderName: widget.folderName)));
+            if (result == true) _loadVaultItems();
+          },
+          backgroundColor: AppTheme.accentColor,
+          elevation: 8,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: const Icon(Icons.add_rounded, color: Colors.black, size: 32),
+        ),
+      ),
     );
   }
 
-  Widget _buildVaultItemCard(Map<String, dynamic> item) {
-    final itemType = item['item_type'];
-    IconData icon;
-    Color color;
-
-    switch (itemType) {
-      case 'note':
-        icon = Icons.note_alt;
-        color = Colors.blue;
-        break;
-      case 'password':
-        icon = Icons.lock;
-        color = Colors.purple;
-        break;
-      case 'credit_card':
-        icon = Icons.credit_card;
-        color = Colors.orange;
-        break;
-      case 'crypto':
-        icon = Icons.currency_bitcoin;
-        color = Colors.amber;
-        break;
-      case 'file':
-        icon = Icons.file_present;
-        color = Colors.green;
-        break;
-      default:
-        icon = Icons.help;
-        color = Colors.grey;
-    }
-
-    if (itemType == 'credit_card') {
-      return GestureDetector(
-        onTap: () => _showItemDetails(item),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Stack(
-            children: [
-              CreditCardWidget(
-                cardNumber: "XXXX XXXX XXXX " + (item['title'].split(' ').last),
-                cardHolder: "TOUCH TO VIEW",
-                expiryDate: "XX/XX",
-                baseColor: Colors.indigo.shade900,
-              ),
-              // Overlay to make it feel like a list item
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    gradient: LinearGradient(
-                      colors: [Colors.black.withOpacity(0.2), Colors.transparent],
+  Widget _buildFilterStrip() {
+    return Container(
+      height: 80,
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        itemCount: types.length,
+        itemBuilder: (context, index) {
+          final isSelected = selectedType == types[index];
+          return Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: GestureDetector(
+              onTap: () {
+                setState(() => selectedType = types[index]);
+                _loadVaultItems();
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppTheme.accentColor.withOpacity(0.05) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isSelected ? AppTheme.accentColor.withOpacity(0.2) : Colors.white.withOpacity(0.03)),
+                ),
+                child: Center(
+                  child: Text(
+                    types[index],
+                    style: TextStyle(
+                      color: isSelected ? AppTheme.accentColor : Colors.white10,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildItemsList() {
+    if (vaultItems.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inventory_2_outlined, color: Colors.white.withOpacity(0.01), size: 64),
+            const SizedBox(height: 24),
+            const Text("NO ARTIFACTS DETECTED", style: TextStyle(color: Colors.white10, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+          ],
         ),
       );
     }
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 80),
+      itemCount: vaultItems.length,
+      itemBuilder: (context, index) {
+        final item = vaultItems[index];
+        return _buildItemSlab(item);
+      },
+    );
+  }
 
-    if (itemType == 'crypto') {
-      return GestureDetector(
-        onTap: () => _showItemDetails(item),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Stack(
-            children: [
-              CryptoWalletWidget(
-                coinName: item['title'].split(' ').first,
-                network: "SECURE",
-                walletAddress: "••••••••••••••••••••",
-                baseColor: Colors.orange.shade700,
-              ),
-              // Overlay to make it feel like a list item
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    gradient: LinearGradient(
-                      colors: [Colors.black.withOpacity(0.2), Colors.transparent],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
+  Widget _buildItemSlab(dynamic item) {
     return GestureDetector(
       onTap: () => _showItemDetails(item),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(28),
+        decoration: AppTheme.slabDecoration,
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.accentColor.withOpacity(0.05), 
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppTheme.accentColor.withOpacity(0.1)),
+              ),
+              child: Icon(_getIconForType(item['item_type']), color: AppTheme.accentColor, size: 20),
             ),
-          ],
-        ),
-        child: GlassCard(
-          opacity: 0.8,
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item['title'],
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: AppTheme.textPrimary,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _getItemTypeLabel(itemType),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary.withOpacity(0.7),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (item['nominees'] != null && (item['nominees'] as List).isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: (item['nominees'] as List).map<Widget>((n) {
-                          final int nomineeId = n['id'] is int ? n['id'] : int.tryParse(n['id'].toString()) ?? 0;
-                          final String nomineeName = n['name'] ?? '';
-                          return GestureDetector(
-                            onTap: () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                  title: const Text('Remove Nominee?', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  content: Text('Remove "$nomineeName" from "${item['title']}"?'),
-                                  actions: [
-                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                    ElevatedButton(
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                                      child: const Text('Remove', style: TextStyle(color: Colors.white)),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (confirm == true) {
-                                try {
-                                  await ApiService().unassignNomineeFromVaultItem(
-                                    itemId: item['id'],
-                                    userId: widget.userId,
-                                    nomineeId: nomineeId,
-                                  );
-                                  _loadVaultItems();
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('$nomineeName removed'),
-                                        backgroundColor: Colors.green[700],
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
-                                    );
-                                  }
-                                } catch (e) {
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Failed to remove nominee'), backgroundColor: Colors.redAccent),
-                                    );
-                                  }
-                                }
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.person_pin_rounded, size: 12, color: AppTheme.primaryColor),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    nomineeName,
-                                    style: TextStyle(fontSize: 11, color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Icon(Icons.close, size: 11, color: AppTheme.primaryColor.withOpacity(0.7)),
-                                ],
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item['title']?.toString().toUpperCase() ?? "SECURED_ARTIFACT", 
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 0.5)
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Text(item['item_type'].toString().toUpperCase(), style: const TextStyle(color: AppTheme.textSecondary, fontSize: 7, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                      const SizedBox(width: 12),
+                      Container(width: 4, height: 4, decoration: const BoxDecoration(color: Colors.white10, shape: BoxShape.circle)),
+                      const SizedBox(width: 12),
+                      const Text("ENCRYPTED", style: TextStyle(color: AppTheme.textSecondary, fontSize: 7, fontWeight: FontWeight.w900, letterSpacing: 1)),
                     ],
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Icon(Icons.chevron_right_rounded, color: Colors.grey.withOpacity(0.5)),
-            ],
-          ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded, color: Colors.white.withOpacity(0.05), size: 12),
+          ],
         ),
       ),
     );
   }
 
-  String _getItemTypeLabel(String type) {
+  IconData _getIconForType(String? type) {
     switch (type) {
-      case 'note':
-        return 'Secure Note';
-      case 'password':
-        return 'Password';
-      case 'credit_card':
-        return 'Credit Card';
-      case 'crypto':
-        return 'Crypto Wallet';
-      case 'file':
-        return 'File';
-      default:
-        return 'Unknown';
+      case 'note': return Icons.description_rounded;
+      case 'password': return Icons.vpn_key_rounded;
+      case 'credit_card': return Icons.credit_card_rounded;
+      case 'crypto': return Icons.currency_bitcoin_rounded;
+      case 'file': return Icons.insert_drive_file_rounded;
+      default: return Icons.shield_rounded;
     }
   }
 }

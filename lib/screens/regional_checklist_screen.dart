@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 
 class RegionalChecklistScreen extends StatefulWidget {
   final int userId;
-  const RegionalChecklistScreen({Key? key, required this.userId}) : super(key: key);
+  const RegionalChecklistScreen({super.key, required this.userId});
 
   @override
   _RegionalChecklistScreenState createState() => _RegionalChecklistScreenState();
@@ -19,39 +18,9 @@ class _RegionalChecklistScreenState extends State<RegionalChecklistScreen> {
   bool isAiGenerating = false;
 
   final Map<String, String> countries = {
-    "AF": "Afghanistan", "AL": "Albania", "DZ": "Algeria", "AD": "Andorra", "AO": "Angola", "AG": "Antigua and Barbuda",
-    "AR": "Argentina", "AM": "Armenia", "AU": "Australia", "AT": "Austria", "AZ": "Azerbaijan", "BS": "Bahamas",
-    "BH": "Bahrain", "BD": "Bangladesh", "BB": "Barbados", "BY": "Belarus", "BE": "Belgium", "BZ": "Belize",
-    "BJ": "Benin", "BT": "Bhutan", "BO": "Bolivia", "BA": "Bosnia and Herzegovina", "BW": "Botswana", "BR": "Brazil",
-    "BN": "Brunei", "BG": "Bulgaria", "BF": "Burkina Faso", "BI": "Burundi", "KH": "Cambodia", "CM": "Cameroon",
-    "CA": "Canada", "CV": "Cape Verde", "CF": "Central African Republic", "TD": "Chad", "CL": "Chile", "CN": "China",
-    "CO": "Colombia", "KM": "Comoros", "CG": "Congo", "CR": "Costa Rica", "HR": "Croatia", "CU": "Cuba", "CY": "Cyprus",
-    "CZ": "Czech Republic", "DK": "Denmark", "DJ": "Djibouti", "DM": "Dominica", "DO": "Dominican Republic", "EC": "Ecuador",
-    "EG": "Egypt", "SV": "El Salvador", "GQ": "Equatorial Guinea", "ER": "Eritrea", "EE": "Estonia", "ET": "Ethiopia",
-    "FJ": "Fiji", "FI": "Finland", "FR": "France", "GA": "Gabon", "GM": "Gambia", "GE": "Georgia", "DE": "Germany",
-    "GH": "Ghana", "GR": "Greece", "GD": "Grenada", "GT": "Guatemala", "GN": "Guinea", "GW": "Guinea-Bissau", "GY": "Guyana",
-    "HT": "Haiti", "HN": "Honduras", "HU": "Hungary", "IS": "Iceland", "IN": "India", "ID": "Indonesia", "IR": "Iran",
-    "IQ": "Iraq", "IE": "Ireland", "IL": "Israel", "IT": "Italy", "JM": "Jamaica", "JP": "Japan", "JO": "Jordan",
-    "KZ": "Kazakhstan", "KE": "Kenya", "KI": "Kiribati", "KP": "Korea, North", "KR": "Korea, South", "KW": "Kuwait",
-    "KG": "Kyrgyzstan", "LA": "Laos", "LV": "Latvia", "LB": "Lebanon", "LS": "Lesotho", "LR": "Liberia", "LY": "Libya",
-    "LI": "Liechtenstein", "LT": "Lithuania", "LU": "Luxembourg", "MK": "Macedonia", "MG": "Madagascar", "MW": "Malawi",
-    "MY": "Malaysia", "MV": "Maldives", "ML": "Mali", "MT": "Malta", "MH": "Marshall Islands", "MR": "Mauritania",
-    "MU": "Mauritius", "MX": "Mexico", "FM": "Micronesia", "MD": "Moldova", "MC": "Monaco", "MN": "Mongolia", "ME": "Montenegro",
-    "MA": "Morocco", "MZ": "Mozambique", "MM": "Myanmar", "NA": "Namibia", "NR": "Nauru", "NP": "Nepal", "NL": "Netherlands",
-    "NZ": "New Zealand", "NI": "Nicaragua", "NE": "Niger", "NG": "Nigeria", "NO": "Norway", "OM": "Oman", "PK": "Pakistan",
-    "PW": "Palau", "PA": "Panama", "PG": "Papua New Guinea", "PY": "Paraguay", "PE": "Peru", "PH": "Philippines",
-    "PL": "Poland", "PT": "Portugal", "QA": "Qatar", "RO": "Romania", "RU": "Russian Federation", "RW": "Rwanda",
-    "KN": "Saint Kitts and Nevis", "LC": "Saint Lucia", "VC": "Saint Vincent and the Grenadines", "WS": "Samoa",
-    "SM": "San Marino", "ST": "Sao Tome and Principe", "SA": "Saudi Arabia", "SN": "Senegal", "RS": "Serbia",
-    "SC": "Seychelles", "SL": "Sierra Leone", "SG": "Singapore", "SK": "Slovakia", "SI": "Slovenia", "SB": "Solomon Islands",
-    "SO": "Somalia", "ZA": "South Africa", "SS": "South Sudan", "ES": "Spain", "LK": "Sri Lanka", "SD": "Sudan",
-    "SR": "Suriname", "SZ": "Swaziland", "SE": "Sweden", "CH": "Switzerland", "SY": "Syrian Arab Republic", "TW": "Taiwan",
-    "TJ": "Tajikistan", "TZ": "Tanzania", "TH": "Thailand", "TL": "Timor-Leste", "TG": "Togo", "TO": "Tonga",
-    "TT": "Trinidad and Tobago", "TN": "Tunisia", "TR": "Turkey", "TM": "Turkmenistan", "TV": "Tuvalu", "UG": "Uganda",
-    "UA": "Ukraine", "AE": "United Arab Emirates", "GB": "United Kingdom", "US": "United States", "UY": "Uruguay",
-    "UZ": "Uzbekistan", "VU": "Vanuatu", "VA": "Vatican City", "VE": "Venezuela", "VN": "Vietnam", "YE": "Yemen",
-    "ZM": "Zambia", "ZW": "Zimbabwe",
-    "OTHER": "Other (Enter Manually...)",
+    "IN": "India", "US": "United States", "GB": "United Kingdom", "AE": "United Arab Emirates", 
+    "SG": "Singapore", "AU": "Australia", "CA": "Canada", "DE": "Germany", "FR": "France", "JP": "Japan",
+    "OTHER": "Other Region..."
   };
 
   final TextEditingController _customCountryController = TextEditingController();
@@ -64,7 +33,7 @@ class _RegionalChecklistScreenState extends State<RegionalChecklistScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => isLoading = true);
+    if (mounted) setState(() => isLoading = true);
     try {
       final docs = await ApiService().getUserRegionalDocs(widget.userId);
       final list = await ApiService().getRegionalChecklists(selectedCountry);
@@ -81,32 +50,28 @@ class _RegionalChecklistScreenState extends State<RegionalChecklistScreen> {
   }
 
   Future<void> _generateWithAI() async {
-    setState(() => isAiGenerating = true);
+    if (mounted) setState(() => isAiGenerating = true);
     try {
       String countryName = _showCustomInput ? _customCountryController.text : (countries[selectedCountry] ?? selectedCountry);
-      if (countryName.isEmpty) {
-        throw Exception("Please enter a country name");
-      }
       await ApiService().generateRegionalChecklistAI(selectedCountry, countryName);
       await _loadData();
       if (mounted) {
         setState(() => isAiGenerating = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("AI Checklist Generated & Saved!")));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("SYNTHESIS COMPLETE. REGIONAL PROTOCOLS UPDATED."),
+          backgroundColor: AppTheme.accentColor,
+        ));
       }
     } catch (e) {
       if (mounted) {
         setState(() => isAiGenerating = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("AI Error: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("SYNTHESIS FAILURE: $e"), backgroundColor: Colors.redAccent));
       }
     }
   }
 
   Future<void> _toggleDocument(int checklistId, bool isSelected) async {
-    if (isSelected) {
-       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Document already selected")));
-       return;
-    }
-
+    if (isSelected) return;
     try {
       await ApiService().saveRegionalDoc(
         userId: widget.userId,
@@ -114,272 +79,261 @@ class _RegionalChecklistScreenState extends State<RegionalChecklistScreen> {
         details: {'selected_at': DateTime.now().toIso8601String()},
       );
       _loadData();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Added to your vault checklist")));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("SYNC ERROR: $e"), backgroundColor: Colors.redAccent));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Filter selected docs for 'My Checklist' tab
-    final myChecklistItems = checklists.where((item) => userDocs.any((d) => d['checklist_id'] == item['id'])).toList();
-
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        extendBodyBehindAppBar: true,
         backgroundColor: AppTheme.backgroundColor,
         appBar: AppBar(
-          title: const Text("Regional Compliance", style: TextStyle(color: Colors.black)),
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.primaryColor),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.accentColor),
             onPressed: () => Navigator.pop(context),
           ),
-          bottom: const TabBar(
-            labelColor: AppTheme.primaryColor,
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: AppTheme.primaryColor,
-            tabs: [
-              Tab(text: "Explore"),
-              Tab(text: "My Checklist"),
+          title: const Text("REGIONAL COMPLIANCE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1, fontSize: 16)),
+          centerTitle: true,
+          bottom: TabBar(
+            indicatorColor: AppTheme.accentColor,
+            indicatorWeight: 3,
+            labelColor: AppTheme.accentColor,
+            unselectedLabelColor: Colors.white10,
+            labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2),
+            tabs: const [
+              Tab(text: "EXPLORE"),
+              Tab(text: "VAULT CHECKLIST"),
             ],
           ),
         ),
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFF2F2F7), Color(0xFFE5E5EA), Color(0xFFF2F2F7)],
-            ),
-          ),
-          child: SafeArea(
-            child: TabBarView(
-              children: [
-                // Tab 1: Explore (Original View)
-                Column(
-                  children: [
-                    // Country Picker
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          GlassCard(
-                            opacity: 0.7,
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: selectedCountry,
-                                isExpanded: true,
-                                items: countries.entries.map((e) {
-                                  return DropdownMenuItem(
-                                    value: e.key,
-                                    child: Text(e.value, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  );
-                                }).toList(),
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    setState(() {
-                                      selectedCountry = val;
-                                      _showCustomInput = (val == "OTHER");
-                                    });
-                                    if (!_showCustomInput) _loadData();
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                          if (_showCustomInput) ...[
-                            const SizedBox(height: 12),
-                            GlassCard(
-                              opacity: 0.7,
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                              child: TextField(
-                                controller: _customCountryController,
-                                decoration: const InputDecoration(
-                                  hintText: "Enter Country Name (e.g. Canada, Germany)",
-                                  border: InputBorder.none,
-                                  icon: Icon(Icons.public, color: AppTheme.primaryColor),
-                                ),
-                                onChanged: (v) {
-                                   if (checklists.isNotEmpty) setState(() => checklists = []);
-                                },
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-
-                    // AI Generate Button Section
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: GlassCard(
-                        opacity: 0.8,
-                        color: Colors.indigo.withOpacity(0.05),
-                        borderColor: Colors.indigo.withOpacity(0.2),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            const Text(
-                              "Don't see what you need? Use our Legal AI to generate a custom regional compliance checklist.",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: isAiGenerating ? null : _generateWithAI,
-                                icon: isAiGenerating 
-                                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                  : const Icon(Icons.auto_awesome),
-                                label: Text(isAiGenerating ? "AI is Thinking..." : "Generate/Refresh AI Checklist"),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.indigo,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Full Checklist
-                    Expanded(
-                      child: isLoading 
-                        ? const Center(child: CircularProgressIndicator())
-                        : checklists.isEmpty 
-                          ? const Center(child: Text("No documents found for this region"))
-                          : ListView.builder(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: checklists.length,
-                              itemBuilder: (context, index) {
-                                final item = checklists[index];
-                                final isSelected = userDocs.any((d) => d['checklist_id'] == item['id']);
-
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 12.0),
-                                  child: GlassCard(
-                                    opacity: 0.6,
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(16),
-                                    padding: const EdgeInsets.all(16),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          item['is_mandatory'] ? Icons.warning_amber_rounded : Icons.description_outlined,
-                                          color: item['is_mandatory'] ? Colors.orange : AppTheme.primaryColor,
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                item['document_name'],
-                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                item['description'] ?? "Mandatory legal document",
-                                                style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Checkbox(
-                                          value: isSelected,
-                                          activeColor: AppTheme.primaryColor,
-                                          onChanged: (val) => _toggleDocument(item['id'], isSelected),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                ),
-
-                // Tab 2: My Checklist (Selected Only)
-                isLoading 
-                  ? const Center(child: CircularProgressIndicator())
-                  : myChecklistItems.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.playlist_add_check, size: 60, color: Colors.grey),
-                            const SizedBox(height: 16),
-                            const Text(
-                              "You haven't selected any documents yet.",
-                              style: TextStyle(color: Colors.grey, fontSize: 16),
-                            ),
-                            TextButton(
-                              onPressed: () => DefaultTabController.of(context).animateTo(0),
-                              child: const Text("Go to Explore to add items"),
-                            )
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: myChecklistItems.length,
-                        itemBuilder: (context, index) {
-                          final item = myChecklistItems[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12.0),
-                            child: GlassCard(
-                              opacity: 0.8,
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.check_circle, color: Colors.green),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item['document_name'],
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          "Added to your compliance list",
-                                          style: TextStyle(color: Colors.green[700], fontSize: 12, fontWeight: FontWeight.bold),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  // Could add an 'Upload' button here in future
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ],
-            ),
-          ),
+        body: TabBarView(
+          children: [
+            _buildExploreTab(),
+            _buildMyChecklistTab(),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildExploreTab() {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("GEOGRAPHIC TARGET", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+          const SizedBox(height: 20),
+          _buildCountryPicker(),
+          if (_showCustomInput) ...[
+            const SizedBox(height: 16),
+            _buildCustomInput(),
+          ],
+          const SizedBox(height: 48),
+          _buildAiActionSlab(),
+          const SizedBox(height: 56),
+          const Text("REGIONAL PROTOCOLS", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+          const SizedBox(height: 24),
+          isLoading 
+            ? const Center(child: Padding(padding: EdgeInsets.all(80), child: CircularProgressIndicator(color: AppTheme.accentColor)))
+            : checklists.isEmpty 
+              ? const Center(child: Padding(padding: EdgeInsets.all(80), child: Text("NO REGIONAL DATA FOUND", style: TextStyle(color: Colors.white10, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1))))
+              : Column(
+                  children: checklists.map((item) {
+                    final isSelected = userDocs.any((d) => d['checklist_id'] == item['id']);
+                    return _buildChecklistItem(item, isSelected);
+                  }).toList(),
+                ),
+          const SizedBox(height: 64),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCountryPicker() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+      decoration: AppTheme.slabDecoration,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: selectedCountry,
+          dropdownColor: AppTheme.slabColor,
+          icon: const Icon(Icons.expand_more_rounded, color: AppTheme.accentColor),
+          isExpanded: true,
+          items: countries.entries.map((e) {
+            return DropdownMenuItem(
+              value: e.key,
+              child: Text(e.value.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+            );
+          }).toList(),
+          onChanged: (val) {
+            if (val != null) {
+              setState(() {
+                selectedCountry = val;
+                _showCustomInput = (val == "OTHER");
+              });
+              if (!_showCustomInput) _loadData();
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomInput() {
+    return Container(
+      decoration: AppTheme.slabDecoration,
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+      child: TextField(
+        controller: _customCountryController,
+        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+        decoration: const InputDecoration(
+          hintText: "ENTER CUSTOM JURISDICTION...",
+          hintStyle: TextStyle(color: Colors.white10, fontSize: 12, fontWeight: FontWeight.w900),
+          border: InputBorder.none,
+          icon: Icon(Icons.public_rounded, color: AppTheme.accentColor, size: 18),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAiActionSlab() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: AppTheme.slabDecoration.copyWith(
+        border: Border.all(color: AppTheme.accentColor.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome_rounded, color: AppTheme.accentColor, size: 16),
+              const SizedBox(width: 12),
+              const Text("INTELLIGENCE SYNTHESIS", style: TextStyle(color: AppTheme.accentColor, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+            ],
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            "GENERATE A CUSTOM COMPLIANCE FRAMEWORK FOR THIS SPECIFIC REGION USING SENTINEL AI ENGINE.", 
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w700, height: 1.6)
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 64,
+            child: ElevatedButton(
+              onPressed: isAiGenerating ? null : _generateWithAI,
+              child: isAiGenerating 
+                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                : const Text("SYNTHESIZE PROTOCOL"),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChecklistItem(dynamic item, bool isSelected) {
+    bool isMandatory = item['is_mandatory'] == true;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(24),
+      decoration: AppTheme.slabDecoration.copyWith(
+        border: Border.all(color: isMandatory ? Colors.orangeAccent.withOpacity(0.05) : Colors.white.withOpacity(0.05)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isMandatory ? Colors.orangeAccent.withOpacity(0.05) : AppTheme.accentColor.withOpacity(0.05),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isMandatory ? Icons.priority_high_rounded : Icons.description_outlined,
+              color: isMandatory ? Colors.orangeAccent : AppTheme.accentColor,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 24),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item['document_name'].toString().toUpperCase(), 
+                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5)
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  item['description']?.toString().toUpperCase() ?? "MANDATORY REGIONAL PROTOCOL", 
+                  style: const TextStyle(color: Colors.white10, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1)
+                ),
+              ],
+            ),
+          ),
+          Checkbox(
+            value: isSelected,
+            activeColor: AppTheme.accentColor,
+            checkColor: Colors.black,
+            side: BorderSide(color: Colors.white.withOpacity(0.05), width: 2),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            onChanged: (val) => _toggleDocument(item['id'], isSelected),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMyChecklistTab() {
+    final myChecklistItems = checklists.where((item) => userDocs.any((d) => d['checklist_id'] == item['id'])).toList();
+    
+    return isLoading 
+      ? const Center(child: CircularProgressIndicator(color: AppTheme.accentColor))
+      : myChecklistItems.isEmpty
+        ? Center(child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.inventory_2_outlined, color: Colors.white.withOpacity(0.01), size: 64),
+              const SizedBox(height: 24),
+              const Text("VAULT EMPTY", style: TextStyle(color: Colors.white10, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
+            ],
+          ))
+        : ListView.builder(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            itemCount: myChecklistItems.length,
+            itemBuilder: (context, index) {
+              final item = myChecklistItems[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(32),
+                decoration: AppTheme.slabDecoration,
+                child: Row(
+                  children: [
+                    const Icon(Icons.verified_user_rounded, color: AppTheme.accentColor, size: 24),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(item['document_name'].toString().toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                          const SizedBox(height: 6),
+                          const Text("SECURED IN VAULT", style: TextStyle(color: AppTheme.textSecondary, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
   }
 }

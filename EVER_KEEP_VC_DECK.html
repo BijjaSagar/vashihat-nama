@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ever Keep | VC Pitch Deck</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --midnight: #0A0E21;
+            --gold: #D4AF37;
+            --platinum: #E5E5E5;
+            --glass: rgba(255, 255, 255, 0.03);
+            --accent: #2196F3;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--midnight);
+            color: var(--platinum);
+            font-family: 'Outfit', sans-serif;
+            overflow-x: hidden;
+        }
+
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px;
+            position: relative;
+            page-break-after: always;
+            overflow: hidden;
+        }
+
+        .bg-glow {
+            position: absolute;
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.08) 0%, transparent 70%);
+            z-index: -1;
+            border-radius: 50%;
+        }
+
+        h1, h2 { font-family: 'Playfair Display', serif; }
+
+        .title-slide h1 {
+            font-size: 6rem;
+            letter-spacing: -2px;
+            background: linear-gradient(to bottom, #fff, var(--gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+        }
+
+        .punch-line {
+            font-size: 1.5rem;
+            font-weight: 300;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 40px;
+        }
+
+        .slide-content {
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        h2 { font-size: 3.5rem; margin-bottom: 30px; color: white; border-left: 6px solid var(--gold); padding-left: 30px; }
+        p { font-size: 1.4rem; opacity: 0.8; margin-bottom: 20px; }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .feature-card {
+            background: var(--glass);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 30px;
+            backdrop-filter: blur(20px);
+        }
+
+        .icon { width: 48px; height: 48px; margin-bottom: 20px; color: var(--gold); }
+
+        .stat { font-size: 4rem; font-weight: 800; color: var(--gold); }
+        .stat-label { font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; }
+
+        .quote {
+            font-style: italic;
+            font-size: 2rem;
+            color: var(--platinum);
+            text-align: center;
+            max-width: 800px;
+            margin: 40px 0;
+            line-height: 1.4;
+        }
+
+        @media print {
+            .slide { width: 100%; height: 100vh; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Slide 1: Cover -->
+    <section class="slide title-slide">
+        <div class="bg-glow" style="top: -200px; left: -200px;"></div>
+        <div class="punch-line">The Digital Legacy Sanctuary</div>
+        <h1>Ever Keep</h1>
+        <div class="quote">"The Legacy of You, Vaulted for Eternity."</div>
+        <div style="margin-top: 60px; opacity: 0.5;">Pitch Deck v1.0 | 2026</div>
+    </section>
+
+    <!-- Slide 2: The Problem -->
+    <section class="slide">
+        <div class="slide-content">
+            <h2>The Silent Crisis of Digital Loss</h2>
+            <p>Our lives have moved online, but our legacies are trapped behind forgotten passwords and central silos.</p>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>Locked Financials</h4>
+                    <p>Bank accounts and portfolios worth billions become "zombie assets" because credentials die with the owner.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Lost Memories</h4>
+                    <p>Priceless family photos and videos are locked forever in encrypted clouds that families cannot access.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Legal Gridlock</h4>
+                    <p>Digital property deeds and legal wills are lost in the noise, leading to years of probate and family stress.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 3: The Universal Vault -->
+    <section class="slide" style="background: rgba(255, 255, 255, 0.02);">
+        <div class="slide-content">
+            <h2>The Universal Vault</h2>
+            <p>Ever Keep secures the four pillars of your digital existence.</p>
+            <div class="feature-grid">
+                <div class="feature-card" style="border-top: 4px solid var(--gold);">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+                    <h4>Legal Documents</h4>
+                    <p>Wills, property deeds, and contracts—secured and ready for transfer.</p>
+                </div>
+                <div class="feature-card" style="border-top: 4px solid var(--accent);">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                    <h4>Digital Media</h4>
+                    <p>Priceless photos and videos, compressed and vaulted for eternity.</p>
+                </div>
+                <div class="feature-card" style="border-top: 4px solid #4CAF50;">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 7v10a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M12 22V12"/></svg>
+                    <h4>Bank & Financials</h4>
+                    <p>Credentials, account details, and private portfolios.</p>
+                </div>
+                <div class="feature-card" style="border-top: 4px solid #FF9800;">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                    <h4>The Keyring</h4>
+                    <p>All critical passwords and master keys, protected by Argon2id.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 4: The Solution -->
+    <section class="slide" style="background: linear-gradient(135deg, var(--midnight) 0%, #1a1a2e 100%);">
+        <div class="slide-content">
+            <h2>Ever Keep: The Fortress</h2>
+            <p>A Zero-Knowledge, Hardware-Hardened sanctuary for your entire digital soul.</p>
+            <div class="feature-grid">
+                <div class="feature-card" style="border-bottom: 4px solid var(--gold);">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <h4>Zero-Knowledge</h4>
+                    <p>We don't hold the keys. We can't see the data. Even if we're hacked, your legacy is safe.</p>
+                </div>
+                <div class="feature-card" style="border-bottom: 4px solid var(--accent);">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                    <h4>Smart Triggers</h4>
+                    <p>The "Dead Man's Switch" ensures your assets transfer automatically to loved ones.</p>
+                </div>
+                <div class="feature-card" style="border-bottom: 4px solid #4CAF50;">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+                    <h4>Quantum-Ready</h4>
+                    <p>Built with AES-256-GCM and Argon2id to withstand the next generation of threats.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 4: The Security Blueprint -->
+    <section class="slide">
+        <div class="slide-content">
+            <h2>Unbreakable Trust</h2>
+            <p>Our "Elite Shield" architecture provides banking-grade security with a human touch.</p>
+            <div style="display: flex; gap: 60px; margin-top: 40px;">
+                <div style="flex: 1;">
+                    <div style="margin-bottom: 30px;">
+                        <h4 style="color: var(--gold);">Shamir's Secret Sharing</h4>
+                        <p style="font-size: 1.1rem;">Keys are mathematically sharded. No single point of failure exists in the Ever Keep universe.</p>
+                    </div>
+                    <div>
+                        <h4 style="color: var(--accent);">Blinded Contact Discovery</h4>
+                        <p style="font-size: 1.1rem;">Privacy by default. Nominee identities are blinded using cryptographic salts.</p>
+                    </div>
+                </div>
+                <div style="flex: 1; background: var(--glass); border-radius: 40px; padding: 40px; border: 1px solid var(--glass-border);">
+                    <div class="stat">$0.00</div>
+                    <div class="stat-label">Value of Stolen Server Data</div>
+                    <p style="font-size: 1rem; margin-top: 20px;">Without the user's PIN and Secure Enclave hardware, the data is nothing but infinite random noise.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 6: The YubiKey Shield -->
+    <section class="slide" style="background: rgba(33, 150, 243, 0.05);">
+        <div class="slide-content">
+            <h2>Hardware Security: The YubiKey Shield</h2>
+            <p>Moving beyond passwords to physical hardware-backed sovereignty.</p>
+            <div style="display: flex; gap: 40px; margin-top: 40px;">
+                <div style="flex: 1; background: var(--glass); border-radius: 30px; padding: 40px; border: 1px solid var(--gold);">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3m-3-3l-2.5-2.5"/></svg>
+                    <h4 style="color: var(--gold);">Physical Possession</h4>
+                    <p style="font-size: 1rem;">The Master Key is bound to the physical silicon of your YubiKey. No physical key = No access. Period.</p>
+                </div>
+                <div style="flex: 2;">
+                    <div style="margin-bottom: 30px;">
+                        <h4 style="color: var(--accent);">Unphishable FIDO2/WebAuthn</h4>
+                        <p style="font-size: 1.1rem;">Even if a hacker steals your email and PIN, they cannot bypass the physical cryptographic handshake required by the hardware.</p>
+                    </div>
+                    <div>
+                        <h4 style="color: var(--platinum);">The "Hardware Heartbeat"</h4>
+                        <p style="font-size: 1.1rem;">Users can use their YubiKey as a one-touch Proof-of-Life trigger, making vault maintenance as simple as a physical tap.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 4: The Core Concept -->
+    <section class="slide">
+        <div class="slide-content">
+            <h2>The Core Concept</h2>
+            <p>Ever Keep is built on three unbreakable pillars of digital sovereignty.</p>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h1 style="font-size: 1.2rem; color: var(--gold); margin-bottom: 10px;">01. SOVEREIGNTY</h1>
+                    <p style="font-size: 1rem;">Total user ownership. We are "Blind Guards"—we protect the vault but never hold the keys to open it.</p>
+                </div>
+                <div class="feature-card">
+                    <h1 style="font-size: 1.2rem; color: var(--gold); margin-bottom: 10px;">02. VIGILANCE</h1>
+                    <p style="font-size: 1rem;">A real-time cryptographic heartbeat ensures the app knows you are safe, without ever tracking your location.</p>
+                </div>
+                <div class="feature-card">
+                    <h1 style="font-size: 1.2rem; color: var(--gold); margin-bottom: 10px;">03. CONTINUITY</h1>
+                    <p style="font-size: 1rem;">Seamless, middleman-free transfer of assets. Code is the executor, making legacy transfer instant and absolute.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 5: The Legacy Journey (The Flow) -->
+    <section class="slide" style="background: rgba(255, 255, 255, 0.02);">
+        <div class="slide-content">
+            <h2>The Legacy Journey</h2>
+            <p>How a document becomes an eternal legacy.</p>
+            
+            <div style="display: flex; justify-content: space-between; margin-top: 60px; position: relative;">
+                <!-- Line joining steps -->
+                <div style="position: absolute; top: 40px; left: 0; width: 100%; height: 2px; background: var(--glass-border); z-index: -1;"></div>
+                
+                <div style="width: 20%; text-align: center;">
+                    <div style="width: 80px; height: 80px; background: var(--gold); border-radius: 20px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; color: black; font-weight: 900;">1</div>
+                    <h4 style="font-size: 1rem;">Vaulting</h4>
+                    <p style="font-size: 0.8rem; margin-top: 10px;">On-device encryption. Data turns to noise before upload.</p>
+                </div>
+
+                <div style="width: 20%; text-align: center;">
+                    <div style="width: 80px; height: 80px; background: var(--platinum); border-radius: 20px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; color: black; font-weight: 900;">2</div>
+                    <h4 style="font-size: 1rem;">Vigilance</h4>
+                    <p style="font-size: 0.8rem; margin-top: 10px;">Pulse monitoring. Automated proof-of-life checks.</p>
+                </div>
+
+                <div style="width: 20%; text-align: center;">
+                    <div style="width: 80px; height: 80px; background: var(--accent); border-radius: 20px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; color: black; font-weight: 900;">3</div>
+                    <h4 style="font-size: 1rem;">Trigger</h4>
+                    <p style="font-size: 0.8rem; margin-top: 10px;">Dead Man's Switch initiates after verification.</p>
+                </div>
+
+                <div style="width: 20%; text-align: center;">
+                    <div style="width: 80px; height: 80px; background: #4CAF50; border-radius: 20px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; color: black; font-weight: 900;">4</div>
+                    <h4 style="font-size: 1rem;">Inheritance</h4>
+                    <p style="font-size: 0.8rem; margin-top: 10px;">Secure key handover. Legacies are unlocked.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 6: The Market -->
+    <section class="slide">
+        <div class="slide-content" style="text-align: center;">
+            <h2>The Opportunity</h2>
+            <p>Targeting the $68 Trillion "Great Wealth Transfer" happening over the next two decades.</p>
+            <div style="display: flex; justify-content: space-around; margin-top: 80px;">
+                <div>
+                    <div class="stat">320M</div>
+                    <div class="stat-label">Global Crypto Users</div>
+                </div>
+                <div>
+                    <div class="stat">1.2B</div>
+                    <div class="stat-label">Digital Estate Owners</div>
+                </div>
+                <div>
+                    <div class="stat">24%</div>
+                    <div class="stat-label">CAGR Growth</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 7: Key Product Pillars -->
+    <section class="slide" style="background: rgba(33, 150, 243, 0.05);">
+        <div class="slide-content">
+            <h2>Key Product Pillars</h2>
+            <p>What makes Ever Keep the world's most secure legacy sanctuary.</p>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4 style="color: var(--gold);">Zero-Knowledge</h4>
+                    <p style="font-size: 0.9rem;">Client-side encryption ensures we never see your data. Your PIN is your only key.</p>
+                </div>
+                <div class="feature-card">
+                    <h4 style="color: var(--gold);">Dead Man's Switch</h4>
+                    <p style="font-size: 0.9rem;">Automated, middleman-free asset transfer triggered by our proprietary Pulse Monitor.</p>
+                </div>
+                <div class="feature-card">
+                    <h4 style="color: var(--gold);">Military-Grade</h4>
+                    <p style="font-size: 0.9rem;">Powered by Argon2id and AES-256-GCM. Unbreakable by current and near-future tech.</p>
+                </div>
+                <div class="feature-card">
+                    <h4 style="color: var(--gold);">Shamir's Sharing</h4>
+                    <p style="font-size: 0.9rem;">Logical key sharding ensures distributed trust and eliminates single points of failure.</p>
+                </div>
+                <div class="feature-card">
+                    <h4 style="color: var(--gold);">SSL Pinning</h4>
+                    <p style="font-size: 0.9rem;">Hardened network security that neutralizes Man-in-the-Middle attacks instantly.</p>
+                </div>
+                <div class="feature-card">
+                    <h4 style="color: var(--gold);">Blinded Discovery</h4>
+                    <p style="font-size: 0.9rem;">Nominee privacy is absolute. Identities are hashed and salted locally.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 8: The Business Model -->
+    <section class="slide">
+        <div class="slide-content">
+            <h2>The Business Model</h2>
+            <p>Sustainable growth through value-based tiered services.</p>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4 style="color: var(--accent);">Standard (Free)</h4>
+                    <p style="font-size: 0.9rem;">Basic document vaulting with one nominee. Entry-level legacy protection.</p>
+                </div>
+                <div class="feature-card" style="border: 2px solid var(--gold);">
+                    <h4 style="color: var(--gold);">Ever Keep Pro</h4>
+                    <p style="font-size: 0.9rem;">Unlimited vaults, multiple nominees, and priority Smart Alert triggers.</p>
+                </div>
+                <div class="feature-card">
+                    <h4 style="color: var(--accent);">Enterprise/Legal</h4>
+                    <p style="font-size: 0.9rem;">White-label API for law firms and estate planners to secure client legacies.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 9: Our Unfair Advantage -->
+    <section class="slide" style="background: linear-gradient(180deg, var(--midnight) 0%, rgba(212, 175, 55, 0.05) 100%);">
+        <div class="slide-content">
+            <h2>Our Unfair Advantage</h2>
+            <p>Why Big Tech can't—and won't—compete with Ever Keep.</p>
+            <div style="display: flex; gap: 40px; margin-top: 40px;">
+                <div style="flex: 1; padding: 30px; background: var(--glass); border-radius: 20px;">
+                    <h4 style="color: #ff5252; margin-bottom: 20px;">Big Tech (Google/Apple)</h4>
+                    <ul style="list-style: none; opacity: 0.7;">
+                        <li>⚠️ Data is the product</li>
+                        <li>⚠️ Centralized trust</li>
+                        <li>⚠️ Subpoena-ready access</li>
+                        <li>⚠️ Vulnerable to internal misuse</li>
+                    </ul>
+                </div>
+                <div style="flex: 1; padding: 30px; background: rgba(212, 175, 55, 0.1); border-radius: 20px; border: 1px solid var(--gold);">
+                    <h4 style="color: var(--gold); margin-bottom: 20px;">Ever Keep</h4>
+                    <ul style="list-style: none;">
+                        <li>✅ Privacy is the product</li>
+                        <li>✅ Zero-Knowledge sovereignty</li>
+                        <li>✅ Mathematically impenetrable</li>
+                        <li>✅ Code-governed automation</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 10: The Roadmap -->
+    <section class="slide">
+        <div class="slide-content">
+            <h2>The Roadmap</h2>
+            <p>Building the global standard for digital continuity.</p>
+            <div style="margin-top: 60px; border-left: 2px solid var(--glass-border); padding-left: 40px; margin-left: 40px;">
+                <div style="margin-bottom: 40px; position: relative;">
+                    <div style="position: absolute; left: -50px; top: 0; width: 20px; height: 20px; background: var(--gold); border-radius: 50%;"></div>
+                    <h4 style="color: var(--gold);">Q3 2026: The Foundation</h4>
+                    <p>Launch of Mobile/Web ZK Vaults and Dead Man's Switch core.</p>
+                </div>
+                <div style="margin-bottom: 40px; position: relative;">
+                    <div style="position: absolute; left: -50px; top: 0; width: 20px; height: 20px; background: var(--platinum); border-radius: 50%;"></div>
+                    <h4 style="color: var(--platinum);">Q1 2027: Ecosystem Expansion</h4>
+                    <p>API for Legal Partners & Hardware Key (YubiKey) Integration.</p>
+                </div>
+                <div style="position: relative;">
+                    <div style="position: absolute; left: -50px; top: 0; width: 20px; height: 20px; background: var(--accent); border-radius: 50%;"></div>
+                    <h4 style="color: var(--accent);">2028: Global Standard</h4>
+                    <p>Integration with Smart Contract Legal Will Systems across 10+ jurisdictions.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Slide 11: The Vision -->
+    <section class="slide">
+        <div class="bg-glow" style="bottom: -200px; right: -200px;"></div>
+        <div class="slide-content" style="text-align: center;">
+            <h2>The Future of Legacy</h2>
+            <p>Ever Keep isn't just an app. It's the global standard for posthumous privacy.</p>
+            <div class="quote">"Because some secrets are worth keeping, and every legacy is worth protecting."</div>
+            <div class="punch-line" style="margin-top: 80px;">Join the Sanctuary.</div>
+            <h1 style="font-size: 3rem;">Ever Keep</h1>
+        </div>
+    </section>
+</body>
+</html>

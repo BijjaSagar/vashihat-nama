@@ -2,11 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
-import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
 
 class ScanDocumentScreen extends StatefulWidget {
-  const ScanDocumentScreen({Key? key}) : super(key: key);
+  const ScanDocumentScreen({super.key});
 
   @override
   State<ScanDocumentScreen> createState() => _ScanDocumentScreenState();
@@ -37,9 +36,7 @@ class _ScanDocumentScreenState extends State<ScanDocumentScreen> {
         _processImage(_imageFile!);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error picking image: $e")),
-      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("INGESTION FAILURE: $e"), backgroundColor: Colors.redAccent));
     }
   }
 
@@ -49,166 +46,152 @@ class _ScanDocumentScreenState extends State<ScanDocumentScreen> {
       final inputImage = InputImage.fromFile(image);
       final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
       
-      setState(() {
-        _extractedText = recognizedText.text;
-        _isScanning = false;
-      });
+      if (mounted) {
+        setState(() {
+          _extractedText = recognizedText.text;
+          _isScanning = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isScanning = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error scanning text: $e")),
-      );
+      if (mounted) {
+        setState(() => _isScanning = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("OPTICAL DECODING FAILURE: $e"), backgroundColor: Colors.redAccent));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: Text(
-          "AI Document Scanner", 
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontWeight: FontWeight.bold
-          )
-        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: AppTheme.primaryColor),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.accentColor),
           onPressed: () => Navigator.pop(context),
         ),
+        title: const Text("OPTICAL INTELLIGENCE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1, fontSize: 16)),
+        centerTitle: true,
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFF2F2F7), // System Gray 6
-              Color(0xFFE5E5EA), // System Gray 5
-              Color(0xFFF2F2F7),
-            ],
-            stops: [0.0, 0.5, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Image Preview Area
-              Expanded(
-                flex: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: GlassCard(
-                    opacity: 0.6,
-                    blur: 20,
-                    color: Colors.white,
-                    borderColor: Colors.white.withOpacity(0.9),
-                    padding: EdgeInsets.zero,
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: _imageFile == null
-                          ? Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.document_scanner_outlined, size: 80, color: AppTheme.textSecondary.withOpacity(0.5)),
-                                const SizedBox(height: 16),
-                                Text("No document selected", style: TextStyle(color: AppTheme.textSecondary)),
-                              ],
-                            )
-                          : ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: Image.file(_imageFile!, fit: BoxFit.contain),
-                            ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Results Area
-              Expanded(
-                flex: 2,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: GlassCard(
-                    opacity: 0.6,
-                    blur: 20,
-                    color: Colors.white,
-                    borderColor: Colors.white.withOpacity(0.9),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Extracted Content:",
-                          style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        const SizedBox(height: 8),
-                        Expanded(
-                          child: _isScanning
-                              ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
-                              : SingleChildScrollView(
-                                  child: Text(
-                                    _extractedText.isEmpty 
-                                      ? "Scan a document to see extracted text here. The AI will preserve this content." 
-                                      : _extractedText,
-                                    style: TextStyle(color: AppTheme.textPrimary, height: 1.5),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              flex: 4,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                child: Container(
+                  width: double.infinity,
+                  decoration: AppTheme.slabDecoration,
+                  child: _imageFile == null
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.document_scanner_rounded, size: 64, color: Colors.white.withOpacity(0.01)),
+                            const SizedBox(height: 32),
+                            const Text("AWAITING DATA INPUT", style: TextStyle(color: Colors.white10, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                          ],
+                        )
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(28),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.file(_imageFile!, fit: BoxFit.cover),
+                              Container(color: Colors.black.withOpacity(0.2)),
+                              if (_isScanning)
+                                Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const CircularProgressIndicator(color: AppTheme.accentColor, strokeWidth: 2),
+                                      const SizedBox(height: 24),
+                                      const Text("DECODING STREAM...", style: TextStyle(color: AppTheme.accentColor, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                                    ],
                                   ),
                                 ),
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 3,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(40),
+                  decoration: AppTheme.slabDecoration,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("EXTRACTED METRICS", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                      const SizedBox(height: 24),
+                      Expanded(
+                        child: _isScanning
+                            ? const SizedBox.shrink()
+                            : SingleChildScrollView(
+                                physics: const BouncingScrollPhysics(),
+                                child: Text(
+                                  _extractedText.isEmpty 
+                                    ? "INITIATE HIGH-FIDELITY OPTICAL SCAN TO EXTRACT DATA STREAM." 
+                                    : _extractedText.toUpperCase(),
+                                  style: TextStyle(
+                                    color: _extractedText.isEmpty ? Colors.white10 : Colors.white70, 
+                                    fontSize: 12, 
+                                    height: 1.8, 
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              
-              const SizedBox(height: 20),
-
-              // Actions
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 64,
+                      child: ElevatedButton(
                         onPressed: () => _pickImage(ImageSource.camera),
-                        icon: const Icon(Icons.camera_alt),
-                        label: const Text("Camera"),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: AppTheme.accentColor,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         ),
+                        child: const Text("CAMERA", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.5)),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton.icon(
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: SizedBox(
+                      height: 64,
+                      child: OutlinedButton(
                         onPressed: () => _pickImage(ImageSource.gallery),
-                        icon: const Icon(Icons.upload_file),
-                        label: const Text("Gallery"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.platinumColor,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.white.withOpacity(0.05)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         ),
+                        child: const Text("GALLERY", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 1.5)),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
-

@@ -1,343 +1,416 @@
 import 'package:flutter/material.dart';
-import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 import 'vault_items_screen.dart';
 
 class FoldersScreen extends StatefulWidget {
   final int userId;
-  const FoldersScreen({Key? key, required this.userId}) : super(key: key);
+  const FoldersScreen({super.key, required this.userId});
 
   @override
-  _FoldersScreenState createState() => _FoldersScreenState();
+  State<FoldersScreen> createState() => _FoldersScreenState();
 }
 
 class _FoldersScreenState extends State<FoldersScreen> {
-  List<dynamic> folders = [];
-  bool isLoading = true;
+  List<dynamic> _allFolders = [];
+  List<dynamic> _displayed = [];
+  bool _isLoading = true;
+  String _selectedCategory = "ALL";
+  final TextEditingController _searchCtrl = TextEditingController();
+
+  final List<String> _categories = ["ALL", "IDENTITY", "FINANCIAL", "LEGAL", "DIGITAL"];
 
   @override
   void initState() {
     super.initState();
     _loadFolders();
+    _searchCtrl.addListener(_filter);
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFolders() async {
+    if (mounted) setState(() => _isLoading = true);
     try {
-      final fetchedFolders = await ApiService().getFolders(widget.userId.toString());
-      
-      // Auto-create "Bank Accounts" if missing
-      bool hasBankDetails = fetchedFolders.any((f) => f['name'] == 'Bank Accounts');
-      if (!hasBankDetails) {
-        await ApiService().createFolder(widget.userId.toString(), 'Bank Accounts', 'account_balance');
-        // Reload to get the ID of the new folder
-        final updatedFolders = await ApiService().getFolders(widget.userId.toString());
-         if (mounted) {
-          setState(() {
-            folders = updatedFolders;
-            isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            folders = fetchedFolders;
-            isLoading = false;
-          });
-        }
+      final fetched = await ApiService().getFolders(widget.userId);
+      if (mounted) {
+        setState(() {
+          _allFolders = fetched;
+          _displayed = fetched;
+          _isLoading = false;
+        });
       }
     } catch (e) {
-      print("Error loading folders: $e");
-      if (mounted) setState(() => isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _createFolder(String name) async {
-    try {
-      await ApiService().createFolder(widget.userId.toString(), name, "folder_shared"); // Default icon
-      _loadFolders(); // Refresh list
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Folder Created")));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
-    }
+  void _filter() {
+    final q = _searchCtrl.text.toLowerCase();
+    setState(() {
+      _displayed = _allFolders
+          .where((f) => f['name'].toString().toLowerCase().contains(q))
+          .toList();
+    });
   }
 
-  Future<void> _renameFolder(int folderId, String currentName) async {
-    final TextEditingController renameController = TextEditingController(text: currentName);
-    final newName = await showDialog<String>(
+  // ── Show bottom sheet to CREATE a new folder
+  void _showCreateFolderSheet() {
+    final nameCtrl = TextEditingController();
+    String selectedIcon = 'folder';
+    bool isSaving = false;
+
+    final iconOptions = [
+      {'key': 'folder',          'icon': Icons.folder_rounded,             'label': 'GENERAL'},
+      {'key': 'account_balance', 'icon': Icons.account_balance_wallet_rounded, 'label': 'FINANCIAL'},
+      {'key': 'folder_shared',   'icon': Icons.folder_shared_rounded,      'label': 'IDENTITY'},
+      {'key': 'lock',            'icon': Icons.lock_rounded,               'label': 'LEGAL'},
+      {'key': 'devices',         'icon': Icons.devices_rounded,            'label': 'DIGITAL'},
+      {'key': 'photo',           'icon': Icons.photo_library_rounded,      'label': 'MEDIA'},
+    ];
+
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Rename Folder", style: TextStyle(fontWeight: FontWeight.bold)),
-        content: TextField(
-          controller: renameController,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: "Enter new name",
-            filled: true,
-            fillColor: Colors.grey[100],
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          padding: EdgeInsets.only(
+            left: 24, right: 24, top: 32,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 32,
+          ),
+          decoration: BoxDecoration(
+            color: AppTheme.slabColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 36, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text("CREATE NEW FOLDER",
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+              const SizedBox(height: 4),
+              const Text("SECURE VAULT DIRECTORY",
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 2)),
+              const SizedBox(height: 28),
+
+              // Folder name input
+              Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.backgroundColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                ),
+                child: TextField(
+                  controller: nameCtrl,
+                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.folder_rounded, color: AppTheme.accentColor, size: 20),
+                    hintText: "FOLDER NAME",
+                    hintStyle: TextStyle(color: Colors.white24, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Icon picker
+              const Text("FOLDER TYPE",
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 72,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: iconOptions.length,
+                  itemBuilder: (_, i) {
+                    final opt = iconOptions[i];
+                    final isSelected = selectedIcon == opt['key'];
+                    return GestureDetector(
+                      onTap: () => setSheetState(() => selectedIcon = opt['key'] as String),
+                      child: Container(
+                        width: 72,
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppTheme.accentColor.withValues(alpha: 0.12) : AppTheme.backgroundColor,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isSelected ? AppTheme.accentColor : Colors.white.withValues(alpha: 0.06),
+                            width: isSelected ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(opt['icon'] as IconData,
+                              color: isSelected ? AppTheme.accentColor : Colors.white38, size: 22),
+                          const SizedBox(height: 4),
+                          Text(opt['label'] as String,
+                              style: TextStyle(
+                                  color: isSelected ? AppTheme.accentColor : Colors.white38,
+                                  fontSize: 6, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                        ]),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Create button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          final name = nameCtrl.text.trim();
+                          if (name.isEmpty) return;
+                          setSheetState(() => isSaving = true);
+                          try {
+                            await ApiService().createFolder(
+                              widget.userId,
+                              name.toUpperCase(),
+                              selectedIcon,
+                            );
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            _loadFolders();
+                          } catch (e) {
+                            setSheetState(() => isSaving = false);
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(content: Text("ERROR: $e"),
+                                    backgroundColor: Colors.redAccent),
+                              );
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.accentColor,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: isSaving
+                      ? const SizedBox(width: 20, height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                      : const Text("CREATE FOLDER",
+                          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1)),
+                ),
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-          ElevatedButton(
-            onPressed: () {
-              if (renameController.text.isNotEmpty) {
-                Navigator.pop(context, renameController.text);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text("Rename", style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
-
-    if (newName != null && newName.isNotEmpty && newName != currentName) {
-      try {
-        await ApiService().renameFolder(folderId, newName, widget.userId.toString());
-        _loadFolders();
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Folder Renamed")));
-      } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
-      }
-    }
-  }
-
-  Future<void> _confirmDeleteFolder(int folderId, String folderName) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Delete Folder", style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text(
-          "Are you sure you want to delete \"$folderName\"? All items inside this folder will also be removed.",
-          style: const TextStyle(fontSize: 14),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text("Delete", style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      try {
-        await ApiService().deleteFolder(folderId, widget.userId.toString());
-        _loadFolders();
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Folder Deleted")));
-      } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
-      }
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
       backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          "Secure Vault", 
-          style: TextStyle(
-            color: AppTheme.textPrimary, 
-            fontWeight: FontWeight.bold
-          )
-        ),
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, size: 20, color: AppTheme.primaryColor),
-          onPressed: () => Navigator.pop(context),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildAppBar(),
+            _buildSearchBar(),
+            _buildCategoryChips(),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: AppTheme.accentColor))
+                  : _displayed.isEmpty
+                      ? _buildEmptyState()
+                      : _buildFolderList(),
+            ),
+          ],
         ),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFF2F2F7), // System Gray 6
-              Color(0xFFE5E5EA), // System Gray 5
-              Color(0xFFF2F2F7),
-            ],
-            stops: [0.0, 0.5, 1.0],
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: "folder_action_btn",
+        onPressed: _showCreateFolderSheet,
+        backgroundColor: AppTheme.accentColor,
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        icon: const Icon(Icons.create_new_folder_rounded, color: Colors.black, size: 20),
+        label: const Text("NEW FOLDER",
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1)),
+      ),
+    );
+  }
+
+  Widget _buildAppBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 20, 12, 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text("VAULT DIRECTORY",
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+          IconButton(
+            icon: const Icon(Icons.tune_rounded, color: AppTheme.accentColor, size: 20),
+            onPressed: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.slabColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        child: TextField(
+          controller: _searchCtrl,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.search_rounded, color: Colors.white38, size: 18),
+            hintText: "SEARCH SECURE ARCHIVES",
+            hintStyle: TextStyle(color: Colors.white24, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.5),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(vertical: 18),
           ),
         ),
-        child: SafeArea(
-          child: isLoading 
-            ? const Center(child: CircularProgressIndicator())
-            : folders.isEmpty 
-              ? Center(child: Text("No folders found", style: TextStyle(color: AppTheme.textSecondary)))
-              : Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: GridView.builder(
-                    padding: const EdgeInsets.only(top: 20, bottom: 80),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 1.0,
-                    ),
-                    itemCount: folders.length,
-                    itemBuilder: (context, index) {
-                      final folder = folders[index];
-                      // Fallback dummy styling if API doesn't provide color/icon
-                      Color folderColor = Colors.blue; 
-                      IconData folderIcon = Icons.folder;
-                      
-                      return GestureDetector(
-                        onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => VaultItemsScreen(
-                             userId: widget.userId,
-                             folderId: folder['id'],
-                             folderName: folder['name'],
-                           )));
-                        },
-                        child: GlassCard(
-                          opacity: 0.6,
-                          blur: 20,
-                          color: Colors.white,
-                          borderColor: Colors.white.withOpacity(0.9),
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: folderColor.withOpacity(0.1),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(folderIcon, size: 28, color: folderColor),
-                                  ),
-                                  PopupMenuButton<String>(
-                                    icon: Icon(Icons.more_horiz, color: AppTheme.textSecondary, size: 20),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    elevation: 8,
-                                    onSelected: (value) {
-                                      if (value == 'rename') {
-                                        _renameFolder(folder['id'], folder['name']);
-                                      } else if (value == 'delete') {
-                                        _confirmDeleteFolder(folder['id'], folder['name']);
-                                      }
-                                    },
-                                    itemBuilder: (context) => [
-                                      PopupMenuItem<String>(
-                                        value: 'rename',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.edit_rounded, size: 20, color: AppTheme.primaryColor),
-                                            const SizedBox(width: 12),
-                                            const Text("Rename", style: TextStyle(fontWeight: FontWeight.w500)),
-                                          ],
-                                        ),
-                                      ),
-                                      PopupMenuItem<String>(
-                                        value: 'delete',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
-                                            const SizedBox(width: 12),
-                                            const Text("Delete", style: TextStyle(fontWeight: FontWeight.w500, color: Colors.red)),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    folder['name'],
-                                    style: TextStyle(
-                                      color: AppTheme.textPrimary,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: -0.5,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    "Encrypted", // We can add file count from API later
-                                    style: TextStyle(
-                                      color: AppTheme.textSecondary,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          final TextEditingController folderNameController = TextEditingController();
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Text("New Folder", style: TextStyle(fontWeight: FontWeight.bold)),
-              content: TextField(
-                controller: folderNameController,
-                autofocus: true,
-                decoration: InputDecoration(
-                  hintText: "Folder Name",
-                  filled: true,
-                  fillColor: Colors.grey[100],
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+    );
+  }
+
+  Widget _buildCategoryChips() {
+    return SizedBox(
+      height: 72,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        itemCount: _categories.length,
+        itemBuilder: (_, i) {
+          final cat = _categories[i];
+          final active = _selectedCategory == cat;
+          return GestureDetector(
+            onTap: () => setState(() => _selectedCategory = cat),
+            child: Container(
+              margin: const EdgeInsets.only(right: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              decoration: BoxDecoration(
+                color: active ? AppTheme.accentColor.withValues(alpha: 0.1) : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: active ? AppTheme.accentColor.withValues(alpha: 0.4) : Colors.white.withValues(alpha: 0.06),
                 ),
               ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-                ElevatedButton(
-                  onPressed: () {
-                    if (folderNameController.text.isNotEmpty) {
-                      Navigator.pop(context);
-                      _createFolder(folderNameController.text);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text("Create", style: TextStyle(color: Colors.white)),
-                ),
-              ],
+              child: Text(cat,
+                  style: TextStyle(
+                      color: active ? AppTheme.accentColor : Colors.white38,
+                      fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
             ),
           );
         },
-        backgroundColor: AppTheme.primaryColor,
-        elevation: 0,
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
+  }
+
+  Widget _buildFolderList() {
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 100),
+      itemCount: _displayed.length,
+      itemBuilder: (_, i) => _folderTile(_displayed[i]),
+    );
+  }
+
+  Widget _folderTile(dynamic folder) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => VaultItemsScreen(
+          userId: widget.userId,
+          folderId: folder['id'],
+          folderName: folder['name'],
+        )),
+      ).then((_) => _loadFolders()),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(20),
+        decoration: AppTheme.slabDecoration,
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.accentColor.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppTheme.accentColor.withValues(alpha: 0.15)),
+              ),
+              child: Icon(_iconFor(folder['icon']), color: AppTheme.accentColor, size: 20),
+            ),
+            const SizedBox(width: 18),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(folder['name'].toString().toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 4),
+                Text("${folder['item_count'] ?? 0} ITEMS · SENTINEL PROTECTED",
+                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 7,
+                        fontWeight: FontWeight.w800, letterSpacing: 1)),
+              ]),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: AppTheme.slabColor,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          ),
+          child: const Icon(Icons.create_new_folder_outlined, color: AppTheme.accentColor, size: 40),
+        ),
+        const SizedBox(height: 20),
+        const Text("NO FOLDERS YET",
+            style: TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1)),
+        const SizedBox(height: 8),
+        const Text("TAP 'NEW FOLDER' TO CREATE YOUR FIRST ARCHIVE",
+            style: TextStyle(color: Colors.white24, fontSize: 8, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+      ]),
+    );
+  }
+
+  IconData _iconFor(String? key) {
+    switch (key) {
+      case 'account_balance': return Icons.account_balance_wallet_rounded;
+      case 'folder_shared':   return Icons.folder_shared_rounded;
+      case 'lock':            return Icons.lock_rounded;
+      case 'devices':         return Icons.devices_rounded;
+      case 'photo':           return Icons.photo_library_rounded;
+      default:                return Icons.folder_rounded;
+    }
   }
 }

@@ -3,13 +3,10 @@ import 'package:intl/intl.dart';
 import 'package:local_auth/local_auth.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
-import '../theme/glassmorphism.dart';
-import '../services/notification_service.dart';
-import '../services/background_alarm_service.dart';
 
 class HeartbeatScreen extends StatefulWidget {
   final int userId;
-  const HeartbeatScreen({Key? key, required this.userId}) : super(key: key);
+  const HeartbeatScreen({super.key, required this.userId});
 
   @override
   _HeartbeatScreenState createState() => _HeartbeatScreenState();
@@ -18,50 +15,26 @@ class HeartbeatScreen extends StatefulWidget {
 class _HeartbeatScreenState extends State<HeartbeatScreen> {
   bool isLoading = true;
   bool isCheckInLoading = false;
-  
-  // Status
   bool isActive = false;
   int frequencyDays = 30;
   int frequencyHours = 0;
   int frequencyMinutes = 0;
   DateTime? lastCheckIn;
-
-  // Biometric
   final LocalAuthentication _localAuth = LocalAuthentication();
-  bool _biometricAvailable = false;
-  List<BiometricType> _availableBiometrics = [];
 
   @override
   void initState() {
     super.initState();
     _loadStatus();
-    _checkBiometrics();
-  }
-
-  Future<void> _checkBiometrics() async {
-    try {
-      final canAuthenticate = await _localAuth.canCheckBiometrics || await _localAuth.isDeviceSupported();
-      final available = await _localAuth.getAvailableBiometrics();
-      if (mounted) {
-        setState(() {
-          _biometricAvailable = canAuthenticate;
-          _availableBiometrics = available;
-        });
-      }
-    } catch (e) {
-      debugPrint("Biometric check error: $e");
-    }
   }
 
   Future<void> _loadStatus() async {
+    if (mounted) setState(() => isLoading = true);
     try {
       final status = await ApiService().getHeartbeatStatus(widget.userId);
       if (mounted) {
         setState(() {
           isActive = status['dead_mans_switch_active'] ?? false;
-          if (!isActive) {
-            NotificationService().cancelHeartbeatReminder();
-          }
           frequencyDays = status['check_in_frequency_days'] ?? 30;
           frequencyHours = status['check_in_frequency_hours'] ?? 0;
           frequencyMinutes = status['check_in_frequency_minutes'] ?? 0;
@@ -71,364 +44,363 @@ class _HeartbeatScreenState extends State<HeartbeatScreen> {
       }
     } catch (e) {
       if (mounted) setState(() => isLoading = false);
-      print("Error loading heartbeat: $e");
     }
   }
 
-  Future<void> _authenticateAndCheckIn() async {
+  Future<void> _checkIn() async {
     if (isCheckInLoading) return;
-
-    // Use real biometric authentication
-    if (_biometricAvailable) {
-      try {
-        final authenticated = await _localAuth.authenticate(
-          localizedReason: 'Verify your identity to confirm you are safe',
-          biometricOnly: false, // Allow PIN/pattern as fallback
-          persistAcrossBackgrounding: true,
-        );
-
-        if (!authenticated) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Authentication failed. Please try again.")),
-            );
-          }
-          return;
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Authentication error: $e")),
-          );
-        }
-        return;
-      }
-    }
-
-    // If biometric passed (or not available), proceed with check-in
     setState(() => isCheckInLoading = true);
     try {
-      // ✅ BUG FIX: checkIn() now returns next_check_in directly — no extra _loadStatus() needed
-      final result = await ApiService().checkIn(widget.userId);
-
-      // Update local state from response
-      final newLastCheckIn = DateTime.tryParse(result['last_check_in']?.toString() ?? '');
-      final nextDue = result['next_check_in'] != null
-          ? DateTime.tryParse(result['next_check_in'].toString())
-          : newLastCheckIn?.add(Duration(days: frequencyDays, hours: frequencyHours, minutes: frequencyMinutes));
-
-      if (mounted && nextDue != null) {
-        setState(() {
-          if (newLastCheckIn != null) lastCheckIn = newLastCheckIn;
-        });
-        // Schedule local notification (backup)
-        NotificationService().scheduleHeartbeatReminder(nextDue: nextDue);
-        // Update background service with new nextDue + dismiss any active alarm
-        await saveNextDueToPrefs(nextDue);
-        await dismissAlarm();
-        await startHeartbeatMonitor();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("✅ Check-in Successful! You are safe.")),
-        );
+      final authenticated = await _localAuth.authenticate(
+        localizedReason: 'CONFIRM LIFE-STATE SIGNAL TO MAINTAIN VAULT SECURITY',
+      );
+      if (authenticated) {
+        final result = await ApiService().checkIn(widget.userId);
+        if (mounted) {
+          setState(() {
+            lastCheckIn = DateTime.tryParse(result['last_check_in'] ?? '');
+          });
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("SIGNAL RECEIVED. VIGILANCE MAINTAINED.", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1)),
+            backgroundColor: AppTheme.accentColor,
+          ));
+        }
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("TRANSMISSION FAILURE: $e")));
     } finally {
       if (mounted) setState(() => isCheckInLoading = false);
     }
   }
 
-  Future<void> _updateSettings(bool newActive, int newDays, int newHours, {int newMinutes = 0}) async {
-    // Optimistic Update
-    setState(() {
-      isActive = newActive;
-      frequencyDays = newDays;
-      frequencyHours = newHours;
-      frequencyMinutes = newMinutes;
-    });
-    
-    try {
-      await ApiService().updateHeartbeatSettings(
-        widget.userId, 
-        newActive, 
-        newDays, 
-        frequencyHours: newHours,
-        frequencyMinutes: newMinutes,
-      );
-
-      // Update local scheduled notifications based on new settings
-      if (newActive && lastCheckIn != null) {
-        final nextDue = lastCheckIn!.add(Duration(days: newDays, hours: newHours, minutes: newMinutes));
-        // Reschedule local notification (backup)
-        NotificationService().scheduleHeartbeatReminder(nextDue: nextDue);
-        // Start background alarm service with updated nextDue
-        await saveNextDueToPrefs(nextDue);
-        await startHeartbeatMonitor();
-      } else if (!newActive) {
-        NotificationService().cancelHeartbeatReminder();
-        await clearNextDue();
-        await stopHeartbeatMonitor();
-      }
-    } catch (e) {
-       _loadStatus(); // Revert on error
-       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to update settings: $e")));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    // Calculate Next Due date
-    DateTime? nextDue;
-    if (lastCheckIn != null) {
-      nextDue = lastCheckIn!.add(Duration(days: frequencyDays, hours: frequencyHours, minutes: frequencyMinutes));
-    }
-
-    // Days Remaining
-    int daysRemaining = 0;
-    int hoursRemaining = 0;
-    int minutesRemaining = 0;
-    if (nextDue != null) {
-      final diff = nextDue.difference(DateTime.now());
-      daysRemaining = diff.inDays;
-      hoursRemaining = diff.inHours.remainder(24);
-      minutesRemaining = diff.inMinutes.remainder(60);
-    }
-
     return Scaffold(
-      extendBodyBehindAppBar: true,
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text("Proof of Life ❤️", style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.primaryColor),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.accentColor),
           onPressed: () => Navigator.pop(context),
         ),
+        title: const Text("DIGITAL HEARTBEAT", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1, fontSize: 16)),
+        centerTitle: true,
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFF2F2F7), Color(0xFFE5E5EA)],
+      body: isLoading 
+        ? const Center(child: CircularProgressIndicator(color: AppTheme.accentColor))
+        : SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            child: Column(
+              children: [
+                _buildPulseIndicator(),
+                const SizedBox(height: 56),
+                _buildStatusSlab(),
+                const SizedBox(height: 56),
+                _buildProtocolSettings(),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: isLoading 
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    // BIG STATUS CARD
-                    GlassCard(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        children: [
-                          Icon(
-                            isActive ? Icons.favorite : Icons.favorite_border,
-                            size: 64,
-                            color: isActive ? Colors.red : Colors.grey,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            isActive ? "Active Monitoring" : "Monitoring Inactive",
-                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            isActive 
-                              ? "If you don't check in within $frequencyDays days, $frequencyHours hours and $frequencyMinutes mins, your nominees will get access."
-                              : "Enable to automatically share access in case of emergency.",
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppTheme.textSecondary),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 32),
+    );
+  }
 
-                    // CHECK IN BUTTON
-                    if (isActive) 
-                      Column(
-                        children: [
-                          GestureDetector(
-                            onTap: isCheckInLoading ? null : _authenticateAndCheckIn,
-                            child: Container(
-                              height: 120,
-                              width: 120,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.red.withOpacity(0.3),
-                                    blurRadius: 20,
-                                    spreadRadius: 5,
-                                  )
-                                ],
-                                border: Border.all(color: Colors.redAccent, width: 4),
-                              ),
-                              child: Center(
-                                child: isCheckInLoading 
-                                  ? const CircularProgressIndicator(color: Colors.red)
-                                  : Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(_biometricAvailable ? Icons.fingerprint : Icons.verified_user, size: 40, color: Colors.red),
-                                        const Text("I'm Safe", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                                      ],
-                                    ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _biometricAvailable 
-                              ? "Tap to verify with biometrics" 
-                              : "Tap to check-in",
-                            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary.withOpacity(0.7)),
-                          ),
-                          const SizedBox(height: 24),
-                          // Stats
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildStat("Last Check-in", lastCheckIn != null ? DateFormat('MMM d, HH:mm').format(lastCheckIn!.toLocal()) : "-"),
-                              _buildStat("Next Due", nextDue != null ? DateFormat('MMM d, HH:mm').format(nextDue.toLocal()) : "-"),
-                              _buildStat(
-                                "Time Left", 
-                                nextDue != null && nextDue.isBefore(DateTime.now()) 
-                                  ? "OVERDUE" 
-                                  : (daysRemaining > 0 
-                                      ? "$daysRemaining d" 
-                                      : (hoursRemaining > 0 ? "$hoursRemaining h" : "$minutesRemaining m")), 
-                                isUrgent: nextDue != null && nextDue.isBefore(DateTime.now())
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                    const SizedBox(height: 20),
-
-                    // TEST NOTIFICATION BUTTON
-                    if (isActive)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            await NotificationService().showTestNotification();
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("🔔 Test notification sent! Check your notifications.")),
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.notifications_active_rounded, color: Colors.orange),
-                          label: const Text("Test Notification", style: TextStyle(fontWeight: FontWeight.bold)),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.orange,
-                            side: const BorderSide(color: Colors.orange),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          ),
-                        ),
-                      ),
-
-                    const SizedBox(height: 20),
-                    
-                    // SETTINGS
-                    const Align(alignment: Alignment.centerLeft, child: Text("Settings", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
-                    const SizedBox(height: 16),
-                    GlassCard(
-                      child: Column(
-                        children: [
-                           SwitchListTile(
-                            title: const Text("Dead Man's Switch"),
-                            subtitle: const Text("Grant access if I stop checking in"),
-                            value: isActive,
-                            activeColor: Colors.red,
-                            onChanged: (v) => _updateSettings(v, frequencyDays, frequencyHours, newMinutes: frequencyMinutes),
-                          ),
-                          const Divider(),
-                          ListTile(
-                            title: const Text("Check-in Days"),
-                            subtitle: Text("$frequencyDays Days"),
-                            trailing: DropdownButton<int>(
-                              value: [0, 15, 30, 60, 90].contains(frequencyDays) ? frequencyDays : 30,
-                              underline: Container(),
-                              onChanged: isActive ? (val) {
-                                if (val != null) _updateSettings(isActive, val, frequencyHours, newMinutes: frequencyMinutes);
-                              } : null,
-                              items: const [
-                                DropdownMenuItem(value: 0, child: Text("0 Days")),
-                                DropdownMenuItem(value: 15, child: Text("15 Days")),
-                                DropdownMenuItem(value: 30, child: Text("30 Days")),
-                                DropdownMenuItem(value: 60, child: Text("60 Days")),
-                                DropdownMenuItem(value: 90, child: Text("90 Days")),
-                              ],
-                            ),
-                          ),
-                          const Divider(),
-                          ListTile(
-                            title: const Text("Internal Tracking (Hours)"),
-                            subtitle: Text("$frequencyHours Hours"),
-                            trailing: DropdownButton<int>(
-                              value: [0, 2, 4, 8, 12, 24].contains(frequencyHours) ? frequencyHours : 0,
-                              underline: Container(),
-                              onChanged: isActive ? (val) {
-                                if (val != null) _updateSettings(isActive, frequencyDays, val, newMinutes: frequencyMinutes);
-                              } : null,
-                              items: const [
-                                DropdownMenuItem(value: 0, child: Text("0 Hours")),
-                                DropdownMenuItem(value: 2, child: Text("2 Hours")),
-                                DropdownMenuItem(value: 4, child: Text("4 Hours")),
-                                DropdownMenuItem(value: 8, child: Text("8 Hours")),
-                                DropdownMenuItem(value: 12, child: Text("12 Hours")),
-                                DropdownMenuItem(value: 24, child: Text("24 Hours")),
-                              ],
-                            ),
-                          ),
-                          const Divider(),
-                          ListTile(
-                            title: const Text("Internal Tracking (Minutes)"),
-                            subtitle: Text("$frequencyMinutes Minutes"),
-                            trailing: DropdownButton<int>(
-                              value: [0, 1, 5, 10, 30].contains(frequencyMinutes) ? frequencyMinutes : 0,
-                              underline: Container(),
-                              onChanged: isActive ? (val) {
-                                if (val != null) _updateSettings(isActive, frequencyDays, frequencyHours, newMinutes: val);
-                              } : null,
-                              items: const [
-                                DropdownMenuItem(value: 0, child: Text("0 Mins")),
-                                DropdownMenuItem(value: 1, child: Text("1 Min")),
-                                DropdownMenuItem(value: 5, child: Text("5 Mins")),
-                                DropdownMenuItem(value: 10, child: Text("10 Mins")),
-                                DropdownMenuItem(value: 30, child: Text("30 Mins")),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+  Widget _buildPulseIndicator() {
+    return Center(
+      child: GestureDetector(
+        onLongPress: isCheckInLoading ? null : _checkIn,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            _PulseRipple(active: isActive),
+            Container(
+              height: 220,
+              width: 220,
+              decoration: BoxDecoration(
+                color: Colors.black,
+                shape: BoxShape.circle,
+                border: Border.all(color: isActive ? AppTheme.accentColor : Colors.white.withOpacity(0.05), width: 1.5),
+                boxShadow: isActive ? [
+                  BoxShadow(color: AppTheme.accentColor.withOpacity(0.05), blurRadius: 60, spreadRadius: 0),
+                ] : [],
               ),
+              child: Center(
+                child: isCheckInLoading 
+                  ? const CircularProgressIndicator(color: AppTheme.accentColor, strokeWidth: 2)
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.fingerprint_rounded, color: isActive ? AppTheme.accentColor : Colors.white10, size: 64),
+                        const SizedBox(height: 20),
+                        Text(
+                          isActive ? "LONG PRESS\nTO SIGNAL" : "SENTINEL\nOFFLINE", 
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: isActive ? AppTheme.accentColor : Colors.white10, 
+                            fontSize: 10, 
+                            fontWeight: FontWeight.w900, 
+                            letterSpacing: 2
+                          )
+                        ),
+                      ],
+                    ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildStat(String label, String value, {bool isUrgent = false}) {
+  Widget _buildStatusSlab() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: AppTheme.slabDecoration.copyWith(
+        border: Border.all(color: isActive ? AppTheme.accentColor.withOpacity(0.1) : Colors.white.withOpacity(0.05)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 8, height: 8,
+                decoration: BoxDecoration(
+                  color: isActive ? Colors.greenAccent : Colors.redAccent,
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: isActive ? Colors.greenAccent : Colors.redAccent, blurRadius: 8)],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                isActive ? "VIGILANCE PROTOCOL ARMED" : "LEGACY MONITOR DISARMED", 
+                style: const TextStyle(
+                  color: Colors.white, 
+                  fontSize: 11, 
+                  fontWeight: FontWeight.w900, 
+                  letterSpacing: 1.5
+                )
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Text(
+            isActive 
+              ? "YOUR DIGITAL HEARTBEAT IS BEING MONITORED. SILENCE EXCEEDING $frequencyDays DAYS WILL INITIATE LEGACY TRANSMISSION." 
+              : "ACTIVATE THE DEAD MAN'S SWITCH TO AUTOMATE YOUR LEGACY TRANSFER IF YOU BECOME UNRESPONSIVE.",
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w700, height: 1.6, letterSpacing: 0.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProtocolSettings() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isUrgent ? Colors.red : AppTheme.textPrimary)),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+        const Text("PROTOCOL CONFIGURATION", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+        const SizedBox(height: 20),
+        Container(
+          decoration: AppTheme.slabDecoration,
+          child: Column(
+            children: [
+              _buildSettingsTile(
+                "MONITOR STATE", 
+                isActive ? "ACTIVE" : "DISABLED", 
+                Icons.radar_rounded, 
+                () => _toggleSwitch(!isActive)
+              ),
+              _buildDivider(),
+              _buildSettingsTile(
+                "SILENCE THRESHOLD", 
+                "$frequencyDays DAYS", 
+                Icons.timer_rounded, 
+                () => _showFrequencyDialog()
+              ),
+              _buildDivider(),
+              _buildSettingsTile(
+                "LAST PULSE CONFIRMED", 
+                lastCheckIn != null ? DateFormat('MMM d, HH:mm').format(lastCheckIn!.toLocal()).toUpperCase() : "NO SIGNAL DATA", 
+                Icons.history_rounded, 
+                () {}
+              ),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildDivider() => Divider(color: Colors.white.withOpacity(0.02), height: 1, indent: 24, endIndent: 24);
+
+  Widget _buildSettingsTile(String title, String value, IconData icon, VoidCallback onTap) {
+    return ListTile(
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      leading: Icon(icon, color: AppTheme.accentColor.withOpacity(0.4), size: 18),
+      title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(value, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w900)),
+          const SizedBox(width: 12),
+          const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white10, size: 12),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _toggleSwitch(bool active) async {
+    setState(() => isLoading = true);
+    try {
+      await ApiService().syncSentinelHeartbeat(
+        userId: widget.userId,
+        active: active,
+        frequencyDays: frequencyDays,
+        frequencyHours: frequencyHours,
+        frequencyMinutes: frequencyMinutes,
+      );
+      await _loadStatus();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(active ? "DEAD MAN'S SWITCH ARMED." : "VIGILANCE DISARMED.", style: const TextStyle(fontWeight: FontWeight.w900)),
+          backgroundColor: active ? Colors.green.shade900 : Colors.red.shade900,
+        ));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("CONFIGURATION FAILURE: $e")));
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  void _showFrequencyDialog() {
+    final TextEditingController _daysController = TextEditingController(text: frequencyDays.toString());
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.backgroundColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24), 
+          side: BorderSide(color: Colors.white.withOpacity(0.05))
+        ),
+        title: const Text("CALIBRATE THRESHOLD", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("DEFINE THE MAXIMUM DURATION OF SILENCE BEFORE THE VAULT INITIATES ITS LEGACY PROTOCOL.", 
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w700, height: 1.6)),
+            const SizedBox(height: 32),
+            Container(
+              decoration: BoxDecoration(color: Colors.white.withOpacity(0.01), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withOpacity(0.05))),
+              child: TextField(
+                controller: _daysController,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppTheme.accentColor, fontSize: 32, fontWeight: FontWeight.w900),
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(vertical: 24),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text("SILENCE LIMIT (DAYS)", style: TextStyle(color: Colors.white10, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 2)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL", style: TextStyle(color: Colors.white10, fontWeight: FontWeight.w900))),
+          ElevatedButton(
+            onPressed: () {
+              final days = int.tryParse(_daysController.text) ?? frequencyDays;
+              Navigator.pop(context);
+              _updateFrequency(days, 0, 0);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentColor, foregroundColor: Colors.black),
+            child: const Text("CALIBRATE", style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateFrequency(int days, int hours, int mins) async {
+    setState(() => isLoading = true);
+    try {
+      await ApiService().syncSentinelHeartbeat(
+        userId: widget.userId,
+        active: isActive,
+        frequencyDays: days,
+        frequencyHours: hours,
+        frequencyMinutes: mins,
+      );
+      await _loadStatus();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("CALIBRATION FAILURE: $e")));
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+}
+
+class _PulseRipple extends StatefulWidget {
+  final bool active;
+  const _PulseRipple({required this.active});
+
+  @override
+  State<_PulseRipple> createState() => _PulseRippleState();
+}
+
+class _PulseRippleState extends State<_PulseRipple> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.active) return const SizedBox();
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            _buildRipple(1.0),
+            _buildRipple(0.5),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildRipple(double delay) {
+    final value = (_controller.value + delay) % 1.0;
+    return Container(
+      width: 220 + (160 * value),
+      height: 220 + (160 * value),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: AppTheme.accentColor.withOpacity((1 - value) * 0.2),
+          width: 1,
+        ),
+      ),
     );
   }
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../theme/app_theme.dart';
-import '../theme/glassmorphism.dart';
 import '../services/api_service.dart';
 
 class UploadDocumentScreen extends StatefulWidget {
@@ -30,17 +29,16 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen> {
 
   Future<void> uploadFile() async {
     if (selectedFile == null) return;
-    setState(() => _isUploading = true);
+    if (mounted) setState(() => _isUploading = true);
 
     try {
       await ApiService().uploadFile(widget.folderId, selectedFile!);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("File uploaded successfully!")));
-      Navigator.pop(context); // Go back after upload
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("DOCUMENT SECURED IN VAULT"), backgroundColor: Colors.greenAccent));
+      Navigator.pop(context);
     } catch (e) {
-      print("Error uploading file: $e");
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error uploading file: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("ENCRYPTION ERROR: $e")));
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -51,101 +49,89 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: Text("Upload Document", style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: AppTheme.primaryColor),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.accentColor),
           onPressed: () => Navigator.pop(context),
         ),
+        title: const Text("SECURE INGESTION", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1, fontSize: 16)),
+        centerTitle: true,
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFF2F2F7), // System Gray 6
-              Color(0xFFE5E5EA), // System Gray 5
-              Color(0xFFF2F2F7),
-            ],
-            stops: [0.0, 0.5, 1.0],
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              GlassCard(
-                opacity: 0.6,
-                blur: 20,
-                color: Colors.white,
-                borderColor: Colors.white.withOpacity(0.9),
-                padding: const EdgeInsets.all(32),
+              Container(
+                width: double.infinity,
+                decoration: AppTheme.slabDecoration,
+                padding: const EdgeInsets.all(48),
                 child: Column(
                   children: [
-                    Icon(
-                      selectedFile != null ? Icons.check_circle_outline : Icons.cloud_upload_outlined,
-                      size: 64,
-                      color: selectedFile != null ? Colors.green : AppTheme.primaryColor,
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentColor.withOpacity(0.02),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppTheme.accentColor.withOpacity(0.1)),
+                      ),
+                      child: Icon(
+                        selectedFile != null ? Icons.verified_rounded : Icons.cloud_upload_rounded,
+                        size: 64,
+                        color: AppTheme.accentColor,
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    Text(
+                      selectedFile != null ? "READY FOR ENCRYPTION" : "SELECT SOURCE ASSET",
+                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 2),
+                      textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      selectedFile != null ? "File Selected" : "Select a file to upload",
-                      style: TextStyle(
-                        fontSize: 18, 
-                        fontWeight: FontWeight.bold, 
-                        color: AppTheme.textPrimary
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      selectedFile != null ? selectedFile!.path.split('/').last : "Tap below to browse",
+                      selectedFile != null 
+                          ? selectedFile!.path.split('/').last.toUpperCase() 
+                          : "INJECT A DIGITAL ARTIFACT TO BE SEALED WITHIN THE SENTINEL VAULT.",
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: AppTheme.textSecondary),
+                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5),
                     ),
-                    const SizedBox(height: 32),
-                    
+                    const SizedBox(height: 56),
                     if (selectedFile == null)
                       SizedBox(
                         width: double.infinity,
-                        height: 50,
+                        height: 64,
                         child: OutlinedButton(
                           onPressed: pickFile,
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: AppTheme.primaryColor),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            side: const BorderSide(color: Colors.white10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           ),
-                          child: const Text("Choose File"),
+                          child: const Text("BROWSE DIRECTORY", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.5)),
                         ),
-                      ),
-                      
-                    if (selectedFile != null) ...[
-                       const SizedBox(height: 16),
-                       SizedBox(
+                      )
+                    else ...[
+                      SizedBox(
                         width: double.infinity,
-                        height: 50,
+                        height: 64,
                         child: ElevatedButton(
                           onPressed: _isUploading ? null : uploadFile,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            backgroundColor: AppTheme.accentColor,
+                            foregroundColor: Colors.black,
                           ),
                           child: _isUploading 
-                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : const Text("Upload Now", style: TextStyle(fontWeight: FontWeight.bold)),
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                            : const Text("INITIATE UPLOAD & ENCRYPT", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1)),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 24),
                       TextButton(
                         onPressed: pickFile,
-                        child: const Text("Change File"),
+                        child: const Text("REPLACE ARTIFACT", style: TextStyle(color: Colors.white10, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
                       )
-                    ]
+                    ],
                   ],
                 ),
               ),
@@ -156,4 +142,3 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen> {
     );
   }
 }
-

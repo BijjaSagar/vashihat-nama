@@ -1,200 +1,283 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 
 class AssetDiscoveryScreen extends StatefulWidget {
   final int userId;
-  const AssetDiscoveryScreen({Key? key, required this.userId}) : super(key: key);
+  const AssetDiscoveryScreen({super.key, required this.userId});
 
   @override
-  State<AssetDiscoveryScreen> createState() => _AssetDiscoveryScreenState();
+  _AssetDiscoveryScreenState createState() => _AssetDiscoveryScreenState();
 }
 
 class _AssetDiscoveryScreenState extends State<AssetDiscoveryScreen> {
-  final ApiService _api = ApiService();
-  List<dynamic> _assets = [];
-  bool _loading = true;
-  bool _generating = false;
+  final ApiService _apiService = ApiService();
+  List<dynamic> _items = [];
+  bool _isLoading = true;
+  bool _isGenerating = false;
+  
+  final TextEditingController _countryController = TextEditingController(text: "INDIA");
+  final TextEditingController _occupationController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadAssets();
+    _fetchItems();
   }
 
-  Future<void> _loadAssets() async {
+  Future<void> _fetchItems() async {
+    if (mounted) setState(() => _isLoading = true);
     try {
-      final result = await _api.getAssetDiscovery(widget.userId);
-      setState(() { _assets = result['assets'] ?? []; _loading = false; });
+      final itemsData = await _apiService.getAssetDiscoveryItems(widget.userId);
+      if (mounted) {
+        setState(() {
+          _items = itemsData['items'] ?? [];
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _generateChecklist() async {
-    setState(() => _generating = true);
+    if (mounted) setState(() => _isGenerating = true);
     try {
-      final result = await _api.generateAssetDiscovery(userId: widget.userId, country: 'India');
-      setState(() {
-        _assets = result['assets'] ?? [];
-        _generating = false;
-      });
-      _loadAssets(); // Refresh from DB
+      await _apiService.generateAssetDiscoveryAI(
+        userId: widget.userId, 
+        country: _countryController.text, 
+        occupation: _occupationController.text
+      );
+      await _fetchItems();
     } catch (e) {
-      setState(() => _generating = false);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to generate checklist')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("AI GENERATION FAILED")));
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
     }
   }
 
-  Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'financial': return const Color(0xFF4CAF50);
-      case 'property': return const Color(0xFF2196F3);
-      case 'insurance': return const Color(0xFFFF9800);
-      case 'digital': return const Color(0xFF9C27B0);
-      case 'personal': return const Color(0xFFE91E63);
-      case 'legal': return const Color(0xFF795548);
-      default: return const Color(0xFF607D8B);
-    }
-  }
-
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'financial': return Icons.account_balance;
-      case 'property': return Icons.home;
-      case 'insurance': return Icons.health_and_safety;
-      case 'digital': return Icons.computer;
-      case 'personal': return Icons.person;
-      case 'legal': return Icons.gavel;
-      default: return Icons.category;
-    }
+  Future<void> _toggleItem(int itemId) async {
+    try {
+      await _apiService.toggleAssetDiscovery(widget.userId, itemId);
+      setState(() {
+        final index = _items.indexWhere((i) => i['id'] == itemId);
+        if (index != -1) {
+          _items[index]['is_completed'] = !(_items[index]['is_completed'] ?? false);
+        }
+      });
+    } catch (e) {}
   }
 
   @override
   Widget build(BuildContext context) {
-    final categories = <String>{};
-    for (var a in _assets) { categories.add(a['category'] ?? 'Other'); }
+    int completed = _items.where((i) => i['is_completed'] == true).length;
+    double progress = _items.isEmpty ? 0 : completed / _items.length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F8),
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Smart Asset Discovery', style: TextStyle(fontWeight: FontWeight.w700)),
-        backgroundColor: const Color(0xFF00695C),
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.accentColor),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text("ASSET INTELLIGENCE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1, fontSize: 16)),
+        centerTitle: true,
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _assets.isEmpty
-              ? _buildEmptyState()
-              : ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: [
-                    _buildProgressCard(),
-                    const SizedBox(height: 20),
-                    ...categories.map((cat) => _buildCategorySection(cat)).toList(),
-                  ],
-                ),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            _buildGenerateSlab(),
+            const SizedBox(height: 32),
+            if (_items.isNotEmpty) _buildProgressSlab(completed, _items.length, progress),
+            const SizedBox(height: 32),
+            _isLoading 
+                ? const Center(child: CircularProgressIndicator(color: AppTheme.accentColor))
+                : _buildAssetList(),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(child: Padding(
-      padding: const EdgeInsets.all(40),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.search, size: 80, color: Colors.grey[300]),
-        const SizedBox(height: 20),
-        const Text('Discover Your Assets', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 8),
-        const Text('AI will analyze your profile and suggest\nassets you should add to your vault.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 15)),
-        const SizedBox(height: 30),
-        SizedBox(width: double.infinity, height: 54,
-          child: ElevatedButton.icon(
-            onPressed: _generating ? null : _generateChecklist,
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00695C), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-            icon: _generating ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.auto_awesome, color: Colors.white),
-            label: Text(_generating ? 'AI is thinking...' : '🧠 Generate My Checklist', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-          ),
-        ),
-      ]),
-    ));
-  }
-
-  Widget _buildProgressCard() {
-    final total = _assets.length;
-    final added = _assets.where((a) => a['is_added'] == true).length;
-    final progress = total > 0 ? added / total : 0.0;
+  Widget _buildGenerateSlab() {
     return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF00695C), Color(0xFF00897B)]),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Your Progress', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
-          Text('$added/$total', style: const TextStyle(color: Colors.white70, fontSize: 16)),
-        ]),
-        const SizedBox(height: 14),
-        ClipRRect(borderRadius: BorderRadius.circular(10),
-          child: LinearProgressIndicator(value: progress, minHeight: 10, backgroundColor: Colors.white24, valueColor: const AlwaysStoppedAnimation(Colors.white))),
-        const SizedBox(height: 12),
-        Text('${(progress * 100).toInt()}% of recommended assets added', style: const TextStyle(color: Colors.white70)),
-        const SizedBox(height: 12),
-        ElevatedButton.icon(
-          onPressed: _generating ? null : _generateChecklist,
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.2), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-          icon: const Icon(Icons.refresh, color: Colors.white, size: 18),
-          label: const Text('Refresh Suggestions', style: TextStyle(color: Colors.white)),
-        ),
-      ]),
-    );
-  }
-
-  Widget _buildCategorySection(String category) {
-    final items = _assets.where((a) => a['category'] == category).toList();
-    final color = _getCategoryColor(category);
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(children: [
-          Icon(_getCategoryIcon(category), color: color, size: 22),
-          const SizedBox(width: 8),
-          Text(category, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: color)),
-          const SizedBox(width: 8),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-            child: Text('${items.length}', style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12))),
-        ]),
-      ),
-      ...items.map((asset) {
-        final isAdded = asset['is_added'] == true;
-        return Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          decoration: BoxDecoration(
-            color: isAdded ? color.withOpacity(0.05) : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: isAdded ? Border.all(color: color.withOpacity(0.3)) : null,
-            boxShadow: [if (!isAdded) BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
-          ),
-          child: ListTile(
-            onTap: () async {
-              await _api.toggleAssetDiscovery(asset['id']);
-              _loadAssets();
-            },
-            leading: Icon(isAdded ? Icons.check_circle : Icons.circle_outlined, color: isAdded ? color : Colors.grey),
-            title: Text(asset['asset_name'] ?? '', style: TextStyle(fontWeight: FontWeight.w600, decoration: isAdded ? TextDecoration.lineThrough : null)),
-            subtitle: Text(asset['ai_suggestion'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.grey), maxLines: 2, overflow: TextOverflow.ellipsis),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: asset['priority'] == 'high' ? Colors.red.withOpacity(0.1) : asset['priority'] == 'medium' ? Colors.orange.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+      padding: const EdgeInsets.all(28),
+      decoration: AppTheme.slabDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("CHECKLIST GENERATOR", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+          const SizedBox(height: 24),
+          _buildSlabInput("JURISDICTION", _countryController, Icons.public_rounded),
+          const SizedBox(height: 24),
+          _buildSlabInput("OCCUPATION", _occupationController, Icons.work_outline_rounded, hint: "DOCTOR, MERCHANT, ETC."),
+          const SizedBox(height: 32),
+          SizedBox(
+            height: 56,
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isGenerating ? null : _generateChecklist,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accentColor,
+                foregroundColor: Colors.black,
               ),
-              child: Text((asset['priority'] ?? '').toString().toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700,
-                color: asset['priority'] == 'high' ? Colors.red : asset['priority'] == 'medium' ? Colors.orange : Colors.blue)),
+              child: _isGenerating 
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.auto_awesome_rounded, size: 16),
+                        SizedBox(width: 12),
+                        Text("INITIATE AI SCAN", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1)),
+                      ],
+                    ),
             ),
           ),
-        );
-      }).toList(),
-    ]);
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSlabInput(String label, TextEditingController ctrl, IconData icon, {String? hint}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1)),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(color: Colors.white.withOpacity(0.02), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withOpacity(0.05))),
+          child: TextField(
+            controller: ctrl,
+            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: const TextStyle(color: Colors.white10, fontSize: 10, fontWeight: FontWeight.w900),
+              prefixIcon: Icon(icon, color: AppTheme.accentColor.withOpacity(0.4), size: 18),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProgressSlab(int completed, int total, double progress) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: AppTheme.slabDecoration,
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("INTELLIGENCE COVERAGE", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1)),
+              Text("${(progress * 100).toInt()}%", style: const TextStyle(color: AppTheme.accentColor, fontSize: 12, fontWeight: FontWeight.w900)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: Colors.white.withOpacity(0.02),
+              color: AppTheme.accentColor,
+              minHeight: 4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text("$completed / $total ASSETS INDEXED", style: const TextStyle(color: Colors.white24, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAssetList() {
+    if (_items.isEmpty) return const SizedBox();
+
+    Map<String, List<dynamic>> grouped = {};
+    for (var item in _items) {
+      String cat = item['category'] ?? "GENERAL";
+      grouped.putIfAbsent(cat.toUpperCase(), () => []).add(item);
+    }
+
+    return Column(
+      children: grouped.entries.map((entry) => _buildCategoryGroup(entry.key, entry.value)).toList(),
+    );
+  }
+
+  Widget _buildCategoryGroup(String category, List<dynamic> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 8, bottom: 16, top: 32),
+          child: Text(category, style: const TextStyle(color: AppTheme.accentColor, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+        ),
+        ...items.map((item) => _buildAssetItem(item)).toList(),
+      ],
+    );
+  }
+
+  Widget _buildAssetItem(dynamic item) {
+    bool isDone = item['is_completed'] == true;
+    return GestureDetector(
+      onTap: () => _toggleItem(item['id']),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(24),
+        decoration: AppTheme.slabDecoration.copyWith(
+          border: Border.all(color: isDone ? Colors.greenAccent.withOpacity(0.1) : Colors.white.withOpacity(0.05)),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isDone ? Icons.verified_rounded : Icons.radio_button_off_rounded,
+              color: isDone ? Colors.greenAccent : Colors.white12,
+              size: 20,
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Text(
+                item['asset_name'].toString().toUpperCase(),
+                style: TextStyle(
+                  color: isDone ? Colors.white24 : Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  decoration: isDone ? TextDecoration.lineThrough : null,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            if (item['priority'] != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getPriorityColor(item['priority']).withOpacity(0.05),
+                  border: Border.all(color: _getPriorityColor(item['priority']).withOpacity(0.2)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  item['priority'].toString().toUpperCase(),
+                  style: TextStyle(color: _getPriorityColor(item['priority']), fontSize: 7, fontWeight: FontWeight.w900, letterSpacing: 1),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority.toLowerCase()) {
+      case 'high': return Colors.redAccent;
+      case 'medium': return Colors.amberAccent;
+      default: return AppTheme.accentColor;
+    }
   }
 }

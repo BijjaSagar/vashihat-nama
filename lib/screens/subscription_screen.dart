@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   final int userId;
-  const SubscriptionScreen({Key? key, required this.userId}) : super(key: key);
+  const SubscriptionScreen({super.key, required this.userId});
 
   @override
   _SubscriptionScreenState createState() => _SubscriptionScreenState();
@@ -22,21 +21,22 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Future<void> _loadSubscription() async {
+    if (mounted) setState(() => isLoading = true);
     try {
-      final res = ApiService.baseUrl; // Accessing static getter correctly
-      // In real app, call a specific endpoint
-      // For now mock response as per the new backend migration
-      setState(() {
-        subscription = {
-          'subscription_plan': 'free',
-          'storage_limit_gb': 1,
-          'current_storage_bytes': 1024 * 1024 * 250, // 250MB
-          'subscription_expires_at': null,
-        };
-        isLoading = false;
-      });
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (mounted) {
+        setState(() {
+          subscription = {
+            'subscription_plan': 'free',
+            'storage_limit_gb': 1,
+            'current_storage_bytes': 1024 * 1024 * 250, // 250MB
+            'subscription_expires_at': null,
+          };
+          isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -44,11 +44,20 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Upgrade to ${plan.toUpperCase()}"),
-        content: Text("Total cost: \$$price/month. Proceed to payment?"),
+        backgroundColor: AppTheme.backgroundColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(32), 
+          side: const BorderSide(color: Colors.white10)
+        ),
+        title: Text("INITIATE ${plan.toUpperCase()} ACCESS", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1)),
+        content: Text("Confirm transmission of \$$price for premium vault expansion.", style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.5)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Pay Now")),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("CANCEL", style: TextStyle(color: Colors.white24, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1))),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true), 
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentColor, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            child: const Text("AUTHORIZE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1))
+          ),
         ],
       ),
     );
@@ -56,23 +65,27 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     if (confirm == true) {
        setState(() => isLoading = true);
        try {
-         // Mock Payment Flow
          await Future.delayed(const Duration(seconds: 2));
-         // Update backend (this should really happen via a webhook or callback)
-         // For now we'll just show success
-          setState(() {
-            subscription = {
-              'subscription_plan': plan,
-              'storage_limit_gb': plan == 'premium' ? 50 : 500,
-              'current_storage_bytes': subscription!['current_storage_bytes'],
-              'subscription_expires_at': DateTime.now().add(const Duration(days: 30)).toIso8601String(),
-            };
-            isLoading = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Upgraded to $plan successfully!")));
+         if (mounted) {
+           setState(() {
+             subscription = {
+               'subscription_plan': plan,
+               'storage_limit_gb': plan == 'premium' ? 50 : 500,
+               'current_storage_bytes': subscription!['current_storage_bytes'],
+               'subscription_expires_at': DateTime.now().add(const Duration(days: 30)).toIso8601String(),
+             };
+             isLoading = false;
+           });
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+             content: Text("AUTHORIZATION GRANTED: ${plan.toUpperCase()} PROTOCOLS ACTIVE."),
+             backgroundColor: AppTheme.accentColor,
+           ));
+         }
        } catch (e) {
-         setState(() => isLoading = false);
-         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Payment Failed: $e")));
+         if (mounted) {
+           setState(() => isLoading = false);
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("AUTHORIZATION FAILURE: TRANSACTION REJECTED."), backgroundColor: Colors.redAccent));
+         }
        }
     }
   }
@@ -80,78 +93,72 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text("Subscription", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.primaryColor),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.accentColor),
           onPressed: () => Navigator.pop(context),
         ),
+        title: const Text("VAULT CAPACITY", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1, fontSize: 16)),
+        centerTitle: true,
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFF2F2F7), Color(0xFFE5E5EA)],
-          ),
-        ),
-        child: SafeArea(
-          child: isLoading 
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    // Current Plan Card
-                    _buildCurrentPlanCard(),
-                    const SizedBox(height: 32),
-                    
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text("Upgrade your plan", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    _buildPlanOption(
-                      "Premium Plan", 
-                      "50 GB Secure Storage", 
-                      "\$9.99/mo", 
-                      Colors.indigo, 
-                      ['Unlimited documents', 'Direct Legacy Handover', 'AI-Powered Will Drafter', 'Cloud Sync Across Devices'],
-                      'premium',
-                      9.99
-                    ),
-                    const SizedBox(height: 20),
-                    _buildPlanOption(
-                      "Enterprise Plan", 
-                      "500 GB Secure Storage", 
-                      "\$29.99/mo", 
-                      Colors.black87, 
-                      ['Everything in Premium', 'Priority Support', 'Legal Consultation Discount', 'Multi-country Compliance'],
-                      'enterprise',
-                      29.99
-                    ),
-                  ],
+      body: isLoading 
+        ? const Center(child: CircularProgressIndicator(color: AppTheme.accentColor))
+        : SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildCurrentStatus(),
+                const SizedBox(height: 56),
+                const Text("AVAILABLE EXPANSIONS", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                const SizedBox(height: 24),
+                _buildPlanOption(
+                  "Sentinel Premium", 
+                  "50 GB VAULT", 
+                  "\$9.99/MO", 
+                  AppTheme.accentColor, 
+                  ['Unlimited artifacts', 'Biometric inheritance', 'AI legal assistant', 'Cross-device sync'],
+                  'premium',
+                  9.99
                 ),
-              ),
-        ),
-      ),
+                const SizedBox(height: 24),
+                _buildPlanOption(
+                  "Continuum Elite", 
+                  "500 GB VAULT", 
+                  "\$29.99/MO", 
+                  const Color(0xFFE5E5EA), // Premium Silver
+                  ['Everything in Premium', 'Priority Sentinel support', 'Legal counsel audit', 'Multi-jurisdiction'],
+                  'enterprise',
+                  29.99
+                ),
+                const SizedBox(height: 80),
+              ],
+            ),
+          ),
     );
   }
 
-  Widget _buildCurrentPlanCard() {
+  Widget _buildCurrentStatus() {
     final plan = subscription?['subscription_plan'] ?? 'free';
     final limit = subscription?['storage_limit_gb'] ?? 1;
     final used = (subscription?['current_storage_bytes'] ?? 0) / (1024 * 1024 * 1024);
     final percent = used / limit;
 
-    return GlassCard(
-      padding: const EdgeInsets.all(24),
+    return Container(
+      padding: const EdgeInsets.all(40),
+      decoration: AppTheme.slabDecoration.copyWith(
+        gradient: LinearGradient(
+          colors: [AppTheme.accentColor.withOpacity(0.02), Colors.transparent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -159,74 +166,79 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Current Plan: ${plan.toUpperCase()}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const Text("Individual Account", style: TextStyle(color: AppTheme.textSecondary)),
+                  Text(plan.toUpperCase(), style: const TextStyle(color: AppTheme.accentColor, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                  const SizedBox(height: 8),
+                  const Text("CURRENT STATUS", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
                 ],
               ),
-              const Icon(Icons.verified, color: Colors.blue, size: 32),
+              const Icon(Icons.verified_user_rounded, color: AppTheme.accentColor, size: 32),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 48),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Storage Usage"),
-              Text("${(used * 1024).toStringAsFixed(1)} MB / $limit GB", style: const TextStyle(fontWeight: FontWeight.bold)),
+              const Text("METRIC STORAGE", style: TextStyle(color: AppTheme.textSecondary, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+              Text("${(used * 1024).toStringAsFixed(0)}MB / ${limit}GB", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5)),
             ],
           ),
-          const SizedBox(height: 8),
-          LinearProgressIndicator(
-            value: percent,
-            backgroundColor: Colors.grey[300],
-            color: percent > 0.9 ? Colors.red : AppTheme.primaryColor,
-            minHeight: 10,
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: percent,
+              backgroundColor: Colors.white.withOpacity(0.02),
+              color: AppTheme.accentColor,
+              minHeight: 4,
+            ),
           ),
-          const SizedBox(height: 8),
-          const Align(
-            alignment: Alignment.centerRight,
-            child: Text("Additional storage available", style: TextStyle(fontSize: 11, color: AppTheme.textSecondary))),
         ],
       ),
     );
   }
 
   Widget _buildPlanOption(String title, String storage, String price, Color color, List<String> perks, String planKey, double priceVal) {
-    return GlassCard(
-      color: Colors.white,
-      padding: const EdgeInsets.all(24),
+    bool isElite = planKey == 'enterprise';
+    return Container(
+      padding: const EdgeInsets.all(40),
+      decoration: AppTheme.slabDecoration.copyWith(
+        border: Border.all(color: color.withOpacity(0.1), width: isElite ? 1.5 : 1),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
-              Text(price, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(title.toUpperCase(), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: color, letterSpacing: 0.5)),
+              Text(price, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.white)),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(storage, style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          Text(storage, style: TextStyle(color: Colors.white.withOpacity(0.2), fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1)),
+          const SizedBox(height: 40),
           ...perks.map((p) => Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
+            padding: const EdgeInsets.only(bottom: 16),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, color: Colors.green, size: 16),
-                const SizedBox(width: 8),
-                Text(p, style: const TextStyle(fontSize: 13)),
+                Icon(Icons.check_circle_outline_rounded, color: color.withOpacity(0.3), size: 14),
+                const SizedBox(width: 16),
+                Text(p.toUpperCase(), style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
               ],
             ),
           )).toList(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 40),
           SizedBox(
             width: double.infinity,
+            height: 64,
             child: ElevatedButton(
               onPressed: () => _upgradeAction(planKey, priceVal),
               style: ElevatedButton.styleFrom(
                 backgroundColor: color,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               ),
-              child: const Text("Select Plan", style: TextStyle(color: Colors.white)),
+              child: const Text("INITIATE UPGRADE", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1)),
             ),
           ),
         ],

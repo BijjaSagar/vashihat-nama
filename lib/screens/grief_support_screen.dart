@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 
 class GriefSupportScreen extends StatefulWidget {
   final String? nomineeName;
   final String? deceasedName;
-  const GriefSupportScreen({Key? key, this.nomineeName, this.deceasedName}) : super(key: key);
+  const GriefSupportScreen({super.key, this.nomineeName, this.deceasedName});
 
   @override
   State<GriefSupportScreen> createState() => _GriefSupportScreenState();
@@ -20,7 +21,10 @@ class _GriefSupportScreenState extends State<GriefSupportScreen> {
   @override
   void initState() {
     super.initState();
-    _messages.add({'role': 'assistant', 'content': 'I\'m here for you. 💙\n\nI understand this is an incredibly difficult time. I\'m the Eversafe support assistant, and I\'m here to gently guide you through the process of understanding and accessing the digital legacy that has been entrusted to you.\n\nTake your time. There\'s no rush. Whenever you\'re ready, you can ask me anything — about the vault, about next legal steps, or just share how you\'re feeling.'});
+    _messages.add({
+      'role': 'assistant', 
+      'content': 'I AM HERE FOR YOU.\n\nI UNDERSTAND THIS IS AN INCREDIBLY DIFFICULT TIME. I AM THE SENTINEL COMPASSIONATE ASSISTANT, AND I AM HERE TO GENTLY GUIDE YOU THROUGH THE PROCESS OF UNDERSTANDING AND ACCESSING THE DIGITAL LEGACY THAT HAS BEEN ENTRUSTED TO YOU.\n\nTAKE YOUR TIME. THERE IS NO RUSH. WHENEVER YOU ARE READY, YOU CAN ASK ME ANYTHING — ABOUT THE VAULT, ABOUT NEXT LEGAL STEPS, OR JUST SHARE HOW YOU ARE FEELING.'
+    });
   }
 
   Future<void> _sendMessage() async {
@@ -28,7 +32,7 @@ class _GriefSupportScreenState extends State<GriefSupportScreen> {
     if (text.isEmpty || _sending) return;
     _msgCtrl.clear();
     setState(() {
-      _messages.add({'role': 'user', 'content': text});
+      _messages.add({'role': 'user', 'content': text.toUpperCase()});
       _sending = true;
     });
     _scrollToBottom();
@@ -37,13 +41,13 @@ class _GriefSupportScreenState extends State<GriefSupportScreen> {
       final history = _messages.map((m) => {'role': m['role']!, 'content': m['content']!}).toList();
       final result = await _api.griefSupportChat(message: text, history: history, nomineeName: widget.nomineeName, deceasedName: widget.deceasedName);
       setState(() {
-        _messages.add({'role': 'assistant', 'content': result['reply'] ?? 'I\'m here for you. Please try again.'});
+        _messages.add({'role': 'assistant', 'content': (result['reply'] ?? 'I AM HERE FOR YOU. PLEASE TRY AGAIN.').toString().toUpperCase()});
         _sending = false;
       });
       _scrollToBottom();
     } catch (e) {
       setState(() {
-        _messages.add({'role': 'assistant', 'content': 'I apologize, I\'m having trouble responding right now. Please try again in a moment.'});
+        _messages.add({'role': 'assistant', 'content': 'I APOLOGIZE, I AM HAVING TROUBLE RESPONDING RIGHT NOW. PLEASE TRY AGAIN IN A MOMENT.'});
         _sending = false;
       });
     }
@@ -58,70 +62,144 @@ class _GriefSupportScreenState extends State<GriefSupportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F0F7),
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Grief Support', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
-          Text('Compassionate AI Assistant', style: TextStyle(fontSize: 12, color: Colors.white70)),
-        ]),
-        backgroundColor: const Color(0xFF5C6BC0),
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-      ),
-      body: Column(children: [
-        Expanded(child: ListView.builder(
-          controller: _scrollCtrl,
-          padding: const EdgeInsets.all(16),
-          itemCount: _messages.length + (_sending ? 1 : 0),
-          itemBuilder: (ctx, i) {
-            if (i == _messages.length && _sending) {
-              return Align(alignment: Alignment.centerLeft,
-                child: Container(margin: const EdgeInsets.only(bottom: 8, right: 60), padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey[400])),
-                    const SizedBox(width: 10),
-                    Text('Thinking with care...', style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic)),
-                  ])));
-            }
-            final msg = _messages[i];
-            final isUser = msg['role'] == 'user';
-            return Align(
-              alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-              child: Container(
-                margin: EdgeInsets.only(bottom: 10, left: isUser ? 50 : 0, right: isUser ? 0 : 50),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isUser ? const Color(0xFF5C6BC0) : Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(18), topRight: const Radius.circular(18),
-                    bottomLeft: Radius.circular(isUser ? 18 : 4), bottomRight: Radius.circular(isUser ? 4 : 18)),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
-                ),
-                child: Text(msg['content']!, style: TextStyle(color: isUser ? Colors.white : Colors.black87, fontSize: 15, height: 1.5)),
-              ),
-            );
-          },
-        )),
-        Container(
-          padding: EdgeInsets.only(left: 16, right: 8, top: 8, bottom: MediaQuery.of(context).padding.bottom + 8),
-          decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, -2))]),
-          child: Row(children: [
-            Expanded(child: TextField(
-              controller: _msgCtrl,
-              decoration: InputDecoration(
-                hintText: 'Type your message...', hintStyle: TextStyle(color: Colors.grey[400]),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                filled: true, fillColor: const Color(0xFFF5F0F7), contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
-              maxLines: 3, minLines: 1, textCapitalization: TextCapitalization.sentences,
-              onSubmitted: (_) => _sendMessage(),
-            )),
-            const SizedBox(width: 8),
-            Container(decoration: BoxDecoration(color: const Color(0xFF5C6BC0), borderRadius: BorderRadius.circular(24)),
-              child: IconButton(onPressed: _sendMessage, icon: const Icon(Icons.send_rounded, color: Colors.white))),
-          ]),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.accentColor),
+          onPressed: () => Navigator.pop(context),
         ),
-      ]),
+        title: const Column(
+          children: [
+            Text("COMPASSIONATE AI", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1, fontSize: 14)),
+            Text("SENTINEL SUPPORT SYSTEM", style: TextStyle(color: Colors.white24, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1)),
+          ],
+        ),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollCtrl,
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.all(24),
+              itemCount: _messages.length + (_sending ? 1 : 0),
+              itemBuilder: (ctx, i) {
+                if (i == _messages.length && _sending) {
+                  return _buildThinkingIndicator();
+                }
+                final msg = _messages[i];
+                final isUser = msg['role'] == 'user';
+                return _buildMessageBubble(msg['content']!, isUser);
+              },
+            ),
+          ),
+          _buildInputArea(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThinkingIndicator() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.01),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5, color: AppTheme.accentColor)),
+            const SizedBox(width: 16),
+            Text('PROCESSING WITH CARE...', style: TextStyle(color: AppTheme.accentColor.withOpacity(0.5), fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(String content, bool isUser) {
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: EdgeInsets.only(bottom: 24, left: isUser ? 40 : 0, right: isUser ? 0 : 40),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: isUser ? AppTheme.accentColor.withOpacity(0.05) : Colors.white.withOpacity(0.01),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(24),
+            topRight: const Radius.circular(24),
+            bottomLeft: Radius.circular(isUser ? 24 : 4),
+            bottomRight: Radius.circular(isUser ? 4 : 24),
+          ),
+          border: Border.all(color: isUser ? AppTheme.accentColor.withOpacity(0.1) : Colors.white.withOpacity(0.05)),
+        ),
+        child: Text(
+          content, 
+          style: TextStyle(
+            color: isUser ? Colors.white : Colors.white70, 
+            fontSize: 12, 
+            height: 1.6, 
+            fontWeight: isUser ? FontWeight.w700 : FontWeight.w500,
+            letterSpacing: 0.2
+          )
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputArea() {
+    return Container(
+      padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).padding.bottom + 16),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundColor,
+        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.01),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
+              ),
+              child: TextField(
+                controller: _msgCtrl,
+                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                decoration: const InputDecoration(
+                  hintText: 'COMMUNICATE WITH SENTINEL...',
+                  hintStyle: TextStyle(color: Colors.white10, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                ),
+                maxLines: 4,
+                minLines: 1,
+                textCapitalization: TextCapitalization.characters,
+                onSubmitted: (_) => _sendMessage(),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.accentColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: IconButton(
+              onPressed: _sendMessage, 
+              icon: const Icon(Icons.send_rounded, color: Colors.black, size: 20)
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

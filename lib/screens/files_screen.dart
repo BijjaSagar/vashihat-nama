@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart'; 
-import '../theme/glassmorphism.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 import 'upload_document_screen.dart';
@@ -8,7 +6,7 @@ import 'upload_document_screen.dart';
 class FilesScreen extends StatefulWidget {
   final String folderName;
   final int folderId;
-  const FilesScreen({Key? key, required this.folderName, required this.folderId}) : super(key: key);
+  const FilesScreen({super.key, required this.folderName, required this.folderId});
 
   @override
   _FilesScreenState createState() => _FilesScreenState();
@@ -25,6 +23,7 @@ class _FilesScreenState extends State<FilesScreen> {
   }
 
   Future<void> _loadFiles() async {
+    if (mounted) setState(() => isLoading = true);
     try {
       final fetchedFiles = await ApiService().getFiles(widget.folderId);
       if (mounted) {
@@ -34,7 +33,6 @@ class _FilesScreenState extends State<FilesScreen> {
         });
       }
     } catch (e) {
-      print("Error loading files: $e");
       if (mounted) setState(() => isLoading = false);
     }
   }
@@ -42,7 +40,6 @@ class _FilesScreenState extends State<FilesScreen> {
   String _formatDate(String? dateStr) {
     if (dateStr == null) return "Unknown Date";
     try {
-      // Assuming date string is ISO or similar. Just returning simplified version for now.
       return dateStr.split('T')[0];
     } catch (e) {
       return dateStr;
@@ -52,145 +49,104 @@ class _FilesScreenState extends State<FilesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: Text(
-          widget.folderName, 
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontWeight: FontWeight.bold
-          )
-        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: AppTheme.primaryColor),
+          icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.accentColor),
           onPressed: () => Navigator.pop(context),
         ),
+        title: Text(widget.folderName.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, letterSpacing: 1)),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFF2F2F7), // System Gray 6
-              Color(0xFFE5E5EA), // System Gray 5
-              Color(0xFFF2F2F7),
-            ],
-            stops: [0.0, 0.5, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : files.isEmpty
-                  ? Center(child: Text("No files uploaded yet", style: TextStyle(color: AppTheme.textSecondary)))
-                  : Column(
-                      children: [
-                        // List of Files
-                        Expanded(
-                          child: ListView.separated(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: files.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              final file = files[index];
-                              // Determine icon/color based on mime type or extension (mock logic for now)
-                              final isPdf = file['file_name'].toString().toLowerCase().endsWith('.pdf');
-                              
-                              return GlassCard(
-                                opacity: 0.6,
-                                blur: 20,
-                                color: Colors.white,
-                                borderColor: Colors.white.withOpacity(0.9),
-                                padding: const EdgeInsets.all(12),
-                                borderRadius: BorderRadius.circular(16),
-                                child: Row(
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.accentColor))
+          : files.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.inventory_2_outlined, size: 64, color: Colors.white.withOpacity(0.05)),
+                      const SizedBox(height: 24),
+                      const Text("NO ARTIFACTS FOUND", style: TextStyle(color: Colors.white12, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(24),
+                  itemCount: files.length,
+                  itemBuilder: (context, index) {
+                    final file = files[index];
+                    final isPdf = file['file_name'].toString().toLowerCase().endsWith('.pdf');
+                    
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(20),
+                      decoration: AppTheme.slabDecoration,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: (isPdf ? Colors.redAccent : AppTheme.accentColor).withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              isPdf ? Icons.picture_as_pdf_rounded : Icons.description_rounded,
+                              color: isPdf ? Colors.redAccent : AppTheme.accentColor,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  file['file_name']?.toString().toUpperCase() ?? "UNKNOWN_ARTIFACT",
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.5),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
                                   children: [
-                                    // File Icon
-                                    Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: isPdf 
-                                            ? Colors.red.withOpacity(0.1) 
-                                            : Colors.blue.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Icon(
-                                        isPdf ? Icons.picture_as_pdf : Icons.image,
-                                        color: isPdf ? Colors.redAccent : Colors.blueAccent,
-                                      ),
+                                    Text(
+                                      "${(double.parse((file['file_size'] ?? 0).toString()) / 1024).toStringAsFixed(1)} KB",
+                                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w700),
                                     ),
-                                    const SizedBox(width: 16),
-                                    
-                                    // File Details
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            file['file_name'] ?? "Unknown File",
-                                            style: TextStyle(
-                                              color: AppTheme.textPrimary,
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 15,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Row(
-                                            children: [
-                                              Text(
-                                                "${(double.parse((file['file_size'] ?? 0).toString()) / 1024).toStringAsFixed(1)} KB",
-                                                style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Icon(Icons.circle, size: 4, color: AppTheme.textSecondary.withOpacity(0.5)),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                _formatDate(file['uploaded_at'] ?? file['created_at']),
-                                                style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    
-                                    // Actions
-                                    IconButton(
-                                      icon: Icon(Icons.more_vert, color: AppTheme.textSecondary),
-                                      onPressed: () {},
+                                    const SizedBox(width: 8),
+                                    const Text("|", style: TextStyle(color: Colors.white10, fontSize: 10)),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _formatDate(file['uploaded_at'] ?? file['created_at']).toUpperCase(),
+                                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w700),
                                     ),
                                   ],
                                 ),
-                              );
-                            },
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-        ),
-      ),
+                          IconButton(
+                            icon: const Icon(Icons.more_horiz_rounded, color: Colors.white24),
+                            onPressed: () {},
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => UploadDocumentScreen(folderId: widget.folderId)),
           );
-          // Refresh list on return
           _loadFiles();
         },
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        icon: const Icon(Icons.cloud_upload_outlined),
-        label: const Text("Upload File"),
+        backgroundColor: AppTheme.accentColor,
+        icon: const Icon(Icons.add_rounded, color: Colors.black),
+        label: const Text("INGEST ARTIFACT", style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 12)),
       ),
     );
   }
 }
-
-
