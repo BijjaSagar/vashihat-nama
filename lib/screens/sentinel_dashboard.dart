@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import 'sentinel_lockdown_screen.dart';
 import '../widgets/pulse_line.dart';
 import 'ai_will_drafter_screen.dart';
 import 'asset_discovery_screen.dart';
@@ -71,8 +72,18 @@ class _SentinelDashboardState extends State<SentinelDashboard> {
     try {
       final stats = await ApiService().getVaultStats(userId: widget.userId);
       final nominees = await ApiService().getNominees(widget.userId);
+      
       int totalItems = 0;
-      stats.forEach((key, value) => totalItems += (value as int));
+      stats.forEach((key, value) {
+        if (value != null) {
+          if (value is int) {
+            totalItems += value;
+          } else {
+            totalItems += int.tryParse(value.toString()) ?? 0;
+          }
+        }
+      });
+
       if (mounted) {
         setState(() {
           _vaultItemCount = totalItems;
@@ -80,8 +91,19 @@ class _SentinelDashboardState extends State<SentinelDashboard> {
         });
       }
     } catch (e) {
+      if (e.toString().contains('SENTINEL_LOCKED')) {
+        _showLockdownScreen();
+      }
       debugPrint("ERROR FETCHING COUNTS: $e");
     }
+  }
+
+  void _showLockdownScreen() {
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const SentinelLockdownScreen()),
+      (route) => false,
+    );
   }
 
   Future<void> _fetchStatus() async {

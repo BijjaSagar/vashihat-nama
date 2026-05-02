@@ -344,7 +344,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
         context,
         MaterialPageRoute(builder: (_) => VaultItemsScreen(
           userId: widget.userId,
-          folderId: folder['id'],
+          folderId: folder['id'] ?? 0,
           folderName: folder['name'],
         )),
       ).then((_) => _loadFolders()),

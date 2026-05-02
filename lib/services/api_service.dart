@@ -651,15 +651,30 @@ class ApiService {
 
   // 6. Get Vault Stats
   Future<Map<String, dynamic>> getVaultStats({required int userId}) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/vault_items/stats/count?user_id=$userId'),
-    );
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/vault_items/stats/count?user_id=$userId'),
+      ).timeout(const Duration(seconds: 10));
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['stats'];
-    } else {
-      return {'note': 0, 'password': 0, 'credit_card': 0, 'file': 0};
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final rawStats = data['stats'] as Map<String, dynamic>?;
+        
+        // Ensure all values are ints and non-null
+        return {
+          'note': rawStats?['note'] ?? 0,
+          'password': rawStats?['password'] ?? 0,
+          'credit_card': rawStats?['credit_card'] ?? 0,
+          'file': rawStats?['file'] ?? 0,
+          'crypto': rawStats?['crypto'] ?? 0,
+        };
+      } else if (response.statusCode == 503) {
+        throw Exception('SENTINEL_LOCKED');
+      }
+      return {'note': 0, 'password': 0, 'credit_card': 0, 'file': 0, 'crypto': 0};
+    } catch (e) {
+      if (e.toString().contains('SENTINEL_LOCKED')) rethrow;
+      return {'note': 0, 'password': 0, 'credit_card': 0, 'file': 0, 'crypto': 0};
     }
   }
   // ============================================

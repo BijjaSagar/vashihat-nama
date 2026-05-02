@@ -49,11 +49,20 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // ─── SENTINEL LOCKDOWN MIDDLEWARE ──────────────────────────────────────────
 const lockdownMiddleware = (req: any, res: any, next: any) => {
-    // Exempt admin routes so we can unlock the system
-    if (isSystemLocked && !req.path.includes('/admin')) {
+    // Check if the system is locked
+    if (isSystemLocked) {
+        // Exempt admin routes so we can unlock the system
+        if (req.path.startsWith('/api/admin')) {
+            return next();
+        }
+
         return res.status(503).json({ 
             success: false, 
-            error: 'SENTINEL LOCKDOWN ACTIVE: System is in a security freeze. Access denied.' 
+            locked: true,
+            error: 'SENTINEL LOCKDOWN ACTIVE', 
+            message: 'System access has been frozen due to multiple security anomalies. Please use the secondary hardware recovery key.',
+            threshold: LOCKDOWN_THRESHOLD,
+            current_anomalies: suspiciousActivityCount
         });
     }
     next();
@@ -2764,14 +2773,28 @@ app.post('/api/admin/system/lockdown', async (req, res) => {
  * Check if AI keys are correctly initialized in the environment.
  */
 app.get('/api/admin/system/ai-health', async (req, res) => {
+    const openaiKey = process.env.OPENAI_API_KEY;
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    const smsKey = process.env.HSP_SMS_API_KEY;
+
     res.json({
         success: true,
-        sentinel_intelligence: {
-            anthropic_active: !!process.env.ANTHROPIC_API_KEY,
-            openai_active: !!process.env.OPENAI_API_KEY,
-            sms_gateway_active: !!process.env.HSP_SMS_API_KEY,
+        timestamp: new Date().toISOString(),
+        intelligence_engines: {
+            anthropic_claude: anthropicKey ? `ACTIVE (Verified: ...${anthropicKey.slice(-4)})` : 'MISSING (Check Vercel Env Vars)',
+            openai_gpt4: openaiKey ? `ACTIVE (Verified: ...${openaiKey.slice(-4)})` : 'MISSING (Check Vercel Env Vars)',
+            sms_gateway: smsKey ? `ACTIVE (Verified: ...${smsKey.slice(-4)})` : 'MISSING',
         },
-        notice: "If keys show as false, ensure you have 'Redeployed' the project on Vercel after adding the environment variables."
+        troubleshooting: {
+            step_1: "Ensure the keys are added to 'Environment Variables' in Vercel Settings.",
+            step_2: "CRITICAL: You MUST trigger a new 'Deployment' for Vercel to pick up these changes.",
+            step_3: "If still missing, check if the variable names match exactly (OPENAI_API_KEY, ANTHROPIC_API_KEY)."
+        },
+        system_lockdown: {
+            is_locked: isSystemLocked,
+            anomalies: suspiciousActivityCount,
+            lock_threshold: LOCKDOWN_THRESHOLD
+        }
     });
 });
 
