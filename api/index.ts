@@ -855,8 +855,6 @@ app.post('/api/users/register', async (req, res) => {
     }
 });
 
-});
-
 /**
  * GET /api/users/profile?user_id=X
  * Returns detailed user profile info.
