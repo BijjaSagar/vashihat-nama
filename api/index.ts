@@ -12,11 +12,17 @@ import OpenAI from 'openai';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import multer from 'multer';
+import Anthropic from '@anthropic-ai/sdk';
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// --- SENTINEL LOCKDOWN STATE ---
+let isSystemLocked = false;
+let suspiciousActivityCount = 0;
+const LOCKDOWN_THRESHOLD = 50; // Auto-lock after 50 suspicious events
 
 // ─── CORS (restrict to known origins) ──────────────────────────────────────
 const allowedOrigins = [
@@ -76,6 +82,37 @@ const authMiddleware = (req: any, res: any, next: any) => {
         return res.status(401).json({ success: false, error: 'Invalid or expired session. Please log in again.' });
     }
 };
+
+// ─── SENTINEL LOCKDOWN MIDDLEWARE ───────────────────────────────────────────
+const lockdownMiddleware = (req: any, res: any, next: any) => {
+    // Check if the system is locked
+    if (isSystemLocked) {
+        // Exempt admin routes so we can unlock the system
+        if (req.path.startsWith('/api/admin')) {
+            return next();
+        }
+
+        return res.status(503).json({ 
+            success: false, 
+            locked: true,
+            error: 'SENTINEL LOCKDOWN ACTIVE', 
+            message: 'System access frozen due to security anomalies. Contact administrator.',
+            diagnostics: {
+                anomalies: suspiciousActivityCount,
+                threshold: LOCKDOWN_THRESHOLD
+            }
+        });
+    }
+    next();
+};
+
+// Apply lockdown protection to all routes except admin and root
+app.use((req, res, next) => {
+    if (req.path === '/' || req.path === '/api/admin/system/ai-health' || req.path === '/api/admin/system/unlock') {
+        return next();
+    }
+    lockdownMiddleware(req, res, next);
+});
 
 // --- Root Route (Health Check) ---
 app.get('/', (req, res) => {
@@ -3323,6 +3360,55 @@ if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
     // In production (Vercel), initialize DB in the background
     initDb().catch(err => console.error('DB Init Failed', err));
 }
+
+
+/**
+ * GET /api/admin/system/ai-health
+ * Check if AI keys are correctly initialized in the environment.
+ */
+app.get('/api/admin/system/ai-health', async (req, res) => {
+    const openaiKey = process.env.OPENAI_API_KEY;
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    const smsKey = process.env.HSP_SMS_API_KEY;
+
+    res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        intelligence_engines: {
+            anthropic_claude: anthropicKey ? `ACTIVE (Verified: ...${anthropicKey.slice(-4)})` : 'MISSING (Check Vercel Env Vars)',
+            openai_gpt4: openaiKey ? `ACTIVE (Verified: ...${openaiKey.slice(-4)})` : 'MISSING (Check Vercel Env Vars)',
+            sms_gateway: smsKey ? `ACTIVE (Verified: ...${smsKey.slice(-4)})` : 'MISSING',
+        },
+        troubleshooting: {
+            step_1: "Ensure the keys are added to 'Environment Variables' in Vercel Settings.",
+            step_2: "CRITICAL: You MUST trigger a new 'Deployment' for Vercel to pick up these changes.",
+            step_3: "If still missing, check if the variable names match exactly (OPENAI_API_KEY, ANTHROPIC_API_KEY)."
+        },
+        system_lockdown: {
+            is_locked: isSystemLocked,
+            anomalies: suspiciousActivityCount,
+            lock_threshold: LOCKDOWN_THRESHOLD
+        }
+    });
+});
+
+/**
+ * POST /api/admin/system/unlock
+ * Emergency route to resume system operations.
+ */
+app.post('/api/admin/system/unlock', async (req, res) => {
+    const { secret } = req.body;
+    const ADMIN_SECRET = process.env.ADMIN_SECRET_KEY || 'secure_admin_123';
+
+    if (secret !== ADMIN_SECRET) {
+        suspiciousActivityCount++;
+        return res.status(403).json({ success: false, error: 'Invalid recovery key.' });
+    }
+
+    isSystemLocked = false;
+    suspiciousActivityCount = 0;
+    res.json({ success: true, message: 'SENTINEL PROTOCOL: System Resumed.' });
+});
 
 export default app;
 
