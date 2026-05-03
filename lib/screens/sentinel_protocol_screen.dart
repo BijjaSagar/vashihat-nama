@@ -14,28 +14,28 @@ class _SentinelProtocolScreenState extends State<SentinelProtocolScreen> {
 
   final List<ProtocolStep> _steps = [
     ProtocolStep(
-      title: "ZERO-TRUST INITIALIZATION",
-      description: "WELCOME TO THE SENTINEL PROTOCOL. YOUR LEGACY IS NOW PROTECTED BY MULTI-LAYERED BIOMETRIC ENCRYPTION AND INSTITUTIONAL-GRADE SECURITY.",
+      title: "SECURE PROTECTION",
+      description: "WELCOME TO EVERSAFE. YOUR FAMILY'S FUTURE IS NOW PROTECTED BY ADVANCED ENCRYPTION AND BANK-GRADE SECURITY.",
       icon: Icons.shield_outlined,
-      tag: "PHASE 01",
+      tag: "STEP 01",
     ),
     ProtocolStep(
-      title: "SECURE VAULT ARCHITECTURE",
-      description: "DEPOSIT SENSITIVE DOCUMENTS, LEGAL WILLS, AND MEDICAL DIRECTIVES. EVERYTHING IS STORED WITH SSL PINNING AND ZERO-KNOWLEDGE PRINCIPLES.",
+      title: "FAMILY VAULT",
+      description: "STORE IMPORTANT NOTES, PASSWORDS, AND DOCUMENTS SAFELY. EVERYTHING IS ENCRYPTED SO ONLY YOU AND YOUR FAMILY CAN EVER ACCESS IT.",
       icon: Icons.inventory_2_outlined,
-      tag: "PHASE 02",
+      tag: "STEP 02",
     ),
     ProtocolStep(
-      title: "ACCESS HIERARCHY",
-      description: "CONFIGURE YOUR NOMINEE NETWORK. GRANT CONDITIONAL ACCESS BASED ON TRUST PARAMETERS AND VERIFIED AUTHENTICATION TRIGGERS.",
+      title: "FAMILY MEMBERS",
+      description: "CHOOSE WHO GETS ACCESS TO YOUR SECURE DATA. YOU CAN DECIDE EXACTLY WHEN THEY SHOULD BE NOTIFIED IF YOU ARE UNABLE TO RESPOND.",
       icon: Icons.account_tree_outlined,
-      tag: "PHASE 03",
+      tag: "STEP 03",
     ),
     ProtocolStep(
-      title: "PULSE-BEAT MONITORING",
-      description: "THE SYSTEM MONITORS YOUR ACTIVITY STATUS. IF THE PULSE CEASES, THE SENTINEL PROTOCOL AUTOMATICALLY INITIATES DATA TRANSFER TO YOUR NOMINEES.",
+      title: "SMART MONITORING",
+      description: "THE SYSTEM AUTOMATICALLY CHECKS ON YOUR WELL-BEING. IF YOU DON'T CHECK IN FOR A LONG TIME, WE WILL SECURELY HAND OVER YOUR DATA TO YOUR FAMILY.",
       icon: Icons.favorite_border_rounded,
-      tag: "PHASE 04",
+      tag: "STEP 04",
     ),
   ];
 
@@ -189,8 +189,8 @@ class _SentinelProtocolScreenState extends State<SentinelProtocolScreen> {
                     ),
                     child: Text(
                       _currentIndex == _steps.length - 1 
-                          ? "INITIALIZE PROTOCOL" 
-                          : "PROCEED",
+                          ? "GET STARTED" 
+                          : "NEXT",
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                   ),

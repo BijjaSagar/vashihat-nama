@@ -305,7 +305,7 @@ class _SentinelDashboardState extends State<SentinelDashboard> {
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             const Icon(Icons.radar_rounded, color: AppTheme.accentColor, size: 14),
             const SizedBox(width: 10),
-            const Text("PROOF OF LIFE MONITOR",
+            const Text("WELL-BEING MONITOR",
                 style: TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 2)),
           ]),
           const SizedBox(height: 28),
@@ -322,8 +322,8 @@ class _SentinelDashboardState extends State<SentinelDashboard> {
           const SizedBox(height: 6),
           Text(
             isActive
-                ? "You have confirmed your presence"
-                : "Tap below to confirm you're okay",
+                ? "We are monitoring your safety"
+                : "Tap below to let us know you're okay",
             style: const TextStyle(color: Colors.white38, fontSize: 12),
             textAlign: TextAlign.center,
           ),
@@ -348,7 +348,7 @@ class _SentinelDashboardState extends State<SentinelDashboard> {
                   ? const SizedBox(
                       width: 20, height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.accentColor))
-                  : const Text("I'M HERE — CONFIRM PRESENCE",
+                  : const Text("I'M DOING WELL — CHECK IN",
                       style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1)),
             ),
           ),
@@ -396,7 +396,7 @@ class _SentinelDashboardState extends State<SentinelDashboard> {
       Expanded(child: _coreSlab("VAULT", "$_vaultItemCount ITEMS SECURED", Icons.folder_copy_rounded,
           () => _push(FoldersScreen(userId: widget.userId)))),
       const SizedBox(width: 16),
-      Expanded(child: _coreSlab("HIERARCHY", "$_nomineeCount GUARDIANS", Icons.account_tree_rounded,
+      Expanded(child: _coreSlab("NOMINEES", "$_nomineeCount FAMILY MEMBERS", Icons.account_tree_rounded,
           () => _push(NomineeScreen(userId: widget.userId)))),
     ]);
   }

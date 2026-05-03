@@ -134,7 +134,7 @@ class _HeartbeatScreenState extends State<HeartbeatScreen> {
                         Icon(Icons.fingerprint_rounded, color: isActive ? AppTheme.accentColor : Colors.white10, size: 64),
                         const SizedBox(height: 20),
                         Text(
-                          isActive ? "LONG PRESS\nTO SIGNAL" : "SENTINEL\nOFFLINE", 
+                          isActive ? "HOLD DOWN\nTO CONFIRM" : "NOT\nMONITORING", 
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: isActive ? AppTheme.accentColor : Colors.white10, 
@@ -175,7 +175,7 @@ class _HeartbeatScreenState extends State<HeartbeatScreen> {
               ),
               const SizedBox(width: 16),
               Text(
-                isActive ? "VIGILANCE PROTOCOL ARMED" : "LEGACY MONITOR DISARMED", 
+                isActive ? "FAMILY PROTECTION ACTIVE" : "HANDOVER MONITOR OFF", 
                 style: const TextStyle(
                   color: Colors.white, 
                   fontSize: 11, 
@@ -188,8 +188,8 @@ class _HeartbeatScreenState extends State<HeartbeatScreen> {
           const SizedBox(height: 24),
           Text(
             isActive 
-              ? "YOUR DIGITAL HEARTBEAT IS BEING MONITORED. SILENCE EXCEEDING $frequencyDays DAYS WILL INITIATE LEGACY TRANSMISSION." 
-              : "ACTIVATE THE DEAD MAN'S SWITCH TO AUTOMATE YOUR LEGACY TRANSFER IF YOU BECOME UNRESPONSIVE.",
+              ? "WE ARE MONITORING YOUR WELL-BEING. IF YOU DON'T CHECK IN FOR $frequencyDays DAYS, WE WILL SECURELY SHARE YOUR DATA WITH YOUR NOMINEES." 
+              : "ACTIVATE THIS TO ENSURE YOUR VALUABLES ARE AUTOMATICALLY SHARED WITH YOUR FAMILY IF YOU CAN'T BE REACHED.",
             textAlign: TextAlign.center,
             style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w700, height: 1.6, letterSpacing: 0.5),
           ),
@@ -202,7 +202,7 @@ class _HeartbeatScreenState extends State<HeartbeatScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("PROTOCOL CONFIGURATION", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+        const Text("MONITORING SETTINGS", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
         const SizedBox(height: 20),
         Container(
           decoration: AppTheme.slabDecoration,
@@ -216,14 +216,14 @@ class _HeartbeatScreenState extends State<HeartbeatScreen> {
               ),
               _buildDivider(),
               _buildSettingsTile(
-                "SILENCE THRESHOLD", 
+                "CHECK-IN TIME", 
                 "$frequencyDays DAYS", 
                 Icons.timer_rounded, 
                 () => _showFrequencyDialog()
               ),
               _buildDivider(),
               _buildSettingsTile(
-                "LAST PULSE CONFIRMED", 
+                "LAST CONFIRMED", 
                 lastCheckIn != null ? DateFormat('MMM d, HH:mm').format(lastCheckIn!.toLocal()).toUpperCase() : "NO SIGNAL DATA", 
                 Icons.history_rounded, 
                 () {}
@@ -279,8 +279,6 @@ class _HeartbeatScreenState extends State<HeartbeatScreen> {
   }
 
   void _showFrequencyDialog() {
-    final TextEditingController _daysController = TextEditingController(text: frequencyDays.toString());
-    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -289,42 +287,50 @@ class _HeartbeatScreenState extends State<HeartbeatScreen> {
           borderRadius: BorderRadius.circular(24), 
           side: BorderSide(color: Colors.white.withOpacity(0.05))
         ),
-        title: const Text("CALIBRATE THRESHOLD", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1)),
+        title: const Text("SET MONITORING TIME", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("DEFINE THE MAXIMUM DURATION OF SILENCE BEFORE THE VAULT INITIATES ITS LEGACY PROTOCOL.", 
+            const Text("HOW OFTEN SHOULD WE CHECK IF YOU ARE DOING WELL? AFTER THIS TIME, WE WILL NOTIFY YOUR FAMILY.", 
               textAlign: TextAlign.center,
               style: TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w700, height: 1.6)),
             const SizedBox(height: 32),
-            Container(
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.01), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withOpacity(0.05))),
-              child: TextField(
-                controller: _daysController,
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppTheme.accentColor, fontSize: 32, fontWeight: FontWeight.w900),
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 24),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
+              children: [30, 90, 180, 365].map((days) => InkWell(
+                onTap: () {
+                  Navigator.pop(context);
+                  _updateFrequency(days, 0, 0);
+                },
+                child: Container(
+                  width: 80,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    color: frequencyDays == days ? AppTheme.accentColor : Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: frequencyDays == days ? Colors.transparent : Colors.white.withOpacity(0.1)),
+                  ),
+                  child: Center(
+                    child: Text(
+                      "$days\nDAYS", 
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: frequencyDays == days ? Colors.black : Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        height: 1.2
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              )).toList(),
             ),
-            const SizedBox(height: 12),
-            const Text("SILENCE LIMIT (DAYS)", style: TextStyle(color: Colors.white10, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 2)),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL", style: TextStyle(color: Colors.white10, fontWeight: FontWeight.w900))),
-          ElevatedButton(
-            onPressed: () {
-              final days = int.tryParse(_daysController.text) ?? frequencyDays;
-              Navigator.pop(context);
-              _updateFrequency(days, 0, 0);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentColor, foregroundColor: Colors.black),
-            child: const Text("CALIBRATE", style: TextStyle(fontWeight: FontWeight.w900)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CLOSE", style: TextStyle(color: Colors.white10, fontWeight: FontWeight.w900))),
         ],
       ),
     );
@@ -363,7 +369,7 @@ class _PulseRippleState extends State<_PulseRipple> with SingleTickerProviderSta
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 5))..repeat();
   }
 
   @override

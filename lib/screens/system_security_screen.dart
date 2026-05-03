@@ -34,7 +34,7 @@ class SystemSecurityScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text("SYSTEM INTEGRITY", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+          const Text("SYSTEM SECURITY", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
           Container(
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.01),
@@ -58,7 +58,7 @@ class SystemSecurityScreen extends StatelessWidget {
       decoration: AppTheme.slabDecoration,
       child: Column(
         children: [
-          const Text("INTEGRITY INDEX", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+          const Text("SAFETY LEVEL", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
           const SizedBox(height: 48),
           Stack(
             alignment: Alignment.center,
@@ -86,9 +86,9 @@ class SystemSecurityScreen extends StatelessWidget {
           const SizedBox(height: 56),
           _buildCheckItem(Icons.lock_rounded, "ENCRYPTION LAYER", "AES-256 ACTIVE"),
           _buildDivider(),
-          _buildCheckItem(Icons.devices_rounded, "TRUSTED NODES", "3 CONNECTED"),
+          _buildCheckItem(Icons.devices_rounded, "LINKED DEVICES", "3 CONNECTED"),
           _buildDivider(),
-          _buildCheckItem(Icons.backup_rounded, "VAULT SYNC", "STABLE"),
+          _buildCheckItem(Icons.backup_rounded, "DATA SYNC", "STABLE"),
         ],
       ),
     );
@@ -129,11 +129,11 @@ class SystemSecurityScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("ACCESS LOGS", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+          const Text("RECENT ACTIVITY", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
           const SizedBox(height: 24),
           _buildLogEntry("AUTHENTICATION SUCCESS", "IPHONE 14 PRO | 08:21 AM"),
-          _buildLogEntry("ARTIFACT ACCESSED", "AADHAAR_CARD.PDF | 11:15 PM"),
-          _buildLogEntry("PROTOCOL UPDATED", "BACKUP_FREQUENCY | 09:45 AM"),
+          _buildLogEntry("DOCUMENT OPENED", "AADHAAR_CARD.PDF | 11:15 PM"),
+          _buildLogEntry("SETTINGS CHANGED", "BACKUP_FREQUENCY | 09:45 AM"),
           const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
@@ -144,7 +144,7 @@ class SystemSecurityScreen extends StatelessWidget {
                 side: BorderSide(color: Colors.white.withOpacity(0.05)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               ),
-              child: const Text("EXPAND ACTIVITY LOGS", style: TextStyle(color: AppTheme.accentColor, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1)),
+              child: const Text("VIEW ALL ACTIVITY", style: TextStyle(color: AppTheme.accentColor, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1)),
             ),
           ),
         ],

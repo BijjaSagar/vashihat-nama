@@ -62,12 +62,12 @@ class _VaultHealthScreenState extends State<VaultHealthScreen> with SingleTicker
           icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.accentColor),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text("Vault Integrity", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+        title: const Text("Vault Health", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.accentColor))
           : _data == null
-              ? const Center(child: Text('INTEGRITY SYNC FAILED', style: TextStyle(color: Colors.white24)))
+              ? const Center(child: Text('COULD NOT SYNC HEALTH', style: TextStyle(color: Colors.white24)))
               : RefreshIndicator(
                   onRefresh: _loadData,
                   color: AppTheme.accentColor,
@@ -77,11 +77,11 @@ class _VaultHealthScreenState extends State<VaultHealthScreen> with SingleTicker
                     children: [
                       _buildScoreSlab(),
                       const SizedBox(height: 32),
-                      const Text("NODE STATISTICS", style: TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                      const Text("VAULT STATISTICS", style: TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
                       const SizedBox(height: 16),
                       _buildStatsGrid(),
                       const SizedBox(height: 48),
-                      const Text("PROTOCOL RECOMMENDATIONS", style: TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                      const Text("SAFETY RECOMMENDATIONS", style: TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
                       const SizedBox(height: 16),
                       ..._buildRecommendations(),
                       const SizedBox(height: 40),
@@ -118,7 +118,7 @@ class _VaultHealthScreenState extends State<VaultHealthScreen> with SingleTicker
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text('${score.toInt()}%', style: TextStyle(color: color, fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: -1)),
-                      Text('INTEGRITY', style: TextStyle(color: color.withOpacity(0.5), fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                      Text('HEALTH', style: TextStyle(color: color.withOpacity(0.5), fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
                     ],
                   ),
                 ],
@@ -127,7 +127,7 @@ class _VaultHealthScreenState extends State<VaultHealthScreen> with SingleTicker
           ),
           const SizedBox(height: 32),
           Text(
-            "VAULT CONTAINS ${_data!['total_items'] ?? 0} SECURED ARTIFACTS",
+            "VAULT CONTAINS ${_data!['total_items'] ?? 0} SECURED DOCUMENTS",
             style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5),
           ),
         ],
@@ -141,9 +141,9 @@ class _VaultHealthScreenState extends State<VaultHealthScreen> with SingleTicker
       children: [
         _statSlab(Icons.folder_rounded, 'FOLDERS', '${stats['folders'] ?? 0}'),
         const SizedBox(width: 12),
-        _statSlab(Icons.group_rounded, 'NODES', '${stats['nominees'] ?? 0}'),
+        _statSlab(Icons.group_rounded, 'FAMILY', '${stats['nominees'] ?? 0}'),
         const SizedBox(width: 12),
-        _statSlab(Icons.file_present_rounded, 'ARTIFACTS', '${stats['files'] ?? 0}'),
+        _statSlab(Icons.file_present_rounded, 'DOCUMENTS', '${stats['files'] ?? 0}'),
       ],
     );
   }
@@ -177,7 +177,7 @@ class _VaultHealthScreenState extends State<VaultHealthScreen> with SingleTicker
               Icon(Icons.verified_user_rounded, color: Colors.greenAccent, size: 24),
               SizedBox(width: 16),
               Expanded(
-                child: Text('VAULT INTEGRITY OPTIMIZED. NO ANOMALIES DETECTED.', 
+                child: Text('VAULT PROTECTION IS OPTIMAL.', 
                   style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)
                 ),
               ),

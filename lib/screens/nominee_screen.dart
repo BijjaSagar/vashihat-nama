@@ -183,7 +183,7 @@ class _NomineeScreenState extends State<NomineeScreen> {
           ] else
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 80),
-              child: Text("NO ACCESS NODES DETECTED", style: TextStyle(color: Colors.white10, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+              child: Text("NO NOMINEES ADDED YET", style: TextStyle(color: Colors.white10, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
             ),
           const SizedBox(height: 80),
           _buildHierarchyInsightsSlab(),
@@ -225,11 +225,11 @@ class _NomineeScreenState extends State<NomineeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("HIERARCHY ANALYTICS", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+          const Text("FAMILY OVERVIEW", style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
           const SizedBox(height: 40),
-          _buildInsightRow(Icons.groups_rounded, "${nominees.length} NODES", "CONFIGURED ACCESS POINTS"),
+          _buildInsightRow(Icons.groups_rounded, "${nominees.length} NOMINEES", "TRUSTED FAMILY MEMBERS"),
           const SizedBox(height: 32),
-          _buildInsightRow(Icons.verified_user_rounded, "SECURED", "ACCESS PROTOCOL STATUS"),
+          _buildInsightRow(Icons.verified_user_rounded, "PROTECTED", "FAMILY HANDOVER STATUS"),
         ],
       ),
     );
